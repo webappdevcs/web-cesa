@@ -9,6 +9,8 @@ use Illuminate\Support\Str;
 use RuntimeException;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
+use Symfony\Component\Process\Process;
 use Throwable;
 use Webkul\PluginManager\Models\Plugin;
 use Webkul\PluginManager\Package;
@@ -432,20 +434,22 @@ class InstallCommand extends Command
         try {
             $phpPath = $this->getPhpExecutablePath();
 
-            $php = escapeshellarg($phpPath);
+            $process = new Process([
+                $phpPath,
+                base_path('artisan'),
+                'shield:generate',
+                '--all',
+                '--option=permissions',
+                '--panel=admin',
+            ]);
 
-            $artisan = escapeshellarg(base_path('artisan'));
+            $process->setTimeout(60);
 
-            $cmd = "timeout 60 $php $artisan shield:generate --all --option=permissions --panel=admin 2>&1";
+            $process->run();
 
-            exec($cmd, $output, $exitCode);
-
-            if ($exitCode === 124) {
-                throw new RuntimeException('Permission generation timed out after 60 seconds.');
-            }
-
-            if ($exitCode !== 0) {
-                $errorOutput = implode(PHP_EOL, array_slice($output, -5));
+            if (! $process->isSuccessful()) {
+                $errorOutput = trim($process->getErrorOutput() ?: $process->getOutput());
+                $errorOutput = implode(PHP_EOL, array_slice(explode(PHP_EOL, $errorOutput), -5));
 
                 throw new RuntimeException("Failed to generate admin panel permissions. Error: {$errorOutput}");
             }
@@ -463,6 +467,8 @@ class InstallCommand extends Command
             $role->permissions()->sync($permissions);
 
             $this->info('✅ Admin panel permissions refreshed successfully.');
+        } catch (ProcessTimedOutException $e) {
+            $this->warn('⚠️  Permission refresh failed: Permission generation timed out after 60 seconds.');
         } catch (Throwable $e) {
             $this->warn("⚠️  Permission refresh failed: {$e->getMessage()}");
         }

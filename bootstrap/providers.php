@@ -29,4 +29,6 @@ return [
     Webkul\Timesheet\TimesheetServiceProvider::class,
     Webkul\Website\WebsiteServiceProvider::class,
     Webkul\PluginManager\PluginManagerServiceProvider::class,
+
+    Cesa\Rekrutmen\RekrutmenServiceProvider::class,
 ];
