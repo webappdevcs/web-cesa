@@ -1,0 +1,28 @@
+{
+    "name": "cesa/presensi",
+    "description": "Presensi management plugin for CESA.",
+    "type": "library",
+    "authors": [
+        {"name": "apriansyahrs", "email": "apriansyah@rizqis.com"}
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\Presensi\\PresensiServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\Presensi\\": "src/",
+            "Cesa\\Presensi\\Database\\Factories\\": "database/factories/",
+            "Cesa\\Presensi\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\Presensi\\Tests\\": "tests/"
+        }
+    }
+}

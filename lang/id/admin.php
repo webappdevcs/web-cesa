@@ -18,5 +18,7 @@ return [
         'setting'     => 'Pengaturan',
 
         'rekrutmen'   => 'Rekrutmen',
+        'presensi'    => 'Presensi',
+        'payroll'     => 'Penggajian',
     ],
 ];

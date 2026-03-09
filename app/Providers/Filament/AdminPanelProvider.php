@@ -61,6 +61,9 @@ class AdminPanelProvider extends PanelProvider
                     ->label(__('admin.navigation.rekrutmen'))
                     ->icon('icon-rekrutmen'),
                 NavigationGroup::make()
+                    ->label(__('admin.navigation.presensi'))
+                    ->icon('icon-presensi'),
+                NavigationGroup::make()
                     ->label(__('admin.navigation.contact'))
                     ->icon('icon-contacts'),
                 NavigationGroup::make()

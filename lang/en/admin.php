@@ -18,5 +18,7 @@ return [
         'setting'     => 'Settings',
 
         'rekrutmen'   => 'Recruitment',
+        'presensi'    => 'Attendance',
+        'payroll'     => 'Payroll',
     ],
 ];

@@ -66,12 +66,12 @@ class JobApplication extends Model
 
     public function jobPosting(): BelongsTo
     {
-        return $this->belongsTo(JobPosting::class, 'job_posting_id');
+        return $this->belongsTo(JobPosting::class, 'job_posting_id')->withTrashed();
     }
 
     public function currentStage(): BelongsTo
     {
-        return $this->belongsTo(RekrutmenStage::class, 'current_stage_id');
+        return $this->belongsTo(RekrutmenStage::class, 'current_stage_id')->withTrashed();
     }
 
     public function histories(): HasMany

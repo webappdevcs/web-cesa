@@ -21,6 +21,6 @@ class RekrutmenStage extends Model
 
     public function pipeline(): BelongsTo
     {
-        return $this->belongsTo(RekrutmenPipeline::class, 'rekrutmen_pipeline_id');
+        return $this->belongsTo(RekrutmenPipeline::class, 'rekrutmen_pipeline_id')->withTrashed();
     }
 }
