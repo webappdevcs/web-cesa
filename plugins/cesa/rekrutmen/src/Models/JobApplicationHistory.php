@@ -34,12 +34,12 @@ class JobApplicationHistory extends Model
 
     public function fromStage(): BelongsTo
     {
-        return $this->belongsTo(RekrutmenStage::class, 'from_stage_id');
+        return $this->belongsTo(RekrutmenStage::class, 'from_stage_id')->withTrashed();
     }
 
     public function toStage(): BelongsTo
     {
-        return $this->belongsTo(RekrutmenStage::class, 'to_stage_id');
+        return $this->belongsTo(RekrutmenStage::class, 'to_stage_id')->withTrashed();
     }
 
     public function performer(): BelongsTo

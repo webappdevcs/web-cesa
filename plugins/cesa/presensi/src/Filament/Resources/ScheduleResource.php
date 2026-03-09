@@ -1,0 +1,149 @@
+<?php
+
+namespace Cesa\Presensi\Filament\Resources;
+
+use Cesa\Presensi\Filament\Clusters\Configurations;
+use Cesa\Presensi\Filament\Resources\ScheduleResource\Pages;
+use Cesa\Presensi\Models\Schedule;
+use Filament\Actions;
+use Filament\Forms;
+use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
+
+class ScheduleResource extends Resource
+{
+    protected static ?string $model = Schedule::class;
+
+    protected static string|\BackedEnum|null $navigationIcon = null;
+
+    protected static ?int $navigationSort = 3;
+
+    protected static ?string $cluster = Configurations::class;
+
+    public static function getNavigationLabel(): string
+    {
+        return __('presensi::app.resources.schedule.navigation.label');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('presensi::app.resources.schedule.model.singular');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('presensi::app.resources.schedule.model.plural');
+    }
+
+    public static function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Section::make(__('presensi::app.resources.schedule.form.sections.schedule_data'))
+                    ->description(__('presensi::app.resources.schedule.form.descriptions.schedule_data'))
+                    ->schema([
+                        Forms\Components\Select::make('user_id')
+                            ->label(__('presensi::app.resources.schedule.form.fields.user_id'))
+                            ->relationship('user', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+                        Forms\Components\Select::make('shift_id')
+                            ->label(__('presensi::app.resources.schedule.form.fields.shift_id'))
+                            ->relationship('shift', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+                        Forms\Components\Select::make('office_id')
+                            ->label(__('presensi::app.resources.schedule.form.fields.office_id'))
+                            ->relationship('office', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->required(),
+                    ]),
+                Section::make(__('presensi::app.resources.schedule.form.sections.settings'))
+                    ->schema([
+                        Forms\Components\Toggle::make('is_wfa')
+                            ->label(__('presensi::app.resources.schedule.form.fields.is_wfa')),
+                        Forms\Components\Toggle::make('is_banned')
+                            ->label(__('presensi::app.resources.schedule.form.fields.is_banned'))
+                            ->hidden(fn () => ! Auth::user()?->hasRole('super_admin')),
+                    ]),
+            ]);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                $user = Auth::user();
+                if ($user && ! $user->hasRole('super_admin')) {
+                    $query->where('user_id', $user->id);
+                }
+            })
+            ->columns([
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label(__('presensi::app.resources.schedule.table.columns.user_name'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('user.email')
+                    ->label(__('presensi::app.resources.schedule.table.columns.user_email'))
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\ToggleColumn::make('is_banned')
+                    ->hidden(fn () => ! Auth::user()?->hasRole('super_admin')),
+                Tables\Columns\IconColumn::make('is_wfa')
+                    ->label(__('presensi::app.resources.schedule.table.columns.is_wfa'))
+                    ->boolean(),
+                Tables\Columns\TextColumn::make('shift.name')
+                    ->label(__('presensi::app.resources.schedule.table.columns.shift'))
+                    ->description(fn (Schedule $record): string => $record->shift ? $record->shift->start_time.' - '.$record->shift->end_time : '')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('office.name')
+                    ->label(__('presensi::app.resources.schedule.table.columns.office'))
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+            ])
+            ->filters([
+                //
+            ])
+            ->actions([
+                Actions\EditAction::make()
+                    ->modal()
+                    ->slideOver()
+                    ->modalWidth('md')
+                    ->schema(fn (Schema $schema): Schema => static::form($schema->columns(1))),
+            ])
+            ->bulkActions([
+                Actions\BulkActionGroup::make([
+                    Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListSchedules::route('/'),
+        ];
+    }
+}

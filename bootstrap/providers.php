@@ -31,4 +31,6 @@ return [
     Webkul\PluginManager\PluginManagerServiceProvider::class,
 
     Cesa\Rekrutmen\RekrutmenServiceProvider::class,
+    Cesa\Presensi\PresensiServiceProvider::class,
+    Cesa\Payroll\PayrollServiceProvider::class,
 ];

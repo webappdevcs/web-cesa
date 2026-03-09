@@ -1,0 +1,35 @@
+{
+    "name": "cesa/payroll",
+    "description": "Payroll management plugin with attendance integration for CESA.",
+    "type": "library",
+    "authors": [
+        {
+            "name": "apriansyahrs",
+            "email": "apriansyah@rizqis.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\Payroll\\PayrollServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "require": {
+        "filament/filament": "^4.0",
+        "spatie/laravel-settings": "^3.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\Payroll\\": "src/",
+            "Cesa\\Payroll\\Database\\Factories\\": "database/factories/",
+            "Cesa\\Payroll\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\Payroll\\Tests\\": "tests/"
+        }
+    }
+}

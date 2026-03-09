@@ -36,12 +36,12 @@ class JobPosting extends Model
 
     public function requestManPower(): BelongsTo
     {
-        return $this->belongsTo(RequestManPower::class, 'request_man_power_id');
+        return $this->belongsTo(RequestManPower::class, 'request_man_power_id')->withTrashed();
     }
 
     public function rekrutmenPipeline(): BelongsTo
     {
-        return $this->belongsTo(RekrutmenPipeline::class, 'rekrutmen_pipeline_id');
+        return $this->belongsTo(RekrutmenPipeline::class, 'rekrutmen_pipeline_id')->withTrashed();
     }
 
     public function applications(): HasMany
