@@ -1,0 +1,31 @@
+{
+    "name": "cesa/rekrutmen",
+    "description": "Rekrutmen (Request Man Power & Job Recruitment) plugin for CESA.",
+    "type": "library",
+    "authors": [
+        {
+            "name": "apriansyahrs",
+            "email": "apriansyah@rizqis.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\Rekrutmen\\RekrutmenServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\Rekrutmen\\": "src/",
+            "Cesa\\Rekrutmen\\Database\\Factories\\": "database/factories/",
+            "Cesa\\Rekrutmen\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\Rekrutmen\\Tests\\": "tests/"
+        }
+    }
+}

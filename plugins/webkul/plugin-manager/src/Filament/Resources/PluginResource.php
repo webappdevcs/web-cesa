@@ -28,6 +28,8 @@ use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema as DBSchema;
 use RuntimeException;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
+use Symfony\Component\Process\Process;
 use Throwable;
 use Webkul\PluginManager\Filament\Resources\PluginResource\Pages\ListPlugins;
 use Webkul\PluginManager\Models\Plugin;
@@ -143,29 +145,22 @@ class PluginResource extends Resource
                             try {
                                 $phpPath = self::getPhpExecutablePath();
 
-                                $php = escapeshellarg($phpPath);
+                                $process = new Process([
+                                    $phpPath,
+                                    base_path('artisan'),
+                                    "{$record->name}:install",
+                                ]);
 
-                                $artisan = escapeshellarg(base_path('artisan'));
+                                $process->setTimeout(300);
 
-                                $commandName = escapeshellarg("{$record->name}:install");
+                                $process->run();
 
-                                $cmd = "timeout 300 $php $artisan $commandName 2>&1";
-
-                                $output = [];
-
-                                $exitCode = 0;
-
-                                exec($cmd, $output, $exitCode);
-
-                                if ($exitCode === 124) {
-                                    throw new RuntimeException('Installation timed out after 5 minutes.');
-                                }
-
-                                if ($exitCode !== 0) {
-                                    $errorOutput = implode(PHP_EOL, array_slice($output, -10));
+                                if (! $process->isSuccessful()) {
+                                    $errorOutput = trim($process->getErrorOutput() ?: $process->getOutput());
+                                    $errorOutput = implode(PHP_EOL, array_slice(explode(PHP_EOL, $errorOutput), -10));
 
                                     throw new RuntimeException(
-                                        "Installation failed with exit code {$exitCode}.".
+                                        "Installation failed with exit code {$process->getExitCode()}.".
                                             ($errorOutput ? " Last output: {$errorOutput}" : '')
                                     );
                                 }
@@ -181,6 +176,15 @@ class PluginResource extends Resource
                                     ->title(__('plugin-manager::filament/resources/plugin.notifications.installed.title'))
                                     ->body(__('plugin-manager::filament/resources/plugin.notifications.installed.body', ['name' => $record->name]))
                                     ->success()
+                                    ->send();
+                            } catch (ProcessTimedOutException $e) {
+                                DB::rollBack();
+
+                                Notification::make()
+                                    ->title(__('plugin-manager::filament/resources/plugin.notifications.installed-failed.title'))
+                                    ->body('Installation timed out after 5 minutes.')
+                                    ->danger()
+                                    ->persistent()
                                     ->send();
                             } catch (Throwable $e) {
                                 DB::rollBack();
