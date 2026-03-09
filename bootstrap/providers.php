@@ -33,4 +33,5 @@ return [
     Cesa\Rekrutmen\RekrutmenServiceProvider::class,
     Cesa\Presensi\PresensiServiceProvider::class,
     Cesa\Payroll\PayrollServiceProvider::class,
+    Cesa\FormTransfer\FormTransferServiceProvider::class,
 ];

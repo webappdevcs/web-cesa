@@ -20,5 +20,6 @@ return [
         'rekrutmen'   => 'Rekrutmen',
         'presensi'    => 'Presensi',
         'payroll'     => 'Penggajian',
+        'form-transfer' => 'Form Transfer',
     ],
 ];
