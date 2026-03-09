@@ -1,0 +1,30 @@
+{
+    "name": "cesa/form-transfer",
+    "description": "Form Transfer plugin digitizes and automates fund transfer submissions for CESA.",
+    "authors": [
+        {
+            "name": "apriansyahrs",
+            "email": "developer@rizqis.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\FormTransfer\\FormTransferServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\FormTransfer\\": "src/",
+            "Cesa\\FormTransfer\\Database\\Factories\\": "database/factories/",
+            "Cesa\\FormTransfer\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\FormTransfer\\Tests\\": "tests/"
+        }
+    }
+}
