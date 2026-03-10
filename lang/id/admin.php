@@ -17,9 +17,10 @@ return [
         'plugin'      => 'Plugin',
         'setting'     => 'Pengaturan',
 
-        'rekrutmen'   => 'Rekrutmen',
-        'presensi'    => 'Presensi',
-        'payroll'     => 'Penggajian',
-        'form-transfer' => 'Form Transfer',
+        'rekrutmen'      => 'Rekrutmen',
+        'presensi'       => 'Presensi',
+        'payroll'        => 'Penggajian',
+        'form-transfer'  => 'Form Transfer',
+        'exit-clearance' => 'Exit Clearance',
     ],
 ];

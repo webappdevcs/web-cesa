@@ -3,6 +3,7 @@
 namespace Cesa\FormTransfer\Filament\Clusters\Configurations\Resources\ApprovalWorkflowResource\Pages;
 
 use Cesa\FormTransfer\Filament\Clusters\Configurations\Resources\ApprovalWorkflowResource;
+use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListApprovalWorkflows extends ListRecords
@@ -11,6 +12,10 @@ class ListApprovalWorkflows extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            CreateAction::make()
+                ->slideOver()
+                ->modalWidth('md'),
+        ];
     }
 }

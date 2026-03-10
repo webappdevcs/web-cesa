@@ -10,12 +10,12 @@ trait HasPresensi
 {
     public function leaves(): HasMany
     {
-        return $this->hasMany(Leave::class);
+        return $this->hasMany(Leave::class)->withTrashed();
     }
 
     public function overtimes(): HasMany
     {
-        return $this->hasMany(Overtime::class);
+        return $this->hasMany(Overtime::class)->withTrashed();
     }
 
     public function getImageUrlAttribute(): ?string

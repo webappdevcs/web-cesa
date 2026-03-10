@@ -63,6 +63,20 @@ class PresensiServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        $userModel = config('auth.providers.users.model', \App\Models\User::class);
+
+        $userModel::resolveRelationUsing('schedules', function ($user) {
+            return $user->hasMany(\Cesa\Presensi\Models\Schedule::class);
+        });
+
+        $userModel::resolveRelationUsing('leaves', function ($user) {
+            return $user->hasMany(\Cesa\Presensi\Models\Leave::class)->withTrashed();
+        });
+
+        $userModel::resolveRelationUsing('overtimes', function ($user) {
+            return $user->hasMany(\Cesa\Presensi\Models\Overtime::class)->withTrashed();
+        });
+
         if (! ($this->package->isCore || $this->package->isInstalled())) {
             return;
         }
@@ -73,11 +87,5 @@ class PresensiServiceProvider extends PackageServiceProvider
         Gate::policy(Attendance::class, AttendancePolicy::class);
         Gate::policy(Leave::class, LeavePolicy::class);
         Gate::policy(Overtime::class, OvertimePolicy::class);
-
-        $userModel = config('auth.providers.users.model', \App\Models\User::class);
-
-        $userModel::resolveRelationUsing('schedules', function ($user) {
-            return $user->hasMany(\Cesa\Presensi\Models\Schedule::class);
-        });
     }
 }

@@ -76,32 +76,32 @@ class FormTransfer extends Model
 
     public function company(): BelongsTo
     {
-        return $this->belongsTo(Company::class);
+        return $this->belongsTo(Company::class)->withTrashed();
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function divisions(): HasMany
     {
-        return $this->hasMany(TransferDivision::class);
+        return $this->hasMany(TransferDivision::class)->withTrashed();
     }
 
     public function referenceNotes(): HasMany
     {
-        return $this->hasMany(TransferReferenceNote::class);
+        return $this->hasMany(TransferReferenceNote::class)->withTrashed();
     }
 
     public function approvalWorkflows(): HasMany
     {
-        return $this->hasMany(TransferApprovalWorkflow::class);
+        return $this->hasMany(TransferApprovalWorkflow::class)->withTrashed();
     }
 
     public function transferRequests(): HasMany
     {
-        return $this->hasMany(TransferRequest::class);
+        return $this->hasMany(TransferRequest::class)->withTrashed();
     }
 
     /**
@@ -110,6 +110,7 @@ class FormTransfer extends Model
     public function allowedUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'form_transfer_user_accesses', 'form_transfer_id', 'user_id')
+            ->withTrashed()
             ->withTimestamps();
     }
 

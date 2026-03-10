@@ -13,6 +13,10 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -32,6 +36,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Validation\Rule;
 
@@ -57,6 +62,8 @@ class FormTransferResource extends Resource
 
     public static function form(Schema $schema): Schema
     {
+        $notificationDefaults = static::getDefaultNotificationData();
+
         return $schema->components([
             Tabs::make('Tabs')
                 ->tabs([
@@ -141,11 +148,13 @@ class FormTransferResource extends Resource
                                         ->label(__('form-transfer::app.config.forms.fields.approver_mail_subject'))
                                         ->maxLength(191)
                                         ->required()
+                                        ->default($notificationDefaults['approver_mail_subject'])
                                         ->columnSpanFull(),
                                     Textarea::make('approver_mail_template')
                                         ->label(__('form-transfer::app.config.forms.fields.approver_mail_template'))
                                         ->rows(8)
                                         ->required()
+                                        ->default($notificationDefaults['approver_mail_template'])
                                         ->helperText(__('form-transfer::app.config.forms.fields.template_helper', [
                                             'placeholders' => self::formatPlaceholders(TransferApprovalNotificationService::getApproverPlaceholders()),
                                         ]))
@@ -166,9 +175,11 @@ class FormTransferResource extends Resource
                                         ->schema([
                                             TextInput::make('approver_mail_greeting')
                                                 ->label(__('form-transfer::app.config.forms.fields.approver_mail_greeting'))
+                                                ->default($notificationDefaults['approver_mail_greeting'])
                                                 ->maxLength(191),
                                             TextInput::make('approver_mail_action_text')
                                                 ->label(__('form-transfer::app.config.forms.fields.approver_mail_action_text'))
+                                                ->default($notificationDefaults['approver_mail_action_text'])
                                                 ->maxLength(191),
                                         ])
                                         ->columns(2)
@@ -188,11 +199,13 @@ class FormTransferResource extends Resource
                                         ->label(__('form-transfer::app.config.forms.fields.requester_mail_subject'))
                                         ->maxLength(191)
                                         ->required()
+                                        ->default($notificationDefaults['requester_mail_subject'])
                                         ->columnSpanFull(),
                                     Textarea::make('requester_mail_template')
                                         ->label(__('form-transfer::app.config.forms.fields.requester_mail_template'))
                                         ->rows(8)
                                         ->required()
+                                        ->default($notificationDefaults['requester_mail_template'])
                                         ->helperText(__('form-transfer::app.config.forms.fields.template_helper', [
                                             'placeholders' => self::formatPlaceholders(TransferApprovalNotificationService::getRequesterPlaceholders()),
                                         ]))
@@ -213,9 +226,11 @@ class FormTransferResource extends Resource
                                         ->schema([
                                             TextInput::make('requester_mail_greeting')
                                                 ->label(__('form-transfer::app.config.forms.fields.requester_mail_greeting'))
+                                                ->default($notificationDefaults['requester_mail_greeting'])
                                                 ->maxLength(191),
                                             TextInput::make('requester_mail_action_text')
                                                 ->label(__('form-transfer::app.config.forms.fields.requester_mail_action_text'))
+                                                ->default($notificationDefaults['requester_mail_action_text'])
                                                 ->maxLength(191),
                                         ])
                                         ->columns(2)
@@ -226,6 +241,23 @@ class FormTransferResource extends Resource
                 ])
                 ->columnSpanFull(),
         ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function getDefaultNotificationData(): array
+    {
+        return [
+            'approver_mail_subject'      => TransferApprovalNotificationService::getDefaultApproverMailSubject(),
+            'approver_mail_greeting'     => TransferApprovalNotificationService::getDefaultApproverMailGreeting(),
+            'approver_mail_action_text'  => TransferApprovalNotificationService::getDefaultApproverMailActionText(),
+            'approver_mail_template'     => TransferApprovalNotificationService::getDefaultApproverMailTemplate(),
+            'requester_mail_subject'     => TransferApprovalNotificationService::getDefaultRequesterMailSubject(),
+            'requester_mail_greeting'    => TransferApprovalNotificationService::getDefaultRequesterMailGreeting(),
+            'requester_mail_action_text' => TransferApprovalNotificationService::getDefaultRequesterMailActionText(),
+            'requester_mail_template'    => TransferApprovalNotificationService::getDefaultRequesterMailTemplate(),
+        ];
     }
 
     protected static function formatPlaceholders(array $placeholders): string
@@ -275,14 +307,19 @@ class FormTransferResource extends Resource
             ->filters([
                 TernaryFilter::make('is_active')
                     ->label(__('form-transfer::app.config.forms.filters.is_active')),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make()->slideOver(),
                 DeleteAction::make(),
+                RestoreAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 DeleteBulkAction::make(),
+                RestoreBulkAction::make(),
+                ForceDeleteBulkAction::make(),
             ]);
     }
 

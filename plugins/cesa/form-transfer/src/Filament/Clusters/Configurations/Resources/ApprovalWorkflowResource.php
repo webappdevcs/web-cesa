@@ -6,10 +6,13 @@ use Cesa\FormTransfer\Filament\Clusters\Configurations;
 use Cesa\FormTransfer\Filament\Clusters\Configurations\Resources\ApprovalWorkflowResource\Pages;
 use Cesa\FormTransfer\Models\TransferApprovalWorkflow;
 use Cesa\FormTransfer\Models\TransferDivision;
-use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -22,6 +25,7 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -61,7 +65,8 @@ class ApprovalWorkflowResource extends Resource
                 ->preload()
                 ->afterStateUpdated(function (Set $set, ?string $state): void {
                     $set('division_id', null);
-                }),
+                })
+                ->columnSpanFull(),
             Select::make('division_id')
                 ->label(__('form-transfer::app.config.workflows.fields.division'))
                 ->options(function (Get $get): array {
@@ -81,13 +86,16 @@ class ApprovalWorkflowResource extends Resource
                 ->preload()
                 ->helperText(__('form-transfer::app.config.workflows.fields.division_hint'))
                 ->disabled(fn (Get $get): bool => ! $get('form_transfer_id'))
-                ->native(false),
+                ->native(false)
+                ->columnSpanFull(),
             Textarea::make('description')
                 ->label(__('form-transfer::app.config.workflows.fields.description'))
-                ->rows(3),
+                ->rows(3)
+                ->columnSpanFull(),
             Toggle::make('is_active')
                 ->label(__('form-transfer::app.config.workflows.fields.is_active'))
-                ->default(true),
+                ->default(true)
+                ->columnSpanFull(),
             Repeater::make('steps')
                 ->label(__('form-transfer::app.config.workflows.fields.steps'))
                 ->columns(2)
@@ -124,10 +132,6 @@ class ApprovalWorkflowResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->headerActions([
-                CreateAction::make()->slideOver()
-                    ->modalHeading(__('form-transfer::app.config.workflows.navigation.label')),
-            ])
             ->columns([
                 TextColumn::make('formTransfer.name')
                     ->label(__('form-transfer::app.config.workflows.columns.form_transfer'))
@@ -168,13 +172,18 @@ class ApprovalWorkflowResource extends Resource
                     ->searchable(),
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label(__('form-transfer::app.config.workflows.filters.is_active')),
+                TrashedFilter::make(),
             ])
             ->recordActions([
                 EditAction::make()->slideOver(),
                 DeleteAction::make(),
+                RestoreAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 DeleteBulkAction::make(),
+                RestoreBulkAction::make(),
+                ForceDeleteBulkAction::make(),
             ]);
     }
 

@@ -3,6 +3,7 @@
 namespace Cesa\FormTransfer\Filament\Clusters\Configurations\Resources\DivisionResource\Pages;
 
 use Cesa\FormTransfer\Filament\Clusters\Configurations\Resources\DivisionResource;
+use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListDivisions extends ListRecords
@@ -11,6 +12,10 @@ class ListDivisions extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            CreateAction::make()
+                ->slideOver()
+                ->modalWidth('md'),
+        ];
     }
 }

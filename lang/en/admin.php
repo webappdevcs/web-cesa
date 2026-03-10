@@ -17,9 +17,10 @@ return [
         'plugin'      => 'Plugins',
         'setting'     => 'Settings',
 
-        'rekrutmen'   => 'Recruitment',
-        'presensi'    => 'Attendance',
-        'payroll'     => 'Payroll',
-        'form-transfer' => 'Form Transfer',
+        'rekrutmen'      => 'Recruitment',
+        'presensi'       => 'Attendance',
+        'payroll'        => 'Payroll',
+        'form-transfer'  => 'Form Transfer',
+        'exit-clearance' => 'Exit Clearance',
     ],
 ];

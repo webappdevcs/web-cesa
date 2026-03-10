@@ -48,9 +48,9 @@ class GeneratePayrollService
     {
         // 1. Calculate Attendance Data
         $attendances = Attendance::where('user_id', $user->id)
-            ->whereBetween('date', [
-                $period->start_date,
-                $period->end_date,
+            ->whereBetween('created_at', [
+                $period->start_date->copy()->startOfDay(),
+                $period->end_date->copy()->endOfDay(),
             ])
             ->get();
 

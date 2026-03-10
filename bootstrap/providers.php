@@ -34,4 +34,5 @@ return [
     Cesa\Presensi\PresensiServiceProvider::class,
     Cesa\Payroll\PayrollServiceProvider::class,
     Cesa\FormTransfer\FormTransferServiceProvider::class,
+    Cesa\ExitClearance\ExitClearanceServiceProvider::class,
 ];

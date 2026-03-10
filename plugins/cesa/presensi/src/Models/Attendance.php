@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Webkul\Security\Models\User;
 
 class Attendance extends Model
 {
@@ -38,7 +39,7 @@ class Attendance extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function isLate(): bool

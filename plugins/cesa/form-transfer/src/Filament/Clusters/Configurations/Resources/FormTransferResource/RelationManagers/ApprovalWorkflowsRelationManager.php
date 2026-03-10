@@ -6,6 +6,10 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreAction;
+use Filament\Actions\RestoreBulkAction;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -15,6 +19,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -44,13 +49,16 @@ class ApprovalWorkflowsRelationManager extends RelationManager
                 ->searchable()
                 ->preload()
                 ->helperText(__('form-transfer::app.config.workflows.fields.division_hint'))
-                ->native(false),
+                ->native(false)
+                ->columnSpanFull(),
             Textarea::make('description')
                 ->label(__('form-transfer::app.config.workflows.fields.description'))
-                ->rows(3),
+                ->rows(3)
+                ->columnSpanFull(),
             Toggle::make('is_active')
                 ->label(__('form-transfer::app.config.workflows.fields.is_active'))
-                ->default(true),
+                ->default(true)
+                ->columnSpanFull(),
             Repeater::make('steps')
                 ->label(__('form-transfer::app.config.workflows.fields.steps'))
                 ->columns(2)
@@ -111,9 +119,16 @@ class ApprovalWorkflowsRelationManager extends RelationManager
             ->recordActions([
                 EditAction::make()->slideOver(),
                 DeleteAction::make(),
+                RestoreAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 DeleteBulkAction::make(),
+                RestoreBulkAction::make(),
+                ForceDeleteBulkAction::make(),
+            ])
+            ->filters([
+                TrashedFilter::make(),
             ]);
     }
 }

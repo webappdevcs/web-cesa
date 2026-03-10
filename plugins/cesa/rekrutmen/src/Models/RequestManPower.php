@@ -88,12 +88,12 @@ class RequestManPower extends Model
 
     public function approver(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->belongsTo(User::class, 'approved_by')->withTrashed();
     }
 
     public function jobPosting(): HasOne
     {
-        return $this->hasOne(JobPosting::class, 'request_man_power_id');
+        return $this->hasOne(JobPosting::class, 'request_man_power_id')->withTrashed();
     }
 
     public function isReplacement(): bool

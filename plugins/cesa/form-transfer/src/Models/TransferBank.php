@@ -44,7 +44,7 @@ class TransferBank extends Model
 
     public function transferRequests(): HasMany
     {
-        return $this->hasMany(TransferRequest::class, 'bank_id');
+        return $this->hasMany(TransferRequest::class, 'bank_id')->withTrashed();
     }
 
     /**

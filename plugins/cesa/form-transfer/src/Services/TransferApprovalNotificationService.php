@@ -94,6 +94,23 @@ class TransferApprovalNotificationService
         ]);
     }
 
+    public static function getDefaultApproverMailSubject(): string
+    {
+        $prefix = config('form-transfer.notifications.mail.subject_prefix', '[Transfer Request]');
+
+        return "{$prefix} Approval Required - {{ title }}";
+    }
+
+    public static function getDefaultApproverMailGreeting(): string
+    {
+        return 'Halo {{ approver_name }},';
+    }
+
+    public static function getDefaultApproverMailActionText(): string
+    {
+        return 'Buka Halaman Approval';
+    }
+
     /**
      * Get the default plain-text template for requester email content.
      */
@@ -105,6 +122,23 @@ class TransferApprovalNotificationService
             'Divisi: {{ division }}',
             'Jumlah Transfer: Rp {{ transfer_amount }}',
         ]);
+    }
+
+    public static function getDefaultRequesterMailSubject(): string
+    {
+        $prefix = config('form-transfer.notifications.mail.subject_prefix', '[Transfer Request]');
+
+        return "{$prefix} {{ title }} - {{ status_label }}";
+    }
+
+    public static function getDefaultRequesterMailGreeting(): string
+    {
+        return 'Halo {{ requester_name }},';
+    }
+
+    public static function getDefaultRequesterMailActionText(): string
+    {
+        return 'Lihat Progres Approval';
     }
 
     /**

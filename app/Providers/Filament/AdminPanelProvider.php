@@ -67,6 +67,9 @@ class AdminPanelProvider extends PanelProvider
                     ->label(__('admin.navigation.form-transfer'))
                     ->icon('icon-form-transfer'),
                 NavigationGroup::make()
+                    ->label(__('admin.navigation.exit-clearance'))
+                    ->icon('icon-exit-clearance'),
+                NavigationGroup::make()
                     ->label(__('admin.navigation.contact'))
                     ->icon('icon-contacts'),
                 NavigationGroup::make()

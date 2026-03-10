@@ -3,12 +3,17 @@
 namespace Cesa\Rekrutmen\Tests\Feature\Models;
 
 use App\Models\User;
+use Cesa\Rekrutmen\Enums\JobApplicationStatus;
 use Cesa\Rekrutmen\Enums\RequestManPowerStatus;
 use Cesa\Rekrutmen\Enums\StatusKebutuhan;
+use Cesa\Rekrutmen\Models\JobApplication;
+use Cesa\Rekrutmen\Models\JobApplicationHistory;
 use Cesa\Rekrutmen\Models\RekrutmenPipeline;
+use Cesa\Rekrutmen\Models\RekrutmenStage;
 use Cesa\Rekrutmen\Models\RequestManPower;
 use Cesa\Rekrutmen\Tests\RekrutmenTestCase;
 use Illuminate\Support\Facades\Notification;
+use Webkul\Security\Models\User as SecurityUser;
 
 class RequestManPowerTest extends RekrutmenTestCase
 {
@@ -108,6 +113,61 @@ class RequestManPowerTest extends RekrutmenTestCase
         $this->assertSame(2, RequestManPower::query()->byDivisi('IT')->count());
         $this->assertSame(2, RequestManPower::query()->byStatus(RequestManPowerStatus::PENDING->value)->count());
         $this->assertSame(2, RequestManPower::query()->byTanggal('2026-03-01', '2026-03-31')->count());
+    }
+
+    public function test_soft_deleted_relations_remain_readable(): void
+    {
+        $pipeline = RekrutmenPipeline::query()->create([
+            'name'        => 'Default Pipeline',
+            'description' => 'Main pipeline',
+        ]);
+
+        $stage = RekrutmenStage::query()->create([
+            'rekrutmen_pipeline_id' => $pipeline->id,
+            'name'                  => 'Screening',
+            'order_column'          => 1,
+        ]);
+
+        $request = RequestManPower::query()->create($this->basePayload([
+            'email_address' => 'requester@example.com',
+        ]));
+
+        $jobPosting = $request->createJobPostingIfMissing();
+
+        $application = JobApplication::query()->create([
+            'job_posting_id'   => $jobPosting->id,
+            'current_stage_id' => $stage->id,
+            'full_name'        => 'Candidate One',
+            'email'            => 'candidate@example.com',
+            'phone'            => '08123456789',
+            'status'           => JobApplicationStatus::IN_PROGRESS,
+        ]);
+
+        $performer = User::factory()->create();
+
+        $history = JobApplicationHistory::query()->create([
+            'job_application_id' => $application->id,
+            'from_stage_id'      => $stage->id,
+            'to_stage_id'        => $stage->id,
+            'status'             => JobApplicationStatus::IN_PROGRESS,
+            'notes'              => 'Moved',
+            'performed_by'       => $performer->id,
+        ]);
+
+        $stage->delete();
+        $pipeline->delete();
+        $jobPosting->delete();
+        SecurityUser::query()->findOrFail($performer->id)->delete();
+
+        $freshRequest = RequestManPower::query()->findOrFail($request->id);
+        $freshPipeline = RekrutmenPipeline::withTrashed()->findOrFail($pipeline->id);
+        $freshHistory = JobApplicationHistory::query()->findOrFail($history->id);
+
+        $this->assertSame($jobPosting->id, $freshRequest->jobPosting?->id);
+        $this->assertTrue($freshPipeline->stages->contains('id', $stage->id));
+        $this->assertTrue($freshPipeline->jobPostings->contains('id', $jobPosting->id));
+        $this->assertSame($application->id, $freshHistory->jobApplication?->id);
+        $this->assertSame($performer->id, $freshHistory->performer?->id);
     }
 
     /**

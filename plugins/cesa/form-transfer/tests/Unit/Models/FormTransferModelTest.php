@@ -7,10 +7,14 @@ use Cesa\FormTransfer\Enums\TransferRequestApprovalStatus;
 use Cesa\FormTransfer\Enums\TransferRequestRealizationStatus;
 use Cesa\FormTransfer\Enums\TransferRequestSubmissionStatus;
 use Cesa\FormTransfer\Models\FormTransfer;
+use Cesa\FormTransfer\Models\TransferApprovalWorkflow;
 use Cesa\FormTransfer\Models\TransferBank;
+use Cesa\FormTransfer\Models\TransferDivision;
+use Cesa\FormTransfer\Models\TransferReferenceNote;
 use Cesa\FormTransfer\Models\TransferRequest;
 use Cesa\FormTransfer\Tests\FormTransferTestCase;
 use Illuminate\Support\Facades\Storage;
+use Webkul\Security\Models\User as SecurityUser;
 
 class FormTransferModelTest extends FormTransferTestCase
 {
@@ -326,5 +330,39 @@ class FormTransferModelTest extends FormTransferTestCase
         Storage::disk('local')->assertMissing($storedInvoicePath);
         Storage::disk('local')->assertMissing($storedAccountPath);
         Storage::disk('local')->assertMissing($storedRealizationPath);
+    }
+
+    public function test_soft_deleted_related_records_remain_readable(): void
+    {
+        $formTransfer = FormTransfer::factory()->create();
+        $division = TransferDivision::factory()->create([
+            'form_transfer_id' => $formTransfer->id,
+        ]);
+        $referenceNote = TransferReferenceNote::factory()->create([
+            'form_transfer_id' => $formTransfer->id,
+        ]);
+        $workflow = TransferApprovalWorkflow::factory()->create([
+            'form_transfer_id' => $formTransfer->id,
+            'division_id'      => $division->id,
+        ]);
+        $request = TransferRequest::factory()->create([
+            'form_transfer_id' => $formTransfer->id,
+            'creator_id'       => $formTransfer->creator_id,
+        ]);
+
+        $division->delete();
+        $referenceNote->delete();
+        $workflow->delete();
+        $request->delete();
+        SecurityUser::query()->findOrFail($request->creator_id)->delete();
+
+        $freshFormTransfer = FormTransfer::query()->findOrFail($formTransfer->id);
+        $freshRequest = TransferRequest::withTrashed()->findOrFail($request->id);
+
+        $this->assertTrue($freshFormTransfer->divisions->contains('id', $division->id));
+        $this->assertTrue($freshFormTransfer->referenceNotes->contains('id', $referenceNote->id));
+        $this->assertTrue($freshFormTransfer->approvalWorkflows->contains('id', $workflow->id));
+        $this->assertTrue($freshFormTransfer->transferRequests->contains('id', $request->id));
+        $this->assertSame($request->creator_id, $freshRequest->creator?->id);
     }
 }

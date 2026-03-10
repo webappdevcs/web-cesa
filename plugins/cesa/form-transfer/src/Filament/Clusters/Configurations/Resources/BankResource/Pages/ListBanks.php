@@ -3,6 +3,7 @@
 namespace Cesa\FormTransfer\Filament\Clusters\Configurations\Resources\BankResource\Pages;
 
 use Cesa\FormTransfer\Filament\Clusters\Configurations\Resources\BankResource;
+use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListBanks extends ListRecords
@@ -11,6 +12,10 @@ class ListBanks extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [];
+        return [
+            CreateAction::make()
+                ->slideOver()
+                ->modalWidth('md'),
+        ];
     }
 }

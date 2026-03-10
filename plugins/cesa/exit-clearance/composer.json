@@ -1,0 +1,28 @@
+{
+    "name": "cesa/exit-clearance",
+    "description": "Exit clearance management plugin (HMVC) for CESA.",
+    "type": "library",
+    "authors": [
+        {"name": "apriansyahrs", "email": "apriansyah@rizqis.com"}
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\ExitClearance\\ExitClearanceServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\ExitClearance\\": "src/",
+            "Cesa\\ExitClearance\\Database\\Factories\\": "database/factories/",
+            "Cesa\\ExitClearance\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\ExitClearance\\Tests\\": "tests/"
+        }
+    }
+}

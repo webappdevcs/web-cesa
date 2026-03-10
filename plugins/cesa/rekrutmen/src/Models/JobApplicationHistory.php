@@ -29,7 +29,7 @@ class JobApplicationHistory extends Model
 
     public function jobApplication(): BelongsTo
     {
-        return $this->belongsTo(JobApplication::class, 'job_application_id');
+        return $this->belongsTo(JobApplication::class, 'job_application_id')->withTrashed();
     }
 
     public function fromStage(): BelongsTo
@@ -44,6 +44,6 @@ class JobApplicationHistory extends Model
 
     public function performer(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'performed_by');
+        return $this->belongsTo(User::class, 'performed_by')->withTrashed();
     }
 }
