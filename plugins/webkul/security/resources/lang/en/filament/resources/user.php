@@ -12,6 +12,11 @@ return [
         'email' => 'Email',
     ],
 
+    'languages' => [
+        'en' => 'English',
+        'id' => 'Indonesian',
+    ],
+
     'form' => [
         'sections' => [
             'general-information' => [

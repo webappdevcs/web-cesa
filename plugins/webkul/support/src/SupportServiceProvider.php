@@ -102,7 +102,7 @@ class SupportServiceProvider extends PackageServiceProvider
                     <x-filament::dropdown.list.item>
                         <div class="flex items-center gap-2">
                             <img
-                                src="{{ url('cache/logo.png') }}"
+                                src="{{ asset('images/logo.png') }}"
                                 width="24"
                                 height="24"
                             />

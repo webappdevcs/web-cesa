@@ -79,6 +79,23 @@ class UserResource extends Resource
         ];
     }
 
+    public static function getLanguageOptions(): array
+    {
+        return [
+            'en' => __('security::filament/resources/user.languages.en'),
+            'id' => __('security::filament/resources/user.languages.id'),
+        ];
+    }
+
+    public static function getLanguageLabel(?string $locale): ?string
+    {
+        if ($locale === null || $locale === '') {
+            return null;
+        }
+
+        return static::getLanguageOptions()[$locale] ?? strtoupper($locale);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return $schema
@@ -177,9 +194,7 @@ class UserResource extends Resource
                                     ->schema([
                                         Select::make('language')
                                             ->label(__('security::filament/resources/user.form.sections.lang-and-status.fields.language'))
-                                            ->options([
-                                                'en' => __('English'),
-                                            ])
+                                            ->options(fn (): array => static::getLanguageOptions())
                                             ->searchable(),
                                         Toggle::make('is_active')
                                             ->label(__('security::filament/resources/user.form.sections.lang-and-status.fields.status'))
@@ -432,6 +447,7 @@ class UserResource extends Resource
                                         TextEntry::make('language')
                                             ->icon('heroicon-o-language')
                                             ->placeholder('—')
+                                            ->formatStateUsing(fn (?string $state): ?string => static::getLanguageLabel($state))
                                             ->label(__('security::filament/resources/user.infolist.sections.lang-and-status.entries.language')),
                                     ])
                                     ->columns(2),
