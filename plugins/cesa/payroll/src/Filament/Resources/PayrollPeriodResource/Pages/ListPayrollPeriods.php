@@ -16,7 +16,7 @@ class ListPayrollPeriods extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()
+            Actions\CreateAction::make()->icon('heroicon-o-plus-circle')
                 ->modal()
                 ->slideOver()
                 ->modalWidth('md')
@@ -30,7 +30,7 @@ class ListPayrollPeriods extends ListRecords
                     session()->flash('auto_generate_payroll', $autoGenerate);
 
                     // Ensure status is set to 'open' for new records
-                    if (!isset($data['status'])) {
+                    if (! isset($data['status'])) {
                         $data['status'] = 'open';
                     }
 

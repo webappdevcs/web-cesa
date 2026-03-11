@@ -1,7 +1,16 @@
-<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="96" height="96" rx="20" fill="#DCFCE7"/>
-  <rect x="18" y="24" width="28" height="48" rx="8" fill="#22C55E"/>
-  <rect x="50" y="24" width="28" height="48" rx="8" fill="#16A34A"/>
-  <path d="M34 48H60" stroke="white" stroke-width="4" stroke-linecap="round"/>
-  <path d="M55 43L60 48L55 53" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" fill="white"/>
+<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" stroke="#DCE0E5"/>
+
+<!-- Lembar Uang Solid yang Clean (Senada dengan Orang di Rekrutmen) -->
+<rect x="14" y="21" width="36" height="22" rx="4" fill="#0070F2"/>
+<circle cx="32" cy="32" r="5" fill="white"/>
+<circle cx="21" cy="27" r="1.5" fill="white"/>
+<circle cx="43" cy="37" r="1.5" fill="white"/>
+
+<!-- Panah Transfer (Stroke Tebal, Senada dengan Jam di Presensi) -->
+<!-- Panah Atas (Masuk/Flow) -->
+<path d="M12 14H46L38 6" stroke="#FDB421" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<!-- Panah Bawah (Keluar/Flow) -->
+<path d="M52 50H18L26 58" stroke="#FC5B1C" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

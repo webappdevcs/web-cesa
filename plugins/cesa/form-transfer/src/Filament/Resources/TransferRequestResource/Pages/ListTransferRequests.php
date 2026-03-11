@@ -21,7 +21,7 @@ class ListTransferRequests extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()->slideOver(),
+            Actions\CreateAction::make()->icon('heroicon-o-plus-circle')->slideOver(),
             Actions\ExportAction::make()
                 ->exporter(TransferRequestExporter::class)
                 ->label(__('form-transfer::app.actions.export_transfer_requests'))

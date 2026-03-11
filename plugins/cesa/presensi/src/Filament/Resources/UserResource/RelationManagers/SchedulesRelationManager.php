@@ -72,7 +72,7 @@ class SchedulesRelationManager extends RelationManager
             ->filters([
             ])
             ->headerActions([
-                \Filament\Actions\CreateAction::make()
+                \Filament\Actions\CreateAction::make()->icon('heroicon-o-plus-circle')
                     ->modal()
                     ->slideOver()
                     ->modalWidth('md')

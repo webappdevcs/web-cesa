@@ -376,3 +376,123 @@ html.dark .fi-sidebar::-webkit-scrollbar-thumb:hover {
 .fi-fo-repeater-item {
     @apply rounded-xl;
 }
+
+/* Admin Auth Layout */
+.cesa-auth-layout {
+    @apply min-h-screen bg-white;
+}
+
+.dark .cesa-auth-layout {
+    @apply bg-black;
+}
+
+.cesa-auth-layout__main {
+    @apply min-h-screen;
+}
+
+.cesa-auth-shell {
+    @apply grid min-h-screen lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)];
+}
+
+.cesa-auth-layout .fi-theme-switcher {
+    @apply fixed right-4 bottom-4 z-50 rounded-2xl border border-white/70 bg-white/80 p-1.5 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.65)] backdrop-blur md:right-6 md:bottom-6;
+}
+
+.dark .cesa-auth-layout .fi-theme-switcher {
+    @apply border-white/10 bg-slate-900/78;
+}
+
+.cesa-auth-layout .fi-theme-switcher-btn {
+    @apply rounded-xl;
+}
+
+.cesa-auth-media {
+    @apply relative hidden overflow-hidden lg:block;
+    background:
+        radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.24), transparent 28%),
+        radial-gradient(circle at 78% 16%, rgba(255, 184, 77, 0.18), transparent 20%),
+        linear-gradient(180deg, #c0d8e3 0%, #90b6c9 40%, #8a6e4f 100%);
+}
+
+.cesa-auth-media::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(15, 23, 42, 0.08)),
+        radial-gradient(circle at 55% 82%, rgba(36, 25, 12, 0.38), transparent 32%);
+    pointer-events: none;
+}
+
+.cesa-auth-panel {
+    @apply flex min-h-screen items-center justify-center bg-white px-6 py-10 sm:px-10 lg:px-12 xl:px-16;
+}
+
+.dark .cesa-auth-panel {
+    @apply bg-black;
+}
+
+.cesa-auth-panel__inner {
+    @apply flex w-full max-w-sm flex-col gap-6;
+}
+
+.cesa-auth-panel__brand-text {
+    @apply text-sm font-semibold tracking-tight text-slate-900;
+}
+
+.dark .cesa-auth-panel__brand-text {
+    @apply text-white;
+}
+
+.cesa-auth-panel__card {
+    @apply p-0;
+}
+
+.cesa-auth-panel__header {
+    @apply mb-6 flex flex-col gap-2;
+}
+
+.cesa-auth-panel__title {
+    @apply text-[2rem] font-semibold tracking-tight text-slate-950;
+}
+
+.dark .cesa-auth-panel__title {
+    @apply text-white;
+}
+
+.cesa-auth-panel__subtitle {
+    @apply hidden;
+}
+
+@media (max-width: 1023px) {
+    .cesa-auth-media {
+        @apply hidden;
+    }
+}
+
+/* Admin app launcher */
+.cesa-app-launcher-dropdown .fi-dropdown-panel {
+    @apply rounded-xl border border-gray-200 bg-white p-0 shadow-lg ring-1 ring-gray-950/5 dark:border-white/10 dark:bg-gray-950 dark:ring-white/10;
+}
+
+.cesa-app-launcher {
+    @apply grid grid-cols-3 items-stretch gap-3 overflow-y-auto p-3;
+    max-height: 80vh;
+}
+
+.cesa-app-launcher__item {
+    @apply flex h-28 w-full flex-col items-center justify-center gap-2 rounded-lg border border-transparent px-2 py-3 text-center text-sm font-medium text-gray-900 no-underline outline-none hover:bg-gray-50 focus-visible:border-blue-200 focus-visible:ring-2 focus-visible:ring-blue-500/20 dark:text-white dark:hover:bg-white/5 dark:focus-visible:border-blue-500/40;
+}
+
+.cesa-app-launcher__item.is-active {
+    @apply border-blue-100 bg-blue-50 dark:border-blue-500/30 dark:bg-blue-500/10;
+}
+
+.cesa-app-launcher__icon-svg {
+    @apply h-10 w-10 shrink-0;
+}
+
+.cesa-app-launcher__label {
+    @apply flex min-h-8 w-full max-w-24 items-center justify-center text-center text-[13px] leading-4 text-gray-900 dark:text-white;
+    text-wrap: balance;
+}

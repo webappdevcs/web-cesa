@@ -41,36 +41,36 @@
             />
 
             @if ($isAdminPanel)
-                <x-filament::dropdown placement="bottom-start" teleport width="sm">
-                    <x-slot name="trigger">  
+                <x-filament::dropdown class="cesa-app-launcher-dropdown" placement="bottom-start" teleport width="md">
+                    <x-slot name="trigger">
                         <x-filament::icon-button
                             icon="icon-menu"
                         />
                     </x-slot>
 
-                    <div class="grid grid-cols-3 gap-1 overflow-y-auto p-4" style="max-height: 80vh; grid-template-columns: repeat(3, minmax(0, 1fr));">
+                    <div class="cesa-app-launcher">
                         @foreach ($navigation as $group)
                             @php
-                                $itemUrl = $group->getItems()->first()->getUrl();   
+                                $itemUrl = $group->getItems()->first()?->getUrl();
                             @endphp
-                            <div
+                            @continue(blank($itemUrl))
+
+                            <a
+                                href="{{ $itemUrl }}"
                                 @class([
-                                    'fi-topbar-item',
-                                    'fi-active' => $group->isActive(),
+                                    'cesa-app-launcher__item',
+                                    'is-active' => $group->isActive(),
                                 ])
                             >
-                                <a
-                                    href="{{ $itemUrl }}"
-                                    class="fi-topbar-item-btn flex flex-col items-center justify-center gap-2 rounded-lg p-4"
-                                >
-                                    <x-filament::icon
-                                        :icon="$group->getIcon()"
-                                        style="height: 64px; width: 64px"
-                                    />
+                                <x-filament::icon
+                                    :icon="$group->getIcon()"
+                                    class="cesa-app-launcher__icon-svg"
+                                />
 
+                                <span class="cesa-app-launcher__label">
                                     {{ $group->getLabel() }}
-                                </a>
-                            </div>
+                                </span>
+                            </a>
                         @endforeach
                     </div>
                 </x-filament::dropdown>

@@ -1,8 +1,14 @@
-<svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="96" height="96" rx="20" fill="#FEF3C7"/>
-  <rect x="18" y="18" width="60" height="60" rx="10" fill="#F59E0B"/>
-  <path d="M34 38H62" stroke="white" stroke-width="4" stroke-linecap="round"/>
-  <path d="M34 48H62" stroke="white" stroke-width="4" stroke-linecap="round"/>
-  <path d="M34 58H50" stroke="white" stroke-width="4" stroke-linecap="round"/>
-  <path d="M56 58L60 62L68 54" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" fill="white"/>
+<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" stroke="#DCE0E5"/>
+
+<!-- Kotak Terbuka (Solid Biru) -->
+<path d="M30 18H20C17.7909 18 16 19.7909 16 22V42C16 44.2091 17.7909 46 20 46H30V42H20V22H30V18Z" fill="#0070F2"/>
+
+<!-- Lingkaran Solid (Emas) -->
+<circle cx="28" cy="32" r="5" fill="#FDB421"/>
+
+<!-- Panah Keluar Solid (Oranye) -->
+<rect x="34" y="30" width="10" height="4" fill="#FC5B1C"/>
+<path d="M44 24L54 32L44 40V24Z" fill="#FC5B1C"/>
 </svg>

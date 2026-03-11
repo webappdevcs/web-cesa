@@ -12,7 +12,7 @@ class CreateRequest extends CreateRecord
     protected function getHeaderActions(): array
     {
         return [
-            \Filament\Actions\CreateAction::make()
+            \Filament\Actions\CreateAction::make()->icon('heroicon-o-plus-circle')
                 ->label('Submit'),
         ];
     }

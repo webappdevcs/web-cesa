@@ -96,7 +96,7 @@ class ApprovalWorkflowsRelationManager extends RelationManager
     {
         return $table
             ->headerActions([
-                CreateAction::make()->slideOver()
+                CreateAction::make()->icon('heroicon-o-plus-circle')->slideOver()
                     ->modalHeading(__('form-transfer::app.config.workflows.navigation.label')),
             ])
             ->columns([

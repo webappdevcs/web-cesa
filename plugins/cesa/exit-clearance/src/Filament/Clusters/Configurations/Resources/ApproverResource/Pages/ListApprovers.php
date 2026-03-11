@@ -13,7 +13,7 @@ class ListApprovers extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->slideOver()->modalWidth('md'),
+            CreateAction::make()->icon('heroicon-o-plus-circle')->slideOver()->modalWidth('md'),
         ];
     }
 }
