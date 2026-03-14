@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
+use Webkul\Security\Models\User as SecurityUser;
 
 class MigratePresensiData extends Command
 {
@@ -287,12 +288,22 @@ class MigratePresensiData extends Command
                     $newUserId = $userMap[$row->id] ?? null;
 
                     if ($newUserId) {
-                        DB::table('users')
-                            ->where('id', $newUserId)
-                            ->update([
-                                'presensi_image' => $row->image,
-                                'updated_at'     => now(),
-                            ]);
+                        $user = SecurityUser::query()->find($newUserId);
+
+                        if (! $user) {
+                            $bar->advance();
+
+                            continue;
+                        }
+
+                        if (! $user->partner_id) {
+                            $user->save();
+                            $user->refresh();
+                        }
+
+                        $user->partner?->forceFill([
+                            'avatar' => $row->image,
+                        ])->save();
                     }
 
                     $bar->advance();

@@ -99,6 +99,59 @@ class GeneratePayrollServiceTest extends PayrollTestCase
         $this->assertNotSame($existingRecord->id, $records->first()->id);
     }
 
+    public function test_generate_only_creates_records_for_users_with_payroll_data(): void
+    {
+        $period = PayrollPeriod::query()->create([
+            'name'       => 'March 2026',
+            'start_date' => now()->startOfMonth()->toDateString(),
+            'end_date'   => now()->endOfMonth()->toDateString(),
+            'status'     => 'open',
+        ]);
+
+        $attendanceUser = User::factory()->create();
+        $overtimeUser = User::factory()->create();
+        $inactiveUser = User::factory()->create();
+
+        $this->createAttendance($attendanceUser->id, '08:00:00', '08:05:00', '17:00:00');
+        $this->createOvertime($overtimeUser->id, now()->toDateString(), '18:00:00', '20:00:00', 'approved');
+        $this->createOvertime($inactiveUser->id, now()->toDateString(), '18:00:00', '20:00:00', 'pending');
+
+        $this->service->generate($period->fresh());
+
+        $records = PayrollRecord::query()
+            ->where('payroll_period_id', $period->id)
+            ->orderBy('user_id')
+            ->get();
+
+        $this->assertCount(2, $records);
+        $this->assertSame(
+            [$attendanceUser->id, $overtimeUser->id],
+            $records->pluck('user_id')->all(),
+        );
+
+        $this->assertDatabaseMissing('payroll_records', [
+            'payroll_period_id' => $period->id,
+            'user_id'           => $inactiveUser->id,
+        ]);
+    }
+
+    public function test_generate_keeps_period_open_when_no_payroll_data_exists(): void
+    {
+        $period = PayrollPeriod::query()->create([
+            'name'       => 'March 2026',
+            'start_date' => now()->startOfMonth()->toDateString(),
+            'end_date'   => now()->endOfMonth()->toDateString(),
+            'status'     => 'open',
+        ]);
+
+        User::factory()->count(2)->create();
+
+        $this->service->generate($period->fresh());
+
+        $this->assertDatabaseCount('payroll_records', 0);
+        $this->assertSame('open', $period->fresh()->status);
+    }
+
     public function test_generate_never_stores_negative_net_salary(): void
     {
         $period = PayrollPeriod::query()->create([

@@ -1,0 +1,29 @@
+{
+    "name": "cesa/legacy-sync",
+    "description": "Legacy SQL synchronization plugin for CESA modules.",
+    "type": "library",
+    "authors": [
+        {
+            "name": "apriansyahrs",
+            "email": "developer@rizqis.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\LegacySync\\LegacySyncServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\LegacySync\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\LegacySync\\Tests\\": "tests/"
+        }
+    }
+}

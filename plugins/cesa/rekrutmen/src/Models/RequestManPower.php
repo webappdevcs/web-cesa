@@ -45,6 +45,7 @@ class RequestManPower extends Model
         'estimasi_tanggal_join',
         'requirements_kualifikasi',
         'job_description',
+        'status_response_id',
         'keterangan',
         'status',
         'approved_by',
@@ -58,10 +59,20 @@ class RequestManPower extends Model
             'tanggal_pengajuan'          => 'date',
             'estimasi_tanggal_join'      => 'date',
             'jumlah_karyawan_dibutuhkan' => 'integer',
+            'status_response_id'         => 'string',
             'created_at'                 => 'datetime',
             'updated_at'                 => 'datetime',
             'deleted_at'                 => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $request): void {
+            if (blank($request->status_response_id)) {
+                $request->status_response_id = (string) Str::uuid();
+            }
+        });
     }
 
     protected function namaKaryawanReplacement(): Attribute
@@ -109,6 +120,15 @@ class RequestManPower extends Model
     public function getEstimasiTanggalJoinFormattedAttribute(): string
     {
         return $this->estimasi_tanggal_join?->translatedFormat('d F Y') ?? '-';
+    }
+
+    public function getPublicProgressUrl(): string
+    {
+        if (blank($this->status_response_id)) {
+            return url('man-power');
+        }
+
+        return url('man-power/progress/'.$this->status_response_id);
     }
 
     /**
@@ -273,7 +293,11 @@ class RequestManPowerSubmittedNotification extends Notification
             ->line(__('rekrutmen::app.mail.request_man_power_submitted.body'))
             ->line(__('rekrutmen::app.mail.request_man_power_submitted.position', ['value' => $this->requestManPower->posisi_dibutuhkan]))
             ->line(__('rekrutmen::app.mail.request_man_power_submitted.requirement_status', ['value' => $this->requestManPower->status_kebutuhan->getLabel()]))
-            ->line(__('rekrutmen::app.mail.request_man_power_submitted.submission_id', ['id' => $this->requestManPower->getKey()]));
+            ->line(__('rekrutmen::app.mail.request_man_power_submitted.submission_id', ['id' => $this->requestManPower->status_response_id]))
+            ->action(
+                __('rekrutmen::app.mail.request_man_power_submitted.view_progress'),
+                $this->requestManPower->getPublicProgressUrl(),
+            );
     }
 }
 
@@ -303,6 +327,11 @@ class RequestManPowerStatusChangedNotification extends Notification
             $mail->line(__('rekrutmen::app.mail.request_man_power_status_changed.previous_status', ['value' => $this->fromStatus->getLabel()]));
         }
 
-        return $mail->line(__('rekrutmen::app.mail.request_man_power_status_changed.submission_id', ['id' => $this->requestManPower->getKey()]));
+        return $mail
+            ->line(__('rekrutmen::app.mail.request_man_power_status_changed.submission_id', ['id' => $this->requestManPower->status_response_id]))
+            ->action(
+                __('rekrutmen::app.mail.request_man_power_status_changed.view_progress'),
+                $this->requestManPower->getPublicProgressUrl(),
+            );
     }
 }

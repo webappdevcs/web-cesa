@@ -38,6 +38,7 @@ class RekrutmenServiceProvider extends PackageServiceProvider
                 '2026_02_26_140001_rekrutmen_create_job_postings_table',
                 '2026_02_26_140002_rekrutmen_create_job_applications_table',
                 '2026_02_26_140005_rekrutmen_create_job_application_histories_table',
+                '2026_03_12_210000_rekrutmen_add_status_response_id_to_request_man_powers_table',
             ])
             ->runsMigrations()
             ->runsSeeders()
@@ -65,6 +66,7 @@ class RekrutmenServiceProvider extends PackageServiceProvider
         }
 
         Livewire::component('rekrutmen::public-man-power-request-form', \Cesa\Rekrutmen\Livewire\PublicRequestManPowerForm::class);
+        Livewire::component('rekrutmen::public-man-power-progress-page', \Cesa\Rekrutmen\Livewire\PublicRequestManPowerProgressPage::class);
         Gate::policy(RekrutmenPipeline::class, RekrutmenPipelinePolicy::class);
         Gate::policy(JobPosting::class, JobPostingPolicy::class);
         Gate::policy(JobApplication::class, JobApplicationPolicy::class);

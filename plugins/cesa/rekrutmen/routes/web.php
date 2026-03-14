@@ -14,6 +14,9 @@ Route::middleware('web')->group(function () {
             'private'         => true,
         ]))
         ->name('rekrutmen.public.request-man-power.form');
+
+    Route::get('man-power/progress/{response}', \Cesa\Rekrutmen\Livewire\PublicRequestManPowerProgressPage::class)
+        ->name('rekrutmen.public.request-man-power.progress');
 });
 
 Route::middleware(['web', 'auth', 'signed'])->group(function () {

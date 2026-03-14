@@ -3,7 +3,6 @@
 namespace Cesa\Payroll\Filament\Resources\PayrollPeriodResource\RelationManagers;
 
 use Cesa\Payroll\Filament\Resources\PayrollRecordResource;
-use Cesa\Payroll\Models\PayrollPeriod;
 use Filament\Actions;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
@@ -55,7 +54,7 @@ class PayrollRecordsRelationManager extends RelationManager
             ])
             ->actions([
                 Actions\Action::make('view')
-                    ->label(__('filament::resources/pages/view_record.title'))
+                    ->label(__('filament-actions::view.single.label'))
                     ->icon('heroicon-o-eye')
                     ->color('gray')
                     ->url(fn ($record) => PayrollRecordResource::getUrl('view', ['record' => $record])),

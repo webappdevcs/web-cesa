@@ -6,13 +6,17 @@ use App\Models\User;
 use Cesa\Rekrutmen\Enums\JobApplicationStatus;
 use Cesa\Rekrutmen\Enums\RequestManPowerStatus;
 use Cesa\Rekrutmen\Enums\StatusKebutuhan;
+use Cesa\Rekrutmen\Livewire\PublicRequestManPowerProgressPage;
 use Cesa\Rekrutmen\Models\JobApplication;
 use Cesa\Rekrutmen\Models\JobApplicationHistory;
 use Cesa\Rekrutmen\Models\RekrutmenPipeline;
 use Cesa\Rekrutmen\Models\RekrutmenStage;
 use Cesa\Rekrutmen\Models\RequestManPower;
+use Cesa\Rekrutmen\Models\RequestManPowerStatusChangedNotification;
+use Cesa\Rekrutmen\Models\RequestManPowerSubmittedNotification;
 use Cesa\Rekrutmen\Tests\RekrutmenTestCase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Webkul\Security\Models\User as SecurityUser;
 
 class RequestManPowerTest extends RekrutmenTestCase
@@ -36,6 +40,14 @@ class RequestManPowerTest extends RekrutmenTestCase
         $this->assertNull($newHiring->fresh()->nama_karyawan_replacement);
         $this->assertSame('Rina Putri', $replacement->fresh()->nama_karyawan_replacement);
         $this->assertTrue($replacement->isReplacement());
+    }
+
+    public function test_request_man_power_generates_public_status_response_id(): void
+    {
+        $request = RequestManPower::query()->create($this->basePayload());
+
+        $this->assertNotEmpty($request->status_response_id);
+        $this->assertTrue(Str::isUuid($request->status_response_id));
     }
 
     public function test_approve_by_updates_status_and_creates_job_posting(): void
@@ -113,6 +125,35 @@ class RequestManPowerTest extends RekrutmenTestCase
         $this->assertSame(2, RequestManPower::query()->byDivisi('IT')->count());
         $this->assertSame(2, RequestManPower::query()->byStatus(RequestManPowerStatus::PENDING->value)->count());
         $this->assertSame(2, RequestManPower::query()->byTanggal('2026-03-01', '2026-03-31')->count());
+    }
+
+    public function test_public_progress_page_loads_request_by_status_response_id(): void
+    {
+        $request = RequestManPower::query()->create($this->basePayload());
+
+        $page = app(PublicRequestManPowerProgressPage::class);
+        $page->mount($request->status_response_id);
+
+        $this->assertSame($request->id, $page->requestManPower->id);
+        $this->assertSame(__('rekrutmen::app.public_progress.heading'), $page->getHeading());
+        $this->assertSame(__('rekrutmen::app.public_progress.subheading'), $page->getSubheading());
+    }
+
+    public function test_request_man_power_notifications_include_public_progress_url(): void
+    {
+        $request = RequestManPower::query()->create($this->basePayload());
+
+        $submittedMail = (new RequestManPowerSubmittedNotification($request))->toMail(new \stdClass);
+        $statusChangedMail = (new RequestManPowerStatusChangedNotification(
+            $request,
+            RequestManPowerStatus::PENDING,
+            RequestManPowerStatus::APPROVED,
+        ))->toMail(new \stdClass);
+
+        $this->assertSame($request->getPublicProgressUrl(), $submittedMail->actionUrl);
+        $this->assertSame(__('rekrutmen::app.mail.request_man_power_submitted.view_progress'), $submittedMail->actionText);
+        $this->assertSame($request->getPublicProgressUrl(), $statusChangedMail->actionUrl);
+        $this->assertSame(__('rekrutmen::app.mail.request_man_power_status_changed.view_progress'), $statusChangedMail->actionText);
     }
 
     public function test_soft_deleted_relations_remain_readable(): void

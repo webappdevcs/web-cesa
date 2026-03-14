@@ -7,7 +7,6 @@ use Cesa\Rekrutmen\Models\RequestManPower;
 use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
-use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -140,14 +139,16 @@ class PublicRequestManPowerForm extends SimplePage
                 DatePicker::make('estimasi_tanggal_join')
                     ->label(__('rekrutmen::app.public_request_form.fields.estimasi_tanggal_join'))
                     ->required(),
-                RichEditor::make('requirements_kualifikasi')
+                Textarea::make('requirements_kualifikasi')
                     ->label(__('rekrutmen::app.public_request_form.fields.requirements_kualifikasi'))
                     ->required()
+                    ->rows(6)
                     ->columnSpanFull()
                     ->placeholder(__('rekrutmen::app.public_request_form.placeholders.requirements_kualifikasi')),
-                RichEditor::make('job_description')
+                Textarea::make('job_description')
                     ->label(__('rekrutmen::app.public_request_form.fields.job_description'))
                     ->required()
+                    ->rows(6)
                     ->columnSpanFull()
                     ->placeholder(__('rekrutmen::app.public_request_form.placeholders.job_description')),
                 Textarea::make('keterangan')
@@ -162,7 +163,7 @@ class PublicRequestManPowerForm extends SimplePage
             ->statePath('data');
     }
 
-    public function submit(): void
+    public function submit(): mixed
     {
         $this->dispatch('form-processing-started');
 
@@ -172,7 +173,7 @@ class PublicRequestManPowerForm extends SimplePage
             $this->handleValidationError();
             $this->dispatch('form-processing-finished');
 
-            return;
+            return null;
         }
 
         if (
@@ -183,7 +184,7 @@ class PublicRequestManPowerForm extends SimplePage
             $this->handleValidationError();
             $this->dispatch('form-processing-finished');
 
-            return;
+            return null;
         }
 
         try {
@@ -195,6 +196,8 @@ class PublicRequestManPowerForm extends SimplePage
 
             $this->recentSubmission = [
                 'id'                 => $rmp->getKey(),
+                'status_response_id' => $rmp->status_response_id,
+                'progress_url'       => $rmp->getPublicProgressUrl(),
                 'posisi_dibutuhkan'  => $rmp->posisi_dibutuhkan,
                 'nama_pengaju'       => $rmp->nama_pengaju,
                 'status_kebutuhan'   => $rmp->status_kebutuhan->getLabel(),
@@ -207,6 +210,8 @@ class PublicRequestManPowerForm extends SimplePage
                 ->success()
                 ->send();
             $this->dispatch('form-processing-finished');
+
+            return redirect()->to($rmp->getPublicProgressUrl());
         } catch (ValidationException $e) {
             $this->dispatch('form-processing-finished');
             throw $e;
@@ -217,6 +222,8 @@ class PublicRequestManPowerForm extends SimplePage
 
             $this->addError('data', __('rekrutmen::app.public_request_form.errors.system'));
             $this->dispatch('form-processing-finished');
+
+            return null;
         } catch (Throwable $e) {
             Log::error('Public request man power submission failed.', [
                 'exception' => $e,
@@ -224,7 +231,11 @@ class PublicRequestManPowerForm extends SimplePage
 
             $this->addError('data', __('rekrutmen::app.public_request_form.errors.system'));
             $this->dispatch('form-processing-finished');
+
+            return null;
         }
+
+        return null;
     }
 
     protected function getFormActions(): array

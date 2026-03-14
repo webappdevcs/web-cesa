@@ -2,6 +2,7 @@
 
 namespace Cesa\Presensi\Filament\Resources\UserResource\RelationManagers;
 
+use Cesa\Presensi\Filament\Resources\ScheduleResource;
 use Filament\Forms;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -41,7 +42,7 @@ class SchedulesRelationManager extends RelationManager
 
                 Forms\Components\Toggle::make('is_banned')
                     ->label(__('presensi::app.relation_managers.schedules.form.fields.is_banned'))
-                    ->hidden(fn (): bool => ! auth()->user()?->hasRole('super_admin')),
+                    ->hidden(fn (): bool => ! ScheduleResource::userCan('update_presensi_schedule')),
             ]);
     }
 
@@ -67,7 +68,7 @@ class SchedulesRelationManager extends RelationManager
                 Tables\Columns\IconColumn::make('is_banned')
                     ->label(__('presensi::app.relation_managers.schedules.table.columns.is_banned'))
                     ->boolean()
-                    ->visible(fn (): bool => auth()->user()?->hasRole('super_admin') ?? false),
+                    ->visible(fn (): bool => ScheduleResource::userCan('update_presensi_schedule')),
             ])
             ->filters([
             ])

@@ -5,6 +5,7 @@ namespace Cesa\Presensi\Filament\Resources;
 use Cesa\Presensi\Filament\Clusters\Configurations;
 use Cesa\Presensi\Filament\Resources\ScheduleResource\Pages;
 use Cesa\Presensi\Models\Schedule;
+use Cesa\Presensi\Traits\HasPresensiResourceAccess;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
@@ -13,10 +14,11 @@ use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class ScheduleResource extends Resource
 {
+    use HasPresensiResourceAccess;
+
     protected static ?string $model = Schedule::class;
 
     protected static string|\BackedEnum|null $navigationIcon = null;
@@ -72,7 +74,7 @@ class ScheduleResource extends Resource
                             ->label(__('presensi::app.resources.schedule.form.fields.is_wfa')),
                         Forms\Components\Toggle::make('is_banned')
                             ->label(__('presensi::app.resources.schedule.form.fields.is_banned'))
-                            ->hidden(fn () => ! Auth::user()?->hasRole('super_admin')),
+                            ->hidden(fn (): bool => ! static::userCan('update_presensi_schedule')),
                     ]),
             ]);
     }
@@ -80,12 +82,7 @@ class ScheduleResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function (Builder $query) {
-                $user = Auth::user();
-                if ($user && ! $user->hasRole('super_admin')) {
-                    $query->where('user_id', $user->id);
-                }
-            })
+            ->modifyQueryUsing(fn (Builder $query) => static::applyAuthenticatedUserScope($query))
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label(__('presensi::app.resources.schedule.table.columns.user_name'))
@@ -96,7 +93,7 @@ class ScheduleResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\ToggleColumn::make('is_banned')
-                    ->hidden(fn () => ! Auth::user()?->hasRole('super_admin')),
+                    ->hidden(fn (): bool => ! static::userCan('update_presensi_schedule')),
                 Tables\Columns\IconColumn::make('is_wfa')
                     ->label(__('presensi::app.resources.schedule.table.columns.is_wfa'))
                     ->boolean(),

@@ -222,10 +222,12 @@ return [
             'title'       => 'Request Submitted Successfully',
             'description' => 'Use the following summary to confirm that the submitted information is correct.',
             'fields'      => [
-                'posisi_dibutuhkan' => 'Requested Position',
-                'nama_pengaju'      => 'Requester Name',
-                'status_kebutuhan'  => 'Requirement Status',
-                'nama_replacement'  => 'Replacement Employee Name',
+                'status_response_id' => 'Tracking ID',
+                'posisi_dibutuhkan'  => 'Requested Position',
+                'nama_pengaju'       => 'Requester Name',
+                'status_kebutuhan'   => 'Requirement Status',
+                'nama_replacement'   => 'Replacement Employee Name',
+                'progress_url'       => 'Progress Link',
             ],
             'actions' => [
                 'submit_another' => 'Submit Another Request',
@@ -291,6 +293,29 @@ return [
             'system'                             => 'A system error occurred. Please try again.',
             'recaptcha_required'                 => 'reCAPTCHA verification is required.',
             'recaptcha_failed'                   => 'reCAPTCHA verification failed. Please try again.',
+        ],
+    ],
+
+    'public_progress' => [
+        'heading'            => 'Manpower Request Progress',
+        'subheading'         => 'Track the latest status of your manpower request on this page.',
+        'page_title'         => 'MAN POWER REQUEST PROGRESS',
+        'submitted_by'       => 'Submitted by',
+        'current_status'     => 'Current status',
+        'submission_summary' => 'Submission Summary',
+        'fields'             => [
+            'status_response_id'         => 'Tracking ID',
+            'tanggal_pengajuan'          => 'Submission Date',
+            'posisi_dibutuhkan'          => 'Requested Position',
+            'status_kebutuhan'           => 'Requirement Status',
+            'level_pekerjaan'            => 'Job Level',
+            'jumlah_karyawan_dibutuhkan' => 'Number of Employees Needed',
+            'lokasi_penempatan'          => 'Placement Location',
+            'estimasi_tanggal_join'      => 'Estimated Join Date',
+            'nama_karyawan_replacement'  => 'Employee to Be Replaced',
+            'requirements_kualifikasi'   => 'Required Qualifications',
+            'job_description'            => 'Job Description',
+            'keterangan'                 => 'Additional Notes',
         ],
     ],
 
@@ -374,6 +399,7 @@ return [
             'position'           => 'Position: :value',
             'requirement_status' => 'Requirement status: :value',
             'submission_id'      => 'Request ID: #:id',
+            'view_progress'      => 'View Submission Progress',
         ],
         'request_man_power_status_changed' => [
             'subject'         => 'Manpower request status updated',
@@ -383,6 +409,7 @@ return [
             'latest_status'   => 'Latest status: :value',
             'previous_status' => 'Previous status: :value',
             'submission_id'   => 'Request ID: #:id',
+            'view_progress'   => 'View Submission Progress',
         ],
     ],
 

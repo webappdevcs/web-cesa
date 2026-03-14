@@ -26,7 +26,7 @@ return [
                     'end_date'              => 'End Date',
                     'status'                => 'Status',
                     'auto_generate'         => 'Automatically Generate Payroll',
-                    'auto_generate_helper'  => 'Generate payroll immediately after creating the period. Uncheck to generate manually later.',
+                    'auto_generate_helper'  => 'Generate payroll immediately after creating the period for employees who have attendance or approved overtime data. Uncheck to generate manually later.',
                 ],
             ],
             'table' => [
@@ -38,8 +38,8 @@ return [
                     'created_at' => 'Created At',
                 ],
                 'actions' => [
-                    'generate_payroll' => 'Generate Payroll',
-                    'mark_as_paid' => 'Mark as Paid',
+                    'generate_payroll'         => 'Generate Payroll',
+                    'mark_as_paid'             => 'Mark as Paid',
                     'mark_as_paid_description' => 'Are you sure? This will mark this payroll period as paid. This action cannot be undone.',
                 ],
             ],
@@ -74,6 +74,8 @@ return [
                 'columns' => [
                     'employee'         => 'Employee',
                     'period'           => 'Period',
+                    'base_salary'      => 'Base Salary',
+                    'late_penalty'     => 'Late Penalty',
                     'gross_salary'     => 'Gross Salary',
                     'total_penalties'  => 'Total Penalties',
                     'net_salary'       => 'Net Salary',
@@ -115,8 +117,8 @@ return [
                 'label' => 'Penalty & Wage',
             ],
             'sections' => [
-                'wage_settings'         => 'Wage Settings',
-                'late_penalty_settings' => 'Late Penalty Settings',
+                'wage_settings'            => 'Wage Settings',
+                'late_penalty_settings'    => 'Late Penalty Settings',
                 'late_penalty_description' => 'Configure penalties for late attendance.',
             ],
             'fields' => [

@@ -9,6 +9,7 @@ use Cesa\Payroll\Models\PayrollRecord;
 use Cesa\Payroll\Settings\PayrollSettings;
 use Cesa\Presensi\Models\Attendance;
 use Cesa\Presensi\Models\Overtime;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class GeneratePayrollService
@@ -34,7 +35,11 @@ class GeneratePayrollService
             // Only allowed when status is 'open'
             $period->records()->delete();
 
-            $users = User::all();
+            $users = $this->resolveUsersWithPayrollData($period);
+
+            if ($users->isEmpty()) {
+                return;
+            }
 
             foreach ($users as $user) {
                 $this->processUser($user, $period);
@@ -115,6 +120,10 @@ class GeneratePayrollService
         $basicSalary = $totalAttendanceDays * $dailyWage;
         $overtimeSalary = $totalOvertimeHours * $overtimeRate;
 
+        if ($totalAttendanceDays === 0 && $totalOvertimeHours === 0.0) {
+            return;
+        }
+
         $grossSalary = $basicSalary + $overtimeSalary;
         $netSalary = $grossSalary - $totalPenalties;
 
@@ -136,6 +145,41 @@ class GeneratePayrollService
                 'penalties_breakdown' => $penaltiesBreakdown,
             ],
         ]);
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    protected function resolveUsersWithPayrollData(PayrollPeriod $period): Collection
+    {
+        $attendanceUserIds = Attendance::query()
+            ->whereBetween('created_at', [
+                $period->start_date->copy()->startOfDay(),
+                $period->end_date->copy()->endOfDay(),
+            ])
+            ->pluck('user_id');
+
+        $overtimeUserIds = Overtime::query()
+            ->where('status', 'approved')
+            ->whereBetween('date', [
+                $period->start_date->toDateString(),
+                $period->end_date->toDateString(),
+            ])
+            ->pluck('user_id');
+
+        $userIds = $attendanceUserIds
+            ->merge($overtimeUserIds)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return collect();
+        }
+
+        return User::query()
+            ->whereIn('id', $userIds)
+            ->get();
     }
 
     protected function calculateLatePenalty(int $minutesLate): int

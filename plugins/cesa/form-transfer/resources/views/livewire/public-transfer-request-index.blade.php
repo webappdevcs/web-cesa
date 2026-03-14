@@ -1,5 +1,5 @@
 <div class="min-h-screen bg-[#EFF6FF] py-8 px-4 sm:px-6 lg:px-8 font-sans antialiased">
-    <div class="mx-auto max-w-4xl">
+    <div class="mx-auto max-w-2xl">
 	            <div class="mb-6 rounded-lg border-t-[10px] cesa-primary-border bg-white shadow-sm">
                 <div class="px-6 pt-5 pb-6">
                     <h1 class="text-[32px] font-normal text-gray-900 leading-tight">

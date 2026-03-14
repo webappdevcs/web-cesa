@@ -24,6 +24,8 @@ class I18nTest extends RekrutmenTestCase
             $this->assertSame($expected['request_status'], RequestManPowerStatus::PENDING->getLabel());
             $this->assertSame($expected['application_status'], JobApplicationStatus::IN_PROGRESS->getLabel());
             $this->assertSame($expected['job_level'], RequestManPower::getTranslatedLevelPekerjaanOptions()['Staff']);
+            $this->assertSame($expected['public_progress_heading'], __('rekrutmen::app.public_progress.heading'));
+            $this->assertSame($expected['mail_progress_action'], __('rekrutmen::app.mail.request_man_power_submitted.view_progress'));
         }
     }
 
@@ -67,6 +69,8 @@ class I18nTest extends RekrutmenTestCase
                 'request_status'               => 'Pending',
                 'application_status'           => 'In Progress',
                 'job_level'                    => 'Staff',
+                'public_progress_heading'      => 'Manpower Request Progress',
+                'mail_progress_action'         => 'View Submission Progress',
                 'job_detail_message'           => 'Job detail retrieved successfully.',
                 'application_form_full_name'   => 'Full Name',
                 'application_form_portfolio'   => 'Portfolio URL',
@@ -78,6 +82,8 @@ class I18nTest extends RekrutmenTestCase
                 'request_status'               => 'Pending',
                 'application_status'           => 'Dalam Proses',
                 'job_level'                    => 'Staf',
+                'public_progress_heading'      => 'Progress Permintaan Tenaga Kerja',
+                'mail_progress_action'         => 'Lihat Progress Pengajuan',
                 'job_detail_message'           => 'Detail lowongan berhasil diambil.',
                 'application_form_full_name'   => 'Nama Lengkap',
                 'application_form_portfolio'   => 'URL Portofolio',

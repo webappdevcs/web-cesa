@@ -67,6 +67,39 @@ class OvertimeControllerTest extends PresensiTestCase
         Storage::disk('public')->assertExists($overtime->attachment);
     }
 
+    public function test_index_returns_latest_overtimes_first(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $olderOvertime = Overtime::query()->create([
+            'user_id'    => $user->id,
+            'date'       => now()->subDays(5)->toDateString(),
+            'start_time' => '18:00:00',
+            'end_time'   => '19:00:00',
+            'status'     => 'approved',
+            'reason'     => 'Older overtime',
+        ]);
+        $olderOvertime->forceFill(['created_at' => now()->subDays(5), 'updated_at' => now()->subDays(5)])->save();
+
+        $latestOvertime = Overtime::query()->create([
+            'user_id'    => $user->id,
+            'date'       => now()->subDay()->toDateString(),
+            'start_time' => '18:00:00',
+            'end_time'   => '20:00:00',
+            'status'     => 'approved',
+            'reason'     => 'Latest overtime',
+        ]);
+        $latestOvertime->forceFill(['created_at' => now()->subDay(), 'updated_at' => now()->subDay()])->save();
+
+        $response = $this->getJson('/api/overtimes');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $latestOvertime->id)
+            ->assertJsonPath('data.1.id', $olderOvertime->id);
+    }
+
     private function createScheduleFor(User $user): void
     {
         $office = Office::query()->create([

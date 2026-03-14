@@ -31,6 +31,7 @@ return [
     Webkul\PluginManager\PluginManagerServiceProvider::class,
 
     Cesa\Rekrutmen\RekrutmenServiceProvider::class,
+    Cesa\LegacySync\LegacySyncServiceProvider::class,
     Cesa\Presensi\PresensiServiceProvider::class,
     Cesa\Payroll\PayrollServiceProvider::class,
     Cesa\FormTransfer\FormTransferServiceProvider::class,

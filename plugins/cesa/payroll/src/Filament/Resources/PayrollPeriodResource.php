@@ -116,7 +116,7 @@ class PayrollPeriodResource extends PayrollResource
                     ->color('info')
                     ->requiresConfirmation()
                     ->modalHeading('Generate Payroll')
-                    ->modalDescription('Are you sure? This will calculate payroll for all employees in this period. If payroll already exists, it will be regenerated with the latest data.')
+                    ->modalDescription('Are you sure? This will calculate payroll only for employees who have attendance or approved overtime data in this period. Existing payroll records for this period will be regenerated using the latest data.')
                     ->visible(fn (PayrollPeriod $record): bool => $record->status === 'open')
                     ->action(function (PayrollPeriod $record, GeneratePayrollService $service) {
                         try {

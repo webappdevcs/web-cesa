@@ -2,7 +2,6 @@
 
 namespace Cesa\Presensi\Filament\Resources;
 
-use Auth;
 use Cesa\Presensi\Filament\Resources\AttendanceResource\Pages;
 use Cesa\Presensi\Models\Attendance;
 use Filament\Actions;
@@ -131,7 +130,7 @@ class AttendanceResource extends PresensiResource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => static::applyUserScope($query))
+            ->modifyQueryUsing(fn (Builder $query) => static::applyAuthenticatedUserScope($query))
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label(__('presensi::app.resources.attendance.table.columns.created_at'))
@@ -187,13 +186,7 @@ class AttendanceResource extends PresensiResource
 
     public static function applyUserScope(Builder $query): Builder
     {
-        $authenticatedUser = Auth::user();
-
-        if ($authenticatedUser && ! $authenticatedUser->hasRole('super_admin')) {
-            $query->where($query->getModel()->qualifyColumn('user_id'), $authenticatedUser->id);
-        }
-
-        return $query;
+        return static::applyAuthenticatedUserScope($query);
     }
 
     public static function getRelations(): array

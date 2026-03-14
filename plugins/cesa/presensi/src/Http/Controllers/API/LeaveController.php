@@ -16,11 +16,12 @@ class LeaveController extends Controller
         try {
             $query = Leave::query()
                 ->with('user')
+                ->orderByDesc('created_at')
                 ->orderByDesc('id');
 
-            $isSuperAdmin = Auth::user()?->hasRole(['super_admin', 'Super_admin']) ?? false;
+            $canViewAnyLeave = Auth::user()?->can('view_any_presensi_leave') ?? false;
 
-            if (! $isSuperAdmin) {
+            if (! $canViewAnyLeave) {
                 $query->where('user_id', Auth::id());
             }
 

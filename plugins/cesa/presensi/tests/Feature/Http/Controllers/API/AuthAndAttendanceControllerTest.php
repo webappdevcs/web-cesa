@@ -98,4 +98,49 @@ class AuthAndAttendanceControllerTest extends PresensiTestCase
         $this->assertNotNull($attendance->end_time);
         $this->assertNotNull($attendance->end_photo_path);
     }
+
+    public function test_get_attendance_by_month_and_year_returns_latest_records_first(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $latestAttendance = Attendance::query()->create([
+            'user_id'             => $user->id,
+            'schedule_latitude'   => -6.200000,
+            'schedule_longitude'  => 106.816666,
+            'schedule_start_time' => '08:00:00',
+            'schedule_end_time'   => '17:00:00',
+            'start_latitude'      => -6.200100,
+            'start_longitude'     => 106.816700,
+            'end_latitude'        => -6.200100,
+            'end_longitude'       => 106.816700,
+            'start_time'          => '08:05:00',
+            'end_time'            => '17:00:00',
+            'is_leave'            => false,
+        ]);
+        $latestAttendance->forceFill(['created_at' => now()->subDay(), 'updated_at' => now()->subDay()])->save();
+
+        $olderAttendance = Attendance::query()->create([
+            'user_id'             => $user->id,
+            'schedule_latitude'   => -6.200000,
+            'schedule_longitude'  => 106.816666,
+            'schedule_start_time' => '08:00:00',
+            'schedule_end_time'   => '17:00:00',
+            'start_latitude'      => -6.200100,
+            'start_longitude'     => 106.816700,
+            'end_latitude'        => -6.200100,
+            'end_longitude'       => 106.816700,
+            'start_time'          => '08:00:00',
+            'end_time'            => '17:00:00',
+            'is_leave'            => false,
+        ]);
+        $olderAttendance->forceFill(['created_at' => now()->subDays(3), 'updated_at' => now()->subDays(3)])->save();
+
+        $response = $this->getJson('/api/get-attendance-by-month-year/'.now()->month.'/'.now()->year);
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.date', $latestAttendance->created_at->toDateString())
+            ->assertJsonPath('data.1.date', $olderAttendance->created_at->toDateString());
+    }
 }

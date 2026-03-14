@@ -2,7 +2,6 @@
 
 namespace Cesa\Presensi\Filament\Resources;
 
-use Auth;
 use Cesa\Presensi\Filament\Resources\LeaveResource\Pages;
 use Cesa\Presensi\Models\Leave;
 use Filament\Actions;
@@ -50,9 +49,9 @@ class LeaveResource extends PresensiResource
                     Forms\Components\Select::make('type')
                         ->label(__('presensi::app.resources.leave.form.fields.type'))
                         ->options([
-                            'Izin' => __('presensi::app.resources.leave.form.options.izin'),
+                            'Izin'  => __('presensi::app.resources.leave.form.options.izin'),
                             'Sakit' => __('presensi::app.resources.leave.form.options.sakit'),
-                            'Cuti' => __('presensi::app.resources.leave.form.options.cuti'),
+                            'Cuti'  => __('presensi::app.resources.leave.form.options.cuti'),
                         ])
                         ->default('Izin')
                         ->required(),
@@ -74,12 +73,12 @@ class LeaveResource extends PresensiResource
                 ->columns(2),
         ];
 
-        if (Auth::user()?->hasRole('super_admin')) {
+        if (static::userCan('update_presensi_leave')) {
             $components[] = Section::make(__('presensi::app.resources.leave.form.sections.approval'))
                 ->schema([
                     Forms\Components\Select::make('status')
                         ->options([
-                            'pending' => __('presensi::app.resources.leave.form.options.pending'),
+                            'pending'  => __('presensi::app.resources.leave.form.options.pending'),
                             'approved' => __('presensi::app.resources.leave.form.options.approved'),
                             'rejected' => __('presensi::app.resources.leave.form.options.rejected'),
                         ])
@@ -98,13 +97,7 @@ class LeaveResource extends PresensiResource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function (Builder $query) {
-                $is_super_admin = Auth::user()->hasRole('super_admin');
-
-                if (! $is_super_admin) {
-                    $query->where('user_id', Auth::user()->id);
-                }
-            })
+            ->modifyQueryUsing(fn (Builder $query) => static::applyAuthenticatedUserScope($query))
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label(__('presensi::app.resources.leave.table.columns.user'))
@@ -149,6 +142,7 @@ class LeaveResource extends PresensiResource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 //
             ])

@@ -20,7 +20,8 @@ class OvertimeController extends Controller
         try {
             $overtimes = Overtime::with('user')
                 ->where('user_id', Auth::id())
-                ->orderBy('id', 'desc')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
                 ->get();
 
             return response()->json([

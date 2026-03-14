@@ -24,12 +24,14 @@ class AttendanceController extends Controller
         $attendanceToday = Attendance::select('start_time', 'end_time')
             ->where('user_id', $userId)
             ->whereDate('created_at', $today)
+            ->latest('created_at')
             ->first();
 
         $attendanceThisMonth = Attendance::select('start_time', 'end_time', 'created_at')
             ->where('user_id', $userId)
             ->whereMonth('created_at', $currentMonth)
             ->whereYear('created_at', $currentYear)
+            ->orderByDesc('created_at')
             ->get()
             ->map(function ($attendance) {
                 return [
@@ -173,6 +175,7 @@ class AttendanceController extends Controller
         $attendanceList = Attendance::where('user_id', $userId)
             ->whereMonth('created_at', $month)
             ->whereYear('created_at', $year)
+            ->orderByDesc('created_at')
             ->get()
             ->map(function ($attendance) {
                 return [
@@ -212,7 +215,7 @@ class AttendanceController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Success get photo profile',
-            'data'    => $user->image_url,
+            'data'    => $user->avatar_url,
         ]);
     }
 

@@ -26,7 +26,7 @@ return [
                     'end_date'              => 'Tanggal Selesai',
                     'status'                => 'Status',
                     'auto_generate'         => 'Otomatis Buat Penggajian',
-                    'auto_generate_helper'  => 'Buat penggajian secara otomatis setelah periode dibuat. Hilangkan centang untuk membuat manual nanti.',
+                    'auto_generate_helper'  => 'Buat penggajian otomatis setelah periode dibuat hanya untuk karyawan yang punya data presensi atau lembur disetujui. Hilangkan centang untuk membuat manual nanti.',
                 ],
             ],
             'table' => [
@@ -38,8 +38,8 @@ return [
                     'created_at' => 'Dibuat Pada',
                 ],
                 'actions' => [
-                    'generate_payroll' => 'Buat Penggajian',
-                    'mark_as_paid' => 'Tandai Sudah Dibayar',
+                    'generate_payroll'         => 'Buat Penggajian',
+                    'mark_as_paid'             => 'Tandai Sudah Dibayar',
                     'mark_as_paid_description' => 'Apakah Anda yakin? Ini akan menandai periode penggajian sebagai sudah dibayar. Tindakan ini tidak dapat dibatalkan.',
                 ],
             ],
@@ -74,6 +74,8 @@ return [
                 'columns' => [
                     'employee'         => 'Karyawan',
                     'period'           => 'Periode',
+                    'base_salary'      => 'Gaji Pokok',
+                    'late_penalty'     => 'Denda Keterlambatan',
                     'gross_salary'     => 'Gaji Kotor',
                     'total_penalties'  => 'Total Denda',
                     'net_salary'       => 'Gaji Bersih',
@@ -115,8 +117,8 @@ return [
                 'label' => 'Denda & Gaji',
             ],
             'sections' => [
-                'wage_settings'         => 'Pengaturan Gaji',
-                'late_penalty_settings' => 'Pengaturan Denda Keterlambatan',
+                'wage_settings'            => 'Pengaturan Gaji',
+                'late_penalty_settings'    => 'Pengaturan Denda Keterlambatan',
                 'late_penalty_description' => 'Konfigurasikan denda untuk keterlambatan.',
             ],
             'fields' => [

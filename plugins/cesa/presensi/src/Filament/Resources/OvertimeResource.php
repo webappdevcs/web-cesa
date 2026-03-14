@@ -2,7 +2,6 @@
 
 namespace Cesa\Presensi\Filament\Resources;
 
-use Auth;
 use Cesa\Presensi\Filament\Resources\OvertimeResource\Pages;
 use Cesa\Presensi\Models\Overtime;
 use Filament\Actions;
@@ -70,13 +69,13 @@ class OvertimeResource extends PresensiResource
                 ->columns(2),
         ];
 
-        if (Auth::user()?->hasRole('super_admin')) {
+        if (static::userCan('update_presensi_overtime')) {
             $components[] = Section::make(__('presensi::app.resources.overtime.form.sections.approval'))
                 ->visible(fn (string $operation): bool => $operation === 'edit')
                 ->schema([
                     Forms\Components\Select::make('status')
                         ->options([
-                            'pending' => __('presensi::app.resources.overtime.form.options.pending'),
+                            'pending'  => __('presensi::app.resources.overtime.form.options.pending'),
                             'approved' => __('presensi::app.resources.overtime.form.options.approved'),
                             'rejected' => __('presensi::app.resources.overtime.form.options.rejected'),
                         ])
@@ -95,21 +94,7 @@ class OvertimeResource extends PresensiResource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function (Builder $query) {
-                $user = Auth::user();
-
-                if (! $user) {
-                    $query->whereRaw('1 = 0');
-
-                    return;
-                }
-
-                $is_super_admin = $user->hasRole('super_admin');
-
-                if (! $is_super_admin) {
-                    $query->where('user_id', $user->id);
-                }
-            })
+            ->modifyQueryUsing(fn (Builder $query) => static::applyAuthenticatedUserScope($query))
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label(__('presensi::app.resources.overtime.table.columns.user'))
@@ -152,6 +137,7 @@ class OvertimeResource extends PresensiResource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 //
             ])

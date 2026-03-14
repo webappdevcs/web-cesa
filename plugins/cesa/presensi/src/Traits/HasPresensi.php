@@ -20,6 +20,6 @@ trait HasPresensi
 
     public function getImageUrlAttribute(): ?string
     {
-        return $this->presensi_image ? url('storage/'.$this->presensi_image) : null;
+        return $this->partner?->avatar_url;
     }
 }
