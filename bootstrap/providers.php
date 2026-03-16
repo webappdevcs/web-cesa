@@ -40,4 +40,5 @@ return [
     Cesa\FormTransfer\FormTransferServiceProvider::class,
     Cesa\ExitClearance\ExitClearanceServiceProvider::class,
     Cesa\Kepegawaian\KepegawaianServiceProvider::class,
+    Cesa\Shelf\ShelfServiceProvider::class,
 ];
