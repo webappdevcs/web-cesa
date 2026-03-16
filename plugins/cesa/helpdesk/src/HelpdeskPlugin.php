@@ -29,8 +29,7 @@ class HelpdeskPlugin implements Plugin
             ->when($panel->getId() === 'admin', function (Panel $panel): void {
                 $panel
                     ->discoverResources(in: $this->getPluginBasePath('/Filament/Resources'), for: 'Cesa\\Helpdesk\\Filament\\Resources')
-                    ->discoverPages(in: $this->getPluginBasePath('/Filament/Pages'), for: 'Cesa\\Helpdesk\\Filament\\Pages')
-                    ->discoverWidgets(in: $this->getPluginBasePath('/Filament/Widgets'), for: 'Cesa\\Helpdesk\\Filament\\Widgets');
+                    ->discoverClusters(in: $this->getPluginBasePath('/Filament/Clusters'), for: 'Cesa\\Helpdesk\\Filament\\Clusters');
             });
     }
 

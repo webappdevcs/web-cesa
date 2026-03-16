@@ -146,6 +146,63 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
             'user_id' => $requester->id,
             'status'  => 'pending',
         ]);
+
+        $helpdeskUnitId = DB::table('helpdesk_units')->where('name', 'IT')->value('id');
+        $helpdeskCategoryId = DB::table('helpdesk_problem_categories')->where('name', 'Software')->value('id');
+        $helpdeskTicketId = DB::table('helpdesk_tickets')->where('title', 'Laptop blue screen')->value('id');
+        $helpdeskStatusId = DB::table('helpdesk_ticket_statuses')->where('name', 'In Progress')->value('id');
+
+        $this->assertDatabaseHas('helpdesk_priorities', [
+            'id'   => 1,
+            'name' => 'Critical/Urgent',
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_units', [
+            'id'   => $helpdeskUnitId,
+            'name' => 'IT',
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_unit_user', [
+            'unit_id' => $helpdeskUnitId,
+            'user_id' => $creator->id,
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_problem_categories', [
+            'id'      => $helpdeskCategoryId,
+            'unit_id' => $helpdeskUnitId,
+            'name'    => 'Software',
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_tickets', [
+            'id'                  => $helpdeskTicketId,
+            'priority_id'         => 1,
+            'unit_id'             => $helpdeskUnitId,
+            'problem_category_id' => $helpdeskCategoryId,
+            'owner_id'            => $requester->id,
+            'responsible_id'      => $creator->id,
+            'company_id'          => $targetCompanyId,
+            'ticket_status_id'    => $helpdeskStatusId,
+            'title'               => 'Laptop blue screen',
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_comments', [
+            'ticket_id' => $helpdeskTicketId,
+            'user_id'   => $creator->id,
+            'comment'   => 'Sedang dicek oleh tim IT.',
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_ticket_histories', [
+            'ticket_id'        => $helpdeskTicketId,
+            'ticket_status_id' => $helpdeskStatusId,
+            'user_id'          => $creator->id,
+        ]);
+
+        $this->assertDatabaseHas('legacy_sync_mappings', [
+            'connection_name' => 'legacy_sync',
+            'legacy_table'    => 'tickets',
+            'legacy_id'       => '400',
+            'target_table'    => 'helpdesk_tickets',
+        ]);
     }
 
     public function test_it_updates_existing_mapped_rows_on_subsequent_syncs(): void
@@ -173,6 +230,15 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
                 'updated_at' => '2026-03-13 10:00:00',
             ]);
 
+        DB::connection('legacy_sync')
+            ->table('tickets')
+            ->where('id', 400)
+            ->update([
+                'title'              => 'Updated Laptop blue screen',
+                'ticket_statuses_id' => 4,
+                'updated_at'         => '2026-03-13 10:00:00',
+            ]);
+
         $this->artisan('legacy:sync', [
             '--connection' => 'legacy_sync',
         ])->assertExitCode(0);
@@ -185,6 +251,11 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
         $this->assertDatabaseHas('exit_clearance_approvers', [
             'email' => 'approver@example.com',
             'title' => 'Updated Title',
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_tickets', [
+            'title'            => 'Updated Laptop blue screen',
+            'ticket_status_id' => 4,
         ]);
 
         $requester = DB::table('users')->where('email', 'requester@example.com')->first();
@@ -205,6 +276,80 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
         $this->assertDatabaseHas('partners_partners', [
             'id'     => $requesterPartnerId,
             'avatar' => 'legacy/requester-updated.png',
+        ]);
+    }
+
+    public function test_it_normalizes_legacy_helpdesk_cancel_status_into_existing_cancelled_master(): void
+    {
+        $this->createTargetUsersAndCompanies();
+        $this->seedLegacyRecords();
+
+        DB::connection('legacy_sync')
+            ->table('tickets')
+            ->where('id', 400)
+            ->update([
+                'ticket_statuses_id' => 3,
+            ]);
+
+        $this->artisan('legacy:sync', [
+            '--connection' => 'legacy_sync',
+        ])->assertExitCode(0);
+
+        $this->assertSame(1, DB::table('helpdesk_ticket_statuses')->where('id', 3)->where('name', 'Cancelled')->count());
+        $this->assertSame(4, DB::table('helpdesk_ticket_statuses')->count());
+        $this->assertDatabaseMissing('helpdesk_ticket_statuses', [
+            'name' => 'Cancel',
+        ]);
+        $this->assertDatabaseHas('helpdesk_tickets', [
+            'id'               => 400,
+            'ticket_status_id' => 3,
+        ]);
+    }
+
+    public function test_it_creates_missing_company_for_unmapped_helpdesk_business_entity(): void
+    {
+        $this->createTargetUsersAndCompanies();
+        $this->seedLegacyRecords();
+
+        DB::connection('legacy_sync')
+            ->table('business_entities')
+            ->where('id', 1)
+            ->update([
+                'name' => 'PT MKLI',
+            ]);
+
+        $this->artisan('legacy:sync', [
+            '--connection' => 'legacy_sync',
+            '--module'     => ['helpdesk'],
+        ])
+            ->doesntExpectOutputToContain('Could not map legacy business entity ID [1]')
+            ->expectsOutputToContain('Created missing company [PT MKLI] from legacy business entity ID [1].')
+            ->assertExitCode(0);
+
+        $companyId = (int) DB::table('companies')->where('name', 'PT MKLI')->value('id');
+        $partnerId = (int) DB::table('companies')->where('id', $companyId)->value('partner_id');
+
+        $this->assertNotSame(0, $companyId);
+        $this->assertNotSame(0, $partnerId);
+
+        $this->assertDatabaseHas('partners_partners', [
+            'id'         => $partnerId,
+            'name'       => 'PT MKLI',
+            'sub_type'   => 'company',
+            'company_id' => $companyId,
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_tickets', [
+            'id'         => 400,
+            'company_id' => $companyId,
+        ]);
+
+        $this->assertDatabaseHas('legacy_sync_mappings', [
+            'connection_name' => 'legacy_sync',
+            'legacy_table'    => 'business_entities',
+            'legacy_id'       => '1',
+            'target_table'    => 'companies',
+            'target_id'       => (string) $companyId,
         ]);
     }
 
@@ -252,6 +397,12 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
         $this->assertDatabaseHas('presensi_overtimes', [
             'id'      => 302,
             'user_id' => $requesterId,
+        ]);
+
+        $this->assertDatabaseHas('helpdesk_tickets', [
+            'title'         => 'Laptop blue screen',
+            'owner_id'      => $requesterId,
+            'responsible_id'=> $creatorId,
         ]);
 
         $requesterPartnerId = (int) DB::table('users')->where('id', $requesterId)->value('partner_id');
@@ -409,6 +560,15 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
             'CREATE TABLE attendances (id INTEGER PRIMARY KEY, user_id INTEGER, schedule_latitude REAL, schedule_longitude REAL, schedule_start_time TEXT, schedule_end_time TEXT, start_latitude REAL, start_longitude REAL, start_time TEXT, end_time TEXT, is_leave INTEGER, created_at TEXT, updated_at TEXT, deleted_at TEXT, end_latitude REAL, end_longitude REAL, start_photo_path TEXT, end_photo_path TEXT)',
             'CREATE TABLE leaves (id INTEGER PRIMARY KEY, user_id INTEGER, start_date TEXT, end_date TEXT, reason TEXT, status TEXT, note TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT, type TEXT, attachment TEXT)',
             'CREATE TABLE overtimes (id INTEGER PRIMARY KEY, user_id INTEGER, date TEXT, start_time TEXT, end_time TEXT, reason TEXT, status TEXT, note TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT, attachment TEXT)',
+            'CREATE TABLE priorities (id INTEGER PRIMARY KEY, name TEXT)',
+            'CREATE TABLE ticket_statuses (id INTEGER PRIMARY KEY, name TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT)',
+            'CREATE TABLE units (id INTEGER PRIMARY KEY, name TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT)',
+            'CREATE TABLE problem_categories (id INTEGER PRIMARY KEY, unit_id INTEGER, name TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT)',
+            'CREATE TABLE business_entities (id INTEGER PRIMARY KEY, name TEXT)',
+            'CREATE TABLE user_entities (id INTEGER PRIMARY KEY, user_id INTEGER, entity_id INTEGER, entity_type TEXT, created_at TEXT, updated_at TEXT)',
+            'CREATE TABLE tickets (id INTEGER PRIMARY KEY, priority_id INTEGER, unit_id INTEGER, owner_id INTEGER, problem_category_id INTEGER, title TEXT, description TEXT, ticket_statuses_id INTEGER, responsible_id INTEGER, created_at TEXT, updated_at TEXT, approved_at TEXT, solved_at TEXT, deleted_at TEXT, supporting_attachments TEXT, business_entities_id INTEGER)',
+            'CREATE TABLE comments (id INTEGER PRIMARY KEY, tiket_id INTEGER, user_id INTEGER, comment TEXT, attachments TEXT, created_at TEXT, updated_at TEXT, deleted_at TEXT)',
+            'CREATE TABLE ticket_histories (id INTEGER PRIMARY KEY, ticket_id INTEGER, ticket_statuses_id INTEGER, user_id INTEGER, created_at TEXT, updated_at TEXT)',
         ];
 
         foreach ($schemaStatements as $statement) {
@@ -425,6 +585,73 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
 
         DB::connection('legacy_sync')->table('companies')->insert([
             ['id' => 50, 'company_id' => 'CSN', 'name' => 'Complete Solusi Nusantara'],
+        ]);
+
+        DB::connection('legacy_sync')->table('priorities')->insert([
+            ['id' => 1, 'name' => 'Critical/Urgent'],
+            ['id' => 2, 'name' => 'High'],
+        ]);
+
+        DB::connection('legacy_sync')->table('ticket_statuses')->insert([
+            ['id' => 1, 'name' => 'Open', 'created_at' => '2026-03-10 08:00:00', 'updated_at' => '2026-03-10 08:00:00', 'deleted_at' => null],
+            ['id' => 2, 'name' => 'In Progress', 'created_at' => '2026-03-10 08:00:00', 'updated_at' => '2026-03-10 08:00:00', 'deleted_at' => null],
+            ['id' => 3, 'name' => 'Cancel', 'created_at' => '2026-03-10 08:00:00', 'updated_at' => '2026-03-10 08:00:00', 'deleted_at' => null],
+            ['id' => 4, 'name' => 'Closed', 'created_at' => '2026-03-10 08:00:00', 'updated_at' => '2026-03-10 08:00:00', 'deleted_at' => null],
+        ]);
+
+        DB::connection('legacy_sync')->table('units')->insert([
+            ['id' => 1, 'name' => 'IT', 'created_at' => '2026-03-10 08:00:00', 'updated_at' => '2026-03-10 08:00:00', 'deleted_at' => null],
+        ]);
+
+        DB::connection('legacy_sync')->table('problem_categories')->insert([
+            ['id' => 1, 'unit_id' => 1, 'name' => 'Software', 'created_at' => '2026-03-10 08:00:00', 'updated_at' => '2026-03-10 08:00:00', 'deleted_at' => null],
+        ]);
+
+        DB::connection('legacy_sync')->table('business_entities')->insert([
+            ['id' => 1, 'name' => 'Complete Solusi Nusantara'],
+        ]);
+
+        DB::connection('legacy_sync')->table('user_entities')->insert([
+            ['id' => 1, 'user_id' => 10, 'entity_id' => 1, 'entity_type' => 'App\\\\Models\\\\Unit', 'created_at' => '2026-03-10 08:00:00', 'updated_at' => '2026-03-10 08:00:00'],
+        ]);
+
+        DB::connection('legacy_sync')->table('tickets')->insert([
+            'id'                     => 400,
+            'priority_id'            => 1,
+            'unit_id'                => 1,
+            'owner_id'               => 11,
+            'problem_category_id'    => 1,
+            'title'                  => 'Laptop blue screen',
+            'description'            => '<p>Device crashes after login.</p>',
+            'ticket_statuses_id'     => 2,
+            'responsible_id'         => 10,
+            'created_at'             => '2026-03-10 08:00:00',
+            'updated_at'             => '2026-03-10 09:00:00',
+            'approved_at'            => '2026-03-10 08:15:00',
+            'solved_at'              => null,
+            'deleted_at'             => null,
+            'supporting_attachments' => json_encode(['helpdesk/evidence.pdf'], JSON_UNESCAPED_UNICODE),
+            'business_entities_id'   => 1,
+        ]);
+
+        DB::connection('legacy_sync')->table('comments')->insert([
+            'id'         => 401,
+            'tiket_id'   => 400,
+            'user_id'    => 10,
+            'comment'    => 'Sedang dicek oleh tim IT.',
+            'attachments'=> 'helpdesk/comment-proof.png',
+            'created_at' => '2026-03-10 08:30:00',
+            'updated_at' => '2026-03-10 08:30:00',
+            'deleted_at' => null,
+        ]);
+
+        DB::connection('legacy_sync')->table('ticket_histories')->insert([
+            'id'                 => 402,
+            'ticket_id'          => 400,
+            'ticket_statuses_id' => 2,
+            'user_id'            => 10,
+            'created_at'         => '2026-03-10 08:15:00',
+            'updated_at'         => '2026-03-10 08:15:00',
         ]);
 
         DB::connection('legacy_sync')->table('form_transfer_banks')->insert([

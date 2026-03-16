@@ -16,11 +16,12 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Throwable;
 use Webkul\Security\Models\User as SecurityUser;
+use Webkul\Support\Models\Company;
 
 class SyncLegacySqlData extends Command
 {
     protected $signature = 'legacy:sync
-                            {--module=* : Modules to sync (form-transfer, exit-clearance, presensi)}
+                            {--module=* : Modules to sync (form-transfer, exit-clearance, presensi, helpdesk)}
                             {--connection=legacy_sync : Legacy database connection name}
                             {--host= : Override legacy DB host}
                             {--port= : Override legacy DB port}
@@ -39,7 +40,7 @@ class SyncLegacySqlData extends Command
     /**
      * @var array<int, string>
      */
-    protected array $availableModules = ['form-transfer', 'exit-clearance', 'presensi'];
+    protected array $availableModules = ['form-transfer', 'exit-clearance', 'presensi', 'helpdesk'];
 
     protected string $legacyConnection = 'legacy_sync';
 
@@ -66,6 +67,18 @@ class SyncLegacySqlData extends Command
      * @var array<string, int>
      */
     protected array $targetCompaniesByCompanyCode = [];
+
+    /**
+     * @var array<string, int>
+     */
+    protected array $targetCompaniesByName = [];
+
+    /**
+     * @var array<int, string>
+     */
+    protected array $legacyHelpdeskBusinessEntitiesById = [];
+
+    protected bool $legacyHelpdeskBusinessEntitiesLoaded = false;
 
     /**
      * @var array<string, bool>
@@ -105,6 +118,7 @@ class SyncLegacySqlData extends Command
                     'form-transfer'  => $this->syncFormTransferModule(),
                     'exit-clearance' => $this->syncExitClearanceModule(),
                     'presensi'       => $this->syncPresensiModule(),
+                    'helpdesk'       => $this->syncHelpdeskModule(),
                 };
             }
 
@@ -308,6 +322,46 @@ class SyncLegacySqlData extends Command
         $this->syncPresensiAttendances();
         $this->syncPresensiLeaves();
         $this->syncPresensiOvertimes();
+    }
+
+    protected function syncHelpdeskModule(): void
+    {
+        $this->components->twoColumnDetail('Module', 'helpdesk');
+
+        $requiredTables = [
+            'users',
+            'priorities',
+            'ticket_statuses',
+            'units',
+            'problem_categories',
+            'tickets',
+        ];
+
+        if (! $this->ensureLegacyTablesExist($requiredTables, 'helpdesk')) {
+            return;
+        }
+
+        if ($this->shouldTruncate()) {
+            $this->truncateTables([
+                'helpdesk_ticket_histories',
+                'helpdesk_comments',
+                'helpdesk_tickets',
+                'helpdesk_problem_categories',
+                'helpdesk_unit_user',
+                'helpdesk_units',
+                'helpdesk_ticket_statuses',
+                'helpdesk_priorities',
+            ]);
+        }
+
+        $this->syncHelpdeskPriorities();
+        $this->syncHelpdeskTicketStatuses();
+        $this->syncHelpdeskUnits();
+        $this->syncHelpdeskUnitUsers();
+        $this->syncHelpdeskProblemCategories();
+        $this->syncHelpdeskTickets();
+        $this->syncHelpdeskComments();
+        $this->syncHelpdeskTicketHistories();
     }
 
     /**
@@ -1238,6 +1292,358 @@ class SyncLegacySqlData extends Command
             });
     }
 
+    protected function syncHelpdeskPriorities(): void
+    {
+        $query = DB::connection($this->legacyConnection)->table('priorities');
+
+        $this->syncRows('Helpdesk priorities', $query, function (object $row): void {
+            $targetId = $this->resolveTargetId(
+                'priorities',
+                $row->id,
+                'helpdesk_priorities',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('helpdesk_priorities')
+                        ->where('name', $this->nullableString($row->name) ?? '')
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('helpdesk_priorities')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'       => $this->nullableString($row->name) ?? 'Priority',
+                    'created_at' => $row->created_at ?? now(),
+                    'updated_at' => $row->updated_at ?? now(),
+                    'deleted_at' => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('priorities', $row->id, 'helpdesk_priorities', $targetId);
+        });
+    }
+
+    protected function syncHelpdeskTicketStatuses(): void
+    {
+        $query = DB::connection($this->legacyConnection)->table('ticket_statuses');
+
+        $this->syncRows('Helpdesk ticket statuses', $query, function (object $row): void {
+            $normalizedStatusName = $this->normalizeHelpdeskStatusName($this->nullableString($row->name));
+
+            $targetId = $this->resolveTargetId(
+                'ticket_statuses',
+                $row->id,
+                'helpdesk_ticket_statuses',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('helpdesk_ticket_statuses')
+                        ->where('name', $normalizedStatusName)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('helpdesk_ticket_statuses')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'       => $normalizedStatusName,
+                    'created_at' => $row->created_at ?? now(),
+                    'updated_at' => $row->updated_at ?? now(),
+                    'deleted_at' => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('ticket_statuses', $row->id, 'helpdesk_ticket_statuses', $targetId);
+        });
+    }
+
+    protected function syncHelpdeskUnits(): void
+    {
+        $query = DB::connection($this->legacyConnection)->table('units');
+
+        $this->syncRows('Helpdesk units', $query, function (object $row): void {
+            $targetId = $this->resolveTargetId(
+                'units',
+                $row->id,
+                'helpdesk_units',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('helpdesk_units')
+                        ->where('name', $this->nullableString($row->name) ?? '')
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('helpdesk_units')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'        => $this->nullableString($row->name) ?? 'Unit',
+                    'description' => $this->nullableString($row->description ?? null),
+                    'created_at'  => $row->created_at ?? now(),
+                    'updated_at'  => $row->updated_at ?? now(),
+                    'deleted_at'  => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('units', $row->id, 'helpdesk_units', $targetId);
+        });
+    }
+
+    protected function syncHelpdeskUnitUsers(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('user_entities')) {
+            $this->line('Legacy user_entities table not found. Skipping helpdesk unit assignments.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('user_entities');
+
+        if ($this->legacyTableHasColumn('user_entities', 'entity_type')) {
+            $query->where('entity_type', 'like', '%Unit');
+        }
+
+        $this->syncRows('Helpdesk unit users', $query, function (object $row): void {
+            $unitId = $this->mappedTargetId('units', $row->entity_id, 'helpdesk_units');
+            $userId = $this->resolveUserId($this->nullableInt($row->user_id));
+
+            if ($unitId === null || $userId === null) {
+                $this->warnMissingRelation(
+                    'user_entities',
+                    $row->id ?? ($row->user_id.'-'.$row->entity_id),
+                    'user_or_unit',
+                    implode(':', [(string) $row->user_id, (string) $row->entity_id])
+                );
+
+                return;
+            }
+
+            DB::table('helpdesk_unit_user')->updateOrInsert(
+                [
+                    'unit_id' => $unitId,
+                    'user_id' => $userId,
+                ],
+                [
+                    'created_at' => $row->created_at ?? now(),
+                    'updated_at' => $row->updated_at ?? now(),
+                ],
+            );
+        });
+    }
+
+    protected function syncHelpdeskProblemCategories(): void
+    {
+        $query = DB::connection($this->legacyConnection)->table('problem_categories');
+
+        $this->syncRows('Helpdesk problem categories', $query, function (object $row): void {
+            $unitId = $this->mappedTargetId('units', $row->unit_id, 'helpdesk_units');
+
+            if ($unitId === null) {
+                $this->warnMissingRelation('problem_categories', $row->id, 'unit_id', $row->unit_id);
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId(
+                'problem_categories',
+                $row->id,
+                'helpdesk_problem_categories',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('helpdesk_problem_categories')
+                        ->where('unit_id', $unitId)
+                        ->where('name', $this->nullableString($row->name) ?? '')
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('helpdesk_problem_categories')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'unit_id'                => $unitId,
+                    'name'                   => $this->nullableString($row->name) ?? 'Category',
+                    'default_responsible_id' => null,
+                    'created_at'             => $row->created_at ?? now(),
+                    'updated_at'             => $row->updated_at ?? now(),
+                    'deleted_at'             => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('problem_categories', $row->id, 'helpdesk_problem_categories', $targetId);
+        });
+    }
+
+    protected function syncHelpdeskTickets(): void
+    {
+        $query = DB::connection($this->legacyConnection)->table('tickets');
+        $hasBusinessEntityColumn = $this->legacyTableHasColumn('tickets', 'business_entities_id');
+        $hasAttachmentColumn = $this->legacyTableHasColumn('tickets', 'supporting_attachments');
+
+        $this->syncRows('Helpdesk tickets', $query, function (object $row) use ($hasAttachmentColumn, $hasBusinessEntityColumn): void {
+            $priorityId = $this->mappedTargetId('priorities', $row->priority_id, 'helpdesk_priorities');
+            $unitId = $this->mappedTargetId('units', $row->unit_id, 'helpdesk_units');
+            $ownerId = $this->resolveUserId($this->nullableInt($row->owner_id));
+            $problemCategoryId = $this->mappedTargetId('problem_categories', $row->problem_category_id, 'helpdesk_problem_categories');
+            $statusId = $this->mappedTargetId('ticket_statuses', $row->ticket_statuses_id, 'helpdesk_ticket_statuses');
+            $responsibleId = $this->resolveUserId($this->nullableInt($row->responsible_id ?? null));
+            $companyId = $hasBusinessEntityColumn
+                ? $this->resolveHelpdeskCompanyId($this->nullableInt($row->business_entities_id ?? null))
+                : null;
+
+            if ($priorityId === null || $unitId === null || $ownerId === null || $problemCategoryId === null || $statusId === null) {
+                $this->warnMissingRelation(
+                    'tickets',
+                    $row->id,
+                    'ticket_dependency',
+                    implode(':', [
+                        (string) $row->priority_id,
+                        (string) $row->unit_id,
+                        (string) $row->owner_id,
+                        (string) $row->problem_category_id,
+                        (string) $row->ticket_statuses_id,
+                    ])
+                );
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId('tickets', $row->id, 'helpdesk_tickets');
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('helpdesk_tickets')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'priority_id'            => $priorityId,
+                    'unit_id'                => $unitId,
+                    'owner_id'               => $ownerId,
+                    'problem_category_id'    => $problemCategoryId,
+                    'ticket_status_id'       => $statusId,
+                    'responsible_id'         => $responsibleId,
+                    'company_id'             => $companyId,
+                    'title'                  => $this->nullableString($row->title) ?? 'Untitled Ticket',
+                    'description'            => $this->nullableString($row->description) ?? '',
+                    'supporting_attachments' => $hasAttachmentColumn
+                        ? $this->normalizeAttachmentArrayPayload($row->supporting_attachments ?? null)
+                        : null,
+                    'approved_at'            => $row->approved_at ?? null,
+                    'solved_at'              => $row->solved_at ?? null,
+                    'created_at'             => $row->created_at ?? now(),
+                    'updated_at'             => $row->updated_at ?? now(),
+                    'deleted_at'             => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('tickets', $row->id, 'helpdesk_tickets', $targetId);
+        });
+    }
+
+    protected function syncHelpdeskComments(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('comments')) {
+            $this->line('Legacy comments table not found. Skipping helpdesk comments.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('comments');
+        $hasAttachmentColumn = $this->legacyTableHasColumn('comments', 'attachments');
+
+        $this->syncRows('Helpdesk comments', $query, function (object $row) use ($hasAttachmentColumn): void {
+            $ticketId = $this->mappedTargetId('tickets', $row->tiket_id, 'helpdesk_tickets');
+            $userId = $this->resolveUserId($this->nullableInt($row->user_id));
+
+            if ($ticketId === null) {
+                $this->warnMissingRelation('comments', $row->id, 'ticket_id', $row->tiket_id);
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId('comments', $row->id, 'helpdesk_comments');
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('helpdesk_comments')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'ticket_id'   => $ticketId,
+                    'user_id'     => $userId,
+                    'comment'     => $this->nullableString($row->comment) ?? '',
+                    'attachments' => $hasAttachmentColumn
+                        ? $this->normalizeAttachmentArrayPayload($row->attachments ?? null)
+                        : null,
+                    'created_at'  => $row->created_at ?? now(),
+                    'updated_at'  => $row->updated_at ?? now(),
+                    'deleted_at'  => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('comments', $row->id, 'helpdesk_comments', $targetId);
+        });
+    }
+
+    protected function syncHelpdeskTicketHistories(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('ticket_histories')) {
+            $this->line('Legacy ticket_histories table not found. Skipping helpdesk ticket histories.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('ticket_histories');
+
+        $this->syncRows('Helpdesk ticket histories', $query, function (object $row): void {
+            $ticketId = $this->mappedTargetId('tickets', $row->ticket_id, 'helpdesk_tickets');
+            $statusId = $this->mappedTargetId('ticket_statuses', $row->ticket_statuses_id, 'helpdesk_ticket_statuses');
+            $userId = $this->resolveUserId($this->nullableInt($row->user_id));
+
+            if ($ticketId === null || $statusId === null) {
+                $this->warnMissingRelation(
+                    'ticket_histories',
+                    $row->id,
+                    'ticket_or_status',
+                    implode(':', [(string) $row->ticket_id, (string) $row->ticket_statuses_id])
+                );
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId('ticket_histories', $row->id, 'helpdesk_ticket_histories');
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('helpdesk_ticket_histories')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'ticket_id'        => $ticketId,
+                    'ticket_status_id' => $statusId,
+                    'user_id'          => $userId,
+                    'created_at'       => $row->created_at ?? now(),
+                    'updated_at'       => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('ticket_histories', $row->id, 'helpdesk_ticket_histories', $targetId);
+        });
+    }
+
     protected function syncRows(
         string $label,
         Builder $query,
@@ -1560,6 +1966,20 @@ class SyncLegacySqlData extends Command
             ->get()
             ->mapWithKeys(fn (object $row): array => [strtolower((string) $row->company_id) => (int) $row->id])
             ->all();
+        $this->targetCompaniesByName = DB::table('companies')
+            ->whereNotNull('name')
+            ->select('id', 'name')
+            ->get()
+            ->mapWithKeys(function (object $row): array {
+                $normalizedName = $this->normalizeLookupName($this->nullableString($row->name));
+
+                if ($normalizedName === null) {
+                    return [];
+                }
+
+                return [$normalizedName => (int) $row->id];
+            })
+            ->all();
 
         if (! Schema::connection($this->legacyConnection)->hasTable('companies')) {
             return;
@@ -1574,6 +1994,155 @@ class SyncLegacySqlData extends Command
                 'name'       => $this->nullableString($row->name),
             ]])
             ->all();
+    }
+
+    protected function loadHelpdeskBusinessEntities(): void
+    {
+        if ($this->legacyHelpdeskBusinessEntitiesLoaded) {
+            return;
+        }
+
+        $this->legacyHelpdeskBusinessEntitiesLoaded = true;
+
+        if ($this->targetCompaniesByName === []) {
+            $this->loadLegacyCompanies();
+        }
+
+        if (! Schema::connection($this->legacyConnection)->hasTable('business_entities')) {
+            return;
+        }
+
+        $this->legacyHelpdeskBusinessEntitiesById = DB::connection($this->legacyConnection)
+            ->table('business_entities')
+            ->select('id', 'name')
+            ->get()
+            ->mapWithKeys(function (object $row): array {
+                $name = $this->nullableString($row->name);
+
+                if ($name === null) {
+                    return [];
+                }
+
+                return [(int) $row->id => Str::of($name)->squish()->toString()];
+            })
+            ->all();
+    }
+
+    protected function resolveHelpdeskCompanyId(?int $legacyBusinessEntityId): ?int
+    {
+        if ($legacyBusinessEntityId === null) {
+            return null;
+        }
+
+        $mappedId = $this->mappedTargetId('business_entities', $legacyBusinessEntityId, 'companies');
+
+        if ($mappedId !== null && $this->targetRecordExists('companies', $mappedId)) {
+            return $mappedId;
+        }
+
+        $this->loadHelpdeskBusinessEntities();
+
+        $legacyName = $this->legacyHelpdeskBusinessEntitiesById[$legacyBusinessEntityId] ?? null;
+        $normalizedLegacyName = $this->normalizeLookupName($legacyName);
+        $targetId = $normalizedLegacyName !== null
+            ? ($this->targetCompaniesByName[$normalizedLegacyName] ?? null)
+            : null;
+
+        if ($targetId !== null) {
+            $this->rememberMapping('business_entities', $legacyBusinessEntityId, 'companies', $targetId);
+
+            return $targetId;
+        }
+
+        if ($legacyName !== null && $legacyName !== '') {
+            $createdCompanyId = $this->createMissingHelpdeskCompany($legacyBusinessEntityId, $legacyName);
+
+            if ($createdCompanyId !== null) {
+                return $createdCompanyId;
+            }
+        }
+
+        if ((bool) $this->option('trust-legacy-company-ids') && $this->targetRecordExists('companies', $legacyBusinessEntityId)) {
+            $this->rememberMapping('business_entities', $legacyBusinessEntityId, 'companies', $legacyBusinessEntityId);
+
+            return $legacyBusinessEntityId;
+        }
+
+        $this->warnOnce(
+            'business_entity:'.$legacyBusinessEntityId,
+            sprintf(
+                'Could not map legacy business entity ID [%d] to a company in CESA.',
+                $legacyBusinessEntityId
+            )
+        );
+
+        return null;
+    }
+
+    protected function createMissingHelpdeskCompany(int $legacyBusinessEntityId, string $legacyCompanyName): ?int
+    {
+        $normalizedName = $this->normalizeLookupName($legacyCompanyName);
+
+        if ($normalizedName === null) {
+            return null;
+        }
+
+        $existingCompanyId = $this->targetCompaniesByName[$normalizedName] ?? null;
+
+        if ($existingCompanyId !== null && $this->targetRecordExists('companies', $existingCompanyId)) {
+            $this->rememberMapping('business_entities', $legacyBusinessEntityId, 'companies', $existingCompanyId);
+
+            return $existingCompanyId;
+        }
+
+        $company = Company::query()->create([
+            'name'       => $legacyCompanyName,
+            'company_id' => $this->generateCompanyCode($legacyCompanyName),
+            'is_active'  => true,
+        ]);
+
+        $companyId = (int) $company->id;
+
+        $this->targetCompaniesByName[$normalizedName] = $companyId;
+        $this->targetCompaniesByCompanyCode[strtolower((string) $company->company_id)] = $companyId;
+
+        $this->rememberMapping('business_entities', $legacyBusinessEntityId, 'companies', $companyId);
+
+        $this->line(sprintf(
+            'Created missing company [%s] from legacy business entity ID [%d].',
+            $legacyCompanyName,
+            $legacyBusinessEntityId
+        ));
+
+        return $companyId;
+    }
+
+    protected function generateCompanyCode(string $companyName): string
+    {
+        $baseCode = 'CMP-'.Str::upper(substr(sha1(Str::lower(Str::squish($companyName))), 0, 8));
+        $candidate = $baseCode;
+        $suffix = 1;
+
+        while (DB::table('companies')->where('company_id', $candidate)->exists()) {
+            $candidate = $baseCode.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    protected function normalizeLookupName(?string $name): ?string
+    {
+        if ($name === null) {
+            return null;
+        }
+
+        $normalizedName = Str::of($name)
+            ->squish()
+            ->lower()
+            ->toString();
+
+        return $normalizedName !== '' ? $normalizedName : null;
     }
 
     protected function targetRecordExists(string $table, int $id): bool
@@ -1823,6 +2392,59 @@ class SyncLegacySqlData extends Command
         }
 
         return (string) $value;
+    }
+
+    protected function normalizeAttachmentArrayPayload(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_array($value)) {
+            $attachments = array_values(array_filter(
+                $value,
+                fn (mixed $item): bool => is_string($item) && trim($item) !== ''
+            ));
+
+            return $attachments === [] ? null : json_encode($attachments, JSON_UNESCAPED_UNICODE);
+        }
+
+        $string = $this->nullableString($value);
+
+        if ($string === null) {
+            return null;
+        }
+
+        $decoded = json_decode($string, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $attachments = array_values(array_filter(
+                $decoded,
+                fn (mixed $item): bool => is_string($item) && trim($item) !== ''
+            ));
+
+            return $attachments === [] ? null : json_encode($attachments, JSON_UNESCAPED_UNICODE);
+        }
+
+        return json_encode([$string], JSON_UNESCAPED_UNICODE);
+    }
+
+    protected function legacyTableHasColumn(string $table, string $column): bool
+    {
+        return Schema::connection($this->legacyConnection)->hasTable($table)
+            && Schema::connection($this->legacyConnection)->hasColumn($table, $column);
+    }
+
+    protected function normalizeHelpdeskStatusName(?string $value): string
+    {
+        return match (strtolower(trim((string) $value))) {
+            'open'        => 'Open',
+            'in progress' => 'In Progress',
+            'cancel',
+            'cancelled'   => 'Cancelled',
+            'closed'      => 'Closed',
+            default       => $value ?: 'Open',
+        };
     }
 
     protected function nullableString(mixed $value): ?string

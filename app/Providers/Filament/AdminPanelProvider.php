@@ -72,6 +72,9 @@ class AdminPanelProvider extends PanelProvider
                     ->label(__('admin.navigation.exit-clearance'))
                     ->icon('icon-exit-clearance'),
                 NavigationGroup::make()
+                    ->label(__('admin.navigation.helpdesk'))
+                    ->icon('icon-helpdesk'),
+                NavigationGroup::make()
                     ->label(__('admin.navigation.kepegawaian'))
                     ->icon('icon-kepegawaian'),
                 NavigationGroup::make()

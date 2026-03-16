@@ -23,5 +23,6 @@ return [
         'kepegawaian'    => 'Employees',
         'form-transfer'  => 'Form Transfer',
         'exit-clearance' => 'Exit Clearance',
+        'helpdesk'       => 'Helpdesk',
     ],
 ];

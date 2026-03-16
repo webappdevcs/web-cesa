@@ -17,7 +17,9 @@
     },
     "autoload": {
         "psr-4": {
-            "Cesa\\Helpdesk\\": "src/"
+            "Cesa\\Helpdesk\\": "src/",
+            "Cesa\\Helpdesk\\Database\\Factories\\": "database/factories/",
+            "Cesa\\Helpdesk\\Database\\Seeders\\": "database/seeders/"
         }
     },
     "autoload-dev": {

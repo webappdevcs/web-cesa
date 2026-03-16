@@ -4,6 +4,7 @@ namespace Cesa\LegacySync\Tests;
 
 use Cesa\ExitClearance\ExitClearanceServiceProvider;
 use Cesa\FormTransfer\FormTransferServiceProvider;
+use Cesa\Helpdesk\HelpdeskServiceProvider;
 use Cesa\LegacySync\LegacySyncServiceProvider;
 use Cesa\Presensi\PresensiServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,6 +46,7 @@ abstract class LegacySyncTestCase extends TestCase
         $this->app->register(FormTransferServiceProvider::class);
         $this->app->register(ExitClearanceServiceProvider::class);
         $this->app->register(PresensiServiceProvider::class);
+        $this->app->register(HelpdeskServiceProvider::class);
         $this->app->register(LegacySyncServiceProvider::class);
 
         $this->artisan('migrate', [
@@ -76,6 +78,11 @@ abstract class LegacySyncTestCase extends TestCase
 
         $this->artisan('migrate', [
             '--path'     => 'plugins/cesa/presensi/database/migrations',
+            '--realpath' => false,
+        ]);
+
+        $this->artisan('migrate', [
+            '--path'     => 'plugins/cesa/helpdesk/database/migrations',
             '--realpath' => false,
         ]);
 
