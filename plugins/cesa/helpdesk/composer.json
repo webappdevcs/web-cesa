@@ -1,0 +1,28 @@
+{
+    "name": "cesa/helpdesk",
+    "description": "Helpdesk plugin untuk CESA",
+    "authors": [
+        {
+            "name": "apriansyahrs",
+            "email": "developer@rizqis.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\Helpdesk\\HelpdeskServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\Helpdesk\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\Helpdesk\\Tests\\": "tests/"
+        }
+    }
+}
