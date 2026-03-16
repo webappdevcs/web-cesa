@@ -1,0 +1,30 @@
+{
+    "name": "cesa/kepegawaian",
+    "description": "Manajemen kepegawaian untuk CESA",
+    "authors": [
+        {
+            "name": "apriansyahrs",
+            "email": "developer@rizqis.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\Kepegawaian\\KepegawaianServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\Kepegawaian\\": "src/",
+            "Cesa\\Kepegawaian\\Database\\Factories\\": "database/factories/",
+            "Cesa\\Kepegawaian\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\Kepegawaian\\Tests\\": "tests/"
+        }
+    }
+}

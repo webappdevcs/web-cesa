@@ -20,6 +20,7 @@ return [
         'rekrutmen'      => 'Rekrutmen',
         'presensi'       => 'Presensi',
         'payroll'        => 'Penggajian',
+        'kepegawaian'    => 'Kepegawaian',
         'form-transfer'  => 'Form Transfer',
         'exit-clearance' => 'Exit Clearance',
     ],

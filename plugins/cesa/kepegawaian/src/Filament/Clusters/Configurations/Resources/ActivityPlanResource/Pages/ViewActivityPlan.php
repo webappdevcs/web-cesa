@@ -1,0 +1,37 @@
+<?php
+
+namespace Cesa\Kepegawaian\Filament\Clusters\Configurations\Resources\ActivityPlanResource\Pages;
+
+use Cesa\Kepegawaian\Filament\Clusters\Configurations\Resources\ActivityPlanResource;
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\ViewRecord;
+
+class ViewActivityPlan extends ViewRecord
+{
+    protected static string $resource = ActivityPlanResource::class;
+
+    public function getSubNavigation(): array
+    {
+        if (filled($cluster = static::getCluster())) {
+            return $this->generateNavigationItems($cluster::getClusteredComponents());
+        }
+
+        return [];
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            EditAction::make(),
+            DeleteAction::make()
+                ->successNotification(
+                    Notification::make()
+                        ->success()
+                        ->title(__('kepegawaian::filament/clusters/configurations/resources/activity-plan/pages/view-activity-plan.header-actions.delete.notification.title'))
+                        ->body(__('kepegawaian::filament/clusters/configurations/resources/activity-plan/pages/view-activity-plan.header-actions.delete.notification.body')),
+                ),
+        ];
+    }
+}
