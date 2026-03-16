@@ -42,7 +42,7 @@ return [
 
             'rates' => [
                 'title'       => 'Kurs Mata Uang',
-                'description' => 'Kelola kurs historis untuk mata uang ini relatif terhadap mata uang dasar (USD).',
+                'description' => 'Kelola kurs historis untuk mata uang ini relatif terhadap mata uang dasar (:currency).',
 
                 'fields' => [
                     'name'              => 'Tanggal',

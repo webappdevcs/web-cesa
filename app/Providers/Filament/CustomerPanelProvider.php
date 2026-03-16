@@ -14,6 +14,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Webkul\PluginManager\Package;
 
 class CustomerPanelProvider extends PanelProvider
 {
@@ -21,8 +22,7 @@ class CustomerPanelProvider extends PanelProvider
     {
         return $panel
             ->id('customer')
-            ->path('/')
-            ->homeUrl(url('/'))
+            ->path(Package::isPluginInstalled('website') ? '/' : 'customer')
             ->authPasswordBroker('customers')
             ->profile(isSimple: false)
             ->favicon(asset('images/favicon.ico'))

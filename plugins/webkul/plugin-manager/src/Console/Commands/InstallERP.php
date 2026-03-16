@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Webkul\Support\Models\Company;
@@ -227,7 +228,7 @@ class InstallERP extends Command
     {
         $this->info('👤 Creating an Admin user...');
 
-        $defaultCompany = Company::first();
+        $defaultCompany = $this->resolveDefaultCompany();
 
         $userModel = app(Utils::getAuthProviderFQCN());
 
@@ -254,6 +255,31 @@ class InstallERP extends Command
         $this->syncDefaultSettings($adminUser);
 
         $this->info("✅ Admin user '{$adminUser->name}' created and assigned the '{$this->getAdminRoleName()}' role successfully.");
+    }
+
+    protected function resolveDefaultCompany(): Company
+    {
+        $defaultCompany = Company::query()->first();
+
+        if ($defaultCompany instanceof Company) {
+            return $defaultCompany;
+        }
+
+        $companyName = Str::of(config('app.name', 'Company'))->squish()->value() ?: 'Company';
+        $currencyCode = Str::upper((string) config('app.currency', 'IDR'));
+        $currencyId = Currency::query()
+            ->where('name', $currencyCode)
+            ->value('id')
+            ?? Currency::query()->value('id');
+
+        return Company::query()->create([
+            'sort'        => 1,
+            'name'        => $companyName,
+            'company_id'  => 'CMP-'.Str::upper(substr(sha1($companyName), 0, 8)),
+            'currency_id' => $currencyId,
+            'is_active'   => true,
+            'website'     => config('app.url'),
+        ]);
     }
 
     /**

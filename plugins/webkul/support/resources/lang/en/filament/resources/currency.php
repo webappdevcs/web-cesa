@@ -42,7 +42,7 @@ return [
 
             'rates' => [
                 'title'       => 'Currency Rates',
-                'description' => 'Manage historic exchange rates for this currency relative to the base currency (USD).',
+                'description' => 'Manage historic exchange rates for this currency relative to the base currency (:currency).',
 
                 'fields' => [
                     'name'              => 'Date',

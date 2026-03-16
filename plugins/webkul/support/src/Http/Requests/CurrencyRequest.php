@@ -52,7 +52,7 @@ class CurrencyRequest extends FormRequest
         return [
             'name' => [
                 'description' => 'Currency name (max 255 characters).',
-                'example'     => 'USD',
+                'example'     => 'IDR',
             ],
             'symbol' => [
                 'description' => 'Currency symbol (max 10 characters).',

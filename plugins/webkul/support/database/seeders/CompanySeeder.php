@@ -6,6 +6,7 @@ use Exception;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Throwable;
 use Webkul\Security\Models\User;
 use Webkul\Support\Models\Currency;
@@ -33,43 +34,49 @@ class CompanySeeder extends Seeder
             DB::table('users')->delete();
 
             $user = User::first();
+            $companyName = Str::of(config('app.name', 'Company'))->squish()->value() ?: 'Company';
+            $currencyCode = Str::upper((string) config('app.currency', 'IDR'));
+            $companyCode = 'CMP-'.Str::upper(substr(sha1($companyName), 0, 8));
+            $website = config('app.url');
 
             $partnerId = DB::table('partners_partners')->insertGetId([
                 'sub_type'         => 'company',
-                'company_registry' => 'DUMREG780',
-                'name'             => 'DummyCorp LLC',
-                'email'            => 'dummy@dummycorp.local',
-                'website'          => 'http://dummycorp.local',
-                'tax_id'           => 'DUM123456',
-                'phone'            => '1234567890',
-                'mobile'           => '1234567890',
+                'company_registry' => null,
+                'name'             => $companyName,
+                'email'            => null,
+                'website'          => $website,
+                'tax_id'           => null,
+                'phone'            => null,
+                'mobile'           => null,
                 'creator_id'       => $user?->id,
                 'color'            => '#AAAAAA',
                 'created_at'       => now(),
                 'updated_at'       => now(),
             ]);
 
-            $currency = Currency::find(1);
+            $currency = Currency::query()
+                ->where('name', $currencyCode)
+                ->first();
 
             if (! $currency) {
-                throw new Exception('Currency with ID 1 not found.');
+                throw new Exception("Currency '{$currencyCode}' not found.");
             }
 
             DB::table('companies')->insert([
                 'sort'                => 1,
-                'name'                => 'DummyCorp LLC',
-                'tax_id'              => 'DUM123456',
-                'registration_number' => 'DUMREG789',
-                'company_id'          => 'DUMCOMP001',
+                'name'                => $companyName,
+                'tax_id'              => null,
+                'registration_number' => null,
+                'company_id'          => $companyCode,
                 'creator_id'          => $user?->id,
-                'email'               => 'dummy@dummycorp.local',
-                'phone'               => '1234567890',
-                'mobile'              => '1234567890',
+                'email'               => null,
+                'phone'               => null,
+                'mobile'              => null,
                 'color'               => '#AAAAAA',
                 'is_active'           => true,
-                'founded_date'        => '2000-01-01',
+                'founded_date'        => null,
                 'currency_id'         => $currency->id,
-                'website'             => 'http://dummycorp.local',
+                'website'             => $website,
                 'partner_id'          => $partnerId,
                 'created_at'          => now(),
                 'updated_at'          => now(),
