@@ -21,7 +21,7 @@ use Webkul\Support\Models\Company;
 class SyncLegacySqlData extends Command
 {
     protected $signature = 'legacy:sync
-                            {--module=* : Modules to sync (form-transfer, exit-clearance, presensi, helpdesk)}
+                            {--module=* : Modules to sync (form-transfer, exit-clearance, presensi, helpdesk, shelf)}
                             {--connection=legacy_sync : Legacy database connection name}
                             {--host= : Override legacy DB host}
                             {--port= : Override legacy DB port}
@@ -40,7 +40,7 @@ class SyncLegacySqlData extends Command
     /**
      * @var array<int, string>
      */
-    protected array $availableModules = ['form-transfer', 'exit-clearance', 'presensi', 'helpdesk'];
+    protected array $availableModules = ['form-transfer', 'exit-clearance', 'presensi', 'helpdesk', 'shelf'];
 
     protected string $legacyConnection = 'legacy_sync';
 
@@ -55,6 +55,43 @@ class SyncLegacySqlData extends Command
      * @var array<string, int>
      */
     protected array $targetUsersByEmail = [];
+
+    /**
+     * @var array<int, string>
+     */
+    protected array $targetUserEmailsById = [];
+
+    /**
+     * @var array<int, string>
+     */
+    protected array $targetUserNamesById = [];
+
+    /**
+     * @var array<string, array<int, int>>
+     */
+    protected array $targetUserIdsByName = [];
+
+    /**
+     * @var array<int, int|null>
+     */
+    protected array $targetUserDefaultCompaniesById = [];
+
+    protected bool $targetEmployeesLoaded = false;
+
+    /**
+     * @var array<string, int>
+     */
+    protected array $targetEmployeeUserIdsByIdentifier = [];
+
+    /**
+     * @var array<string, int>
+     */
+    protected array $targetEmployeesWithoutUsersByIdentifier = [];
+
+    /**
+     * @var array<int, array<int, string>>
+     */
+    protected array $targetEmployeeIdentifiersById = [];
 
     /**
      * @var array<int, array{company_id: string|null, name: string|null}>
@@ -79,6 +116,24 @@ class SyncLegacySqlData extends Command
     protected array $legacyHelpdeskBusinessEntitiesById = [];
 
     protected bool $legacyHelpdeskBusinessEntitiesLoaded = false;
+
+    /**
+     * @var array<int, object|null>
+     */
+    protected array $legacyShelfAssetsById = [];
+
+    protected bool $legacyShelfAssetsLoaded = false;
+
+    /**
+     * @var array<int, object|null>
+     */
+    protected array $legacyShelfAssetTransfersById = [];
+
+    protected bool $legacyShelfAssetTransfersLoaded = false;
+
+    protected ?string $legacyShelfJobPositionsTable = null;
+
+    protected ?string $legacyShelfEmployeesTable = null;
 
     /**
      * @var array<string, bool>
@@ -119,6 +174,7 @@ class SyncLegacySqlData extends Command
                     'exit-clearance' => $this->syncExitClearanceModule(),
                     'presensi'       => $this->syncPresensiModule(),
                     'helpdesk'       => $this->syncHelpdeskModule(),
+                    'shelf'          => $this->syncShelfModule(),
                 };
             }
 
@@ -362,6 +418,1549 @@ class SyncLegacySqlData extends Command
         $this->syncHelpdeskTickets();
         $this->syncHelpdeskComments();
         $this->syncHelpdeskTicketHistories();
+    }
+
+    protected function syncShelfModule(): void
+    {
+        $this->components->twoColumnDetail('Module', 'shelf');
+
+        $legacyTables = [
+            'categories',
+            'brands',
+            'asset_locations',
+            'vendors',
+            'assets',
+            'asset_transfers',
+            'asset_transfer_details',
+            'tasks',
+            'vehicle_checksheets',
+            'custom_asset_attributes',
+            'asset_attributes',
+            'approval_levels',
+            'asset_requests',
+            'public_asset_requests',
+            'request_approvals',
+        ];
+
+        $existingLegacyTables = array_values(array_filter(
+            $legacyTables,
+            fn (string $table): bool => Schema::connection($this->legacyConnection)->hasTable($table)
+        ));
+
+        if ($existingLegacyTables === []) {
+            $this->warn('Skipping module [shelf]. No legacy shelf tables were found.');
+
+            return;
+        }
+
+        if ($this->shouldTruncate()) {
+            $this->truncateTables([
+                'shelf_company_document_settings',
+                'shelf_request_approvals',
+                'shelf_asset_transfer_details',
+                'shelf_asset_attributes',
+                'shelf_vehicle_checksheets',
+                'shelf_asset_transfers',
+                'shelf_tasks',
+                'shelf_asset_requests',
+                'shelf_approval_levels',
+                'shelf_assets',
+                'shelf_custom_asset_attributes',
+                'shelf_vendors',
+                'shelf_asset_locations',
+                'shelf_brands',
+                'shelf_categories',
+            ]);
+        }
+
+        $this->syncShelfCategories();
+        $this->syncShelfBrands();
+        $this->syncShelfAssetLocations();
+        $this->syncShelfVendors();
+        $this->syncShelfCustomAssetAttributes();
+        $this->syncShelfAssets();
+        $this->syncShelfAssetAttributes();
+        $this->syncShelfTasks();
+        $this->syncShelfAssetTransfers();
+        $this->syncShelfAssetTransferDetails();
+        $this->syncShelfEmployeeJobPositions();
+        $this->syncShelfEmployees();
+        $this->syncShelfCompanyDocumentSettings();
+        $this->syncShelfVehicleChecksheets();
+        $this->syncShelfApprovalLevels();
+        $this->syncShelfAssetRequests();
+        $this->syncShelfRequestApprovals();
+    }
+
+    protected function syncShelfCategories(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('categories')) {
+            $this->line('Legacy categories table not found. Skipping shelf categories.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('categories');
+
+        $this->syncRows('Shelf categories', $query, function (object $row): void {
+            $targetId = $this->resolveTargetId('categories', $row->id, 'shelf_categories');
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_categories')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'       => $this->nullableString($row->name) ?? 'Category',
+                    'parent_id'  => null,
+                    'created_at' => $row->created_at ?? now(),
+                    'updated_at' => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('categories', $row->id, 'shelf_categories', $targetId);
+        });
+
+        DB::connection($this->legacyConnection)
+            ->table('categories')
+            ->whereNotNull('parent_id')
+            ->orderBy('id')
+            ->get()
+            ->each(function (object $row): void {
+                $targetId = $this->mappedTargetId('categories', $row->id, 'shelf_categories');
+                $parentId = $this->mappedTargetId('categories', $row->parent_id, 'shelf_categories');
+
+                if ($targetId === null || $parentId === null) {
+                    $this->warnMissingRelation('categories', $row->id, 'parent_id', $row->parent_id);
+
+                    return;
+                }
+
+                DB::table('shelf_categories')
+                    ->where('id', $targetId)
+                    ->update(['parent_id' => $parentId]);
+            });
+    }
+
+    protected function syncShelfBrands(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('brands')) {
+            $this->line('Legacy brands table not found. Skipping shelf brands.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('brands');
+
+        $this->syncRows('Shelf brands', $query, function (object $row): void {
+            $targetId = $this->resolveTargetId(
+                'brands',
+                $row->id,
+                'shelf_brands',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_brands')
+                        ->where('name', $this->nullableString($row->name) ?? '')
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_brands')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'       => $this->nullableString($row->name) ?? 'Brand',
+                    'created_at' => $row->created_at ?? now(),
+                    'updated_at' => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('brands', $row->id, 'shelf_brands', $targetId);
+        });
+    }
+
+    protected function syncShelfAssetLocations(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('asset_locations')) {
+            $this->line('Legacy asset_locations table not found. Skipping shelf asset locations.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('asset_locations');
+
+        $this->syncRows('Shelf asset locations', $query, function (object $row): void {
+            $targetId = $this->resolveTargetId(
+                'asset_locations',
+                $row->id,
+                'shelf_asset_locations',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_asset_locations')
+                        ->where('name', $this->nullableString($row->name) ?? '')
+                        ->where('address', $this->nullableString($row->address))
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_asset_locations')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'        => $this->nullableString($row->name) ?? 'Location',
+                    'address'     => $this->nullableString($row->address),
+                    'description' => $this->nullableString($row->description),
+                    'created_at'  => $row->created_at ?? now(),
+                    'updated_at'  => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('asset_locations', $row->id, 'shelf_asset_locations', $targetId);
+        });
+    }
+
+    protected function syncShelfVendors(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('vendors')) {
+            $this->line('Legacy vendors table not found. Skipping shelf vendors.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('vendors');
+
+        $this->syncRows('Shelf vendors', $query, function (object $row): void {
+            $targetId = $this->resolveTargetId(
+                'vendors',
+                $row->id,
+                'shelf_vendors',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_vendors')
+                        ->where('name', $this->nullableString($row->name) ?? '')
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_vendors')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'       => $this->nullableString($row->name) ?? 'Vendor',
+                    'last_price' => $row->last_price ?? 0,
+                    'created_at' => $row->created_at ?? now(),
+                    'updated_at' => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('vendors', $row->id, 'shelf_vendors', $targetId);
+        });
+    }
+
+    protected function syncShelfCustomAssetAttributes(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('custom_asset_attributes')) {
+            $this->line('Legacy custom_asset_attributes table not found. Skipping shelf custom asset attributes.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('custom_asset_attributes');
+
+        $this->syncRows('Shelf custom asset attributes', $query, function (object $row): void {
+            $targetId = $this->resolveTargetId(
+                'custom_asset_attributes',
+                $row->id,
+                'shelf_custom_asset_attributes',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_custom_asset_attributes')
+                        ->where('name', $this->nullableString($row->name) ?? '')
+                        ->where('type', $this->nullableString($row->type) ?? '')
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_custom_asset_attributes')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'name'                    => $this->nullableString($row->name) ?? 'Attribute',
+                    'type'                    => $this->nullableString($row->type) ?? 'text',
+                    'required'                => $this->normalizeBoolean($row->required ?? null, false),
+                    'is_active'               => $this->normalizeBoolean($row->is_active ?? null, true),
+                    'category_id'             => $this->normalizeJsonString($row->category_id ?? null),
+                    'is_notifiable'           => $this->normalizeBoolean($row->is_notifiable ?? null, false),
+                    'notification_type'       => $this->normalizeShelfNotificationType($row->notification_type ?? null),
+                    'notification_offset'     => $this->nullableInt($row->notification_offset ?? null),
+                    'fixed_notification_date' => $row->fixed_notification_date ?? null,
+                    'created_at'              => $row->created_at ?? now(),
+                    'updated_at'              => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('custom_asset_attributes', $row->id, 'shelf_custom_asset_attributes', $targetId);
+        });
+    }
+
+    protected function syncShelfAssets(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('assets')) {
+            $this->line('Legacy assets table not found. Skipping shelf assets.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('assets');
+
+        $this->syncRows('Shelf assets', $query, function (object $row): void {
+            $this->syncShelfAssetRow($row);
+        });
+    }
+
+    protected function syncShelfAssetAttributes(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('asset_attributes')) {
+            $this->line('Legacy asset_attributes table not found. Skipping shelf asset attributes.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('asset_attributes');
+
+        $this->syncRows('Shelf asset attributes', $query, function (object $row): void {
+            $assetId = $this->resolveShelfAssetId($this->nullableInt($row->asset_id ?? null));
+            $customAttributeId = $this->nullableInt($row->custom_attribute_id ?? null) !== null
+                ? $this->mappedTargetId('custom_asset_attributes', $row->custom_attribute_id, 'shelf_custom_asset_attributes')
+                : null;
+
+            if ($assetId === null) {
+                $this->warnMissingRelation('asset_attributes', $row->id, 'asset_id', $row->asset_id);
+
+                return;
+            }
+
+            if ($this->nullableInt($row->custom_attribute_id ?? null) !== null && $customAttributeId === null) {
+                $this->warnMissingRelation('asset_attributes', $row->id, 'custom_attribute_id', $row->custom_attribute_id);
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId(
+                'asset_attributes',
+                $row->id,
+                'shelf_asset_attributes',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_asset_attributes')
+                        ->where('asset_id', $assetId)
+                        ->where('custom_attribute_id', $customAttributeId)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_asset_attributes')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'asset_id'            => $assetId,
+                    'custom_attribute_id' => $customAttributeId,
+                    'attribute_value'     => $this->nullableString($row->attribute_value ?? null),
+                    'created_at'          => $row->created_at ?? now(),
+                    'updated_at'          => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('asset_attributes', $row->id, 'shelf_asset_attributes', $targetId);
+        });
+    }
+
+    protected function syncShelfTasks(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('tasks')) {
+            $this->line('Legacy tasks table not found. Skipping shelf tasks.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('tasks');
+
+        $this->syncRows('Shelf tasks', $query, function (object $row): void {
+            $companyId = $this->resolveCompanyId($this->nullableInt($row->business_entity_id ?? null));
+            $vendorId = $this->mappedTargetId('vendors', $row->vendor_id, 'shelf_vendors');
+            $userId = $this->resolveUserId($this->nullableInt($row->user_id ?? null), $companyId);
+
+            if ($companyId === null) {
+                $this->warnMissingRelation('tasks', $row->id, 'company_id', $row->business_entity_id ?? null);
+
+                return;
+            }
+
+            if ($vendorId === null) {
+                $this->warnMissingRelation('tasks', $row->id, 'vendor_id', $row->vendor_id);
+
+                return;
+            }
+
+            $code = $this->nullableString($row->code ?? null) ?? sprintf('LEGACY-TASK-%d', $row->id);
+
+            $targetId = $this->resolveTargetId(
+                'tasks',
+                $row->id,
+                'shelf_tasks',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_tasks')
+                        ->where('code', $code)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_tasks')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'code'            => $code,
+                    'company_id'      => $companyId,
+                    'name'            => $this->nullableString($row->name) ?? 'Task',
+                    'description'     => $this->nullableString($row->description) ?? '',
+                    'vendor_id'       => $vendorId,
+                    'cost'            => $row->cost ?? 0,
+                    'location'        => $this->nullableString($row->location) ?? '',
+                    'status'          => $this->normalizeShelfTaskStatus($row->status ?? null),
+                    'attachment'      => $this->normalizeAttachmentArrayPayload($row->attachment ?? null),
+                    'work_timestamp'  => $row->work_timestamp ?? null,
+                    'user_id'         => $userId,
+                    'document_upload' => $this->nullableString($row->document_upload ?? null),
+                    'created_at'      => $row->created_at ?? now(),
+                    'updated_at'      => $row->updated_at ?? now(),
+                    'deleted_at'      => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('tasks', $row->id, 'shelf_tasks', $targetId);
+        });
+    }
+
+    protected function syncShelfAssetTransfers(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('asset_transfers')) {
+            $this->line('Legacy asset_transfers table not found. Skipping shelf asset transfers.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('asset_transfers');
+
+        $this->syncRows('Shelf asset transfers', $query, function (object $row): void {
+            $this->syncShelfAssetTransferRow($row);
+        });
+    }
+
+    protected function syncShelfAssetTransferDetails(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('asset_transfer_details')) {
+            $this->line('Legacy asset_transfer_details table not found. Skipping shelf asset transfer details.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('asset_transfer_details');
+
+        $this->syncRows('Shelf asset transfer details', $query, function (object $row): void {
+            $assetTransferId = $this->resolveShelfAssetTransferId($this->nullableInt($row->asset_transfer_id ?? null));
+            $assetId = $this->resolveShelfAssetId($this->nullableInt($row->asset_id ?? null));
+
+            if ($assetTransferId === null || $assetId === null) {
+                $this->warnMissingRelation(
+                    'asset_transfer_details',
+                    $row->id,
+                    'asset_transfer_or_asset',
+                    implode(':', [(string) $row->asset_transfer_id, (string) $row->asset_id])
+                );
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId(
+                'asset_transfer_details',
+                $row->id,
+                'shelf_asset_transfer_details',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_asset_transfer_details')
+                        ->where('asset_transfer_id', $assetTransferId)
+                        ->where('asset_id', $assetId)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_asset_transfer_details')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'asset_transfer_id' => $assetTransferId,
+                    'asset_id'          => $assetId,
+                    'equipment'         => $this->nullableString($row->equipment ?? null),
+                    'created_at'        => $row->created_at ?? now(),
+                    'updated_at'        => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('asset_transfer_details', $row->id, 'shelf_asset_transfer_details', $targetId);
+        });
+    }
+
+    protected function syncShelfVehicleChecksheets(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('vehicle_checksheets')) {
+            $this->line('Legacy vehicle_checksheets table not found. Skipping shelf vehicle checksheets.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('vehicle_checksheets');
+
+        $this->syncRows('Shelf vehicle checksheets', $query, function (object $row): void {
+            $assetId = $this->nullableInt($row->asset_id ?? null) !== null
+                ? $this->resolveShelfAssetId($this->nullableInt($row->asset_id ?? null))
+                : null;
+            $referenceNumber = $this->nullableString($row->reference_number ?? null) ?? sprintf('LEGACY-CHK-%d', $row->id);
+
+            if ($this->nullableInt($row->asset_id ?? null) !== null && $assetId === null) {
+                $this->warnMissingRelation('vehicle_checksheets', $row->id, 'asset_id', $row->asset_id);
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId(
+                'vehicle_checksheets',
+                $row->id,
+                'shelf_vehicle_checksheets',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_vehicle_checksheets')
+                        ->where('reference_number', $referenceNumber)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_vehicle_checksheets')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'asset_id'                 => $assetId,
+                    'reference_number'         => $referenceNumber,
+                    'pic'                      => $this->nullableString($row->pic ?? null),
+                    'license_plate'            => $this->nullableString($row->license_plate) ?? '',
+                    'location'                 => $this->nullableString($row->location ?? null),
+                    'destination'              => $this->nullableString($row->destination ?? null),
+                    'remarks'                  => $this->nullableString($row->remarks ?? null),
+                    'start_km'                 => $this->nullableInt($row->start_km ?? null),
+                    'departure_time'           => $row->departure_time ?? null,
+                    'departure_photo'          => $this->nullableString($row->departure_photo ?? null),
+                    'departure_damage_report'  => $this->nullableString($row->departure_damage_report ?? null),
+                    'end_km'                   => $this->nullableInt($row->end_km ?? null),
+                    'return_time'              => $row->return_time ?? null,
+                    'return_photo'             => $this->nullableString($row->return_photo ?? null),
+                    'return_damage_report'     => $this->nullableString($row->return_damage_report ?? null),
+                    'rental_duration'          => $row->rental_duration ?? null,
+                    'distance_traveled'        => $row->distance_traveled ?? 0,
+                    'created_at'               => $row->created_at ?? now(),
+                    'updated_at'               => $row->updated_at ?? now(),
+                    'deleted_at'               => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping('vehicle_checksheets', $row->id, 'shelf_vehicle_checksheets', $targetId);
+        });
+    }
+
+    protected function syncShelfCompanyDocumentSettings(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('business_entities')) {
+            $this->line('Legacy business_entities table not found. Skipping shelf company document settings.');
+
+            return;
+        }
+
+        $formatColumn = $this->firstExistingLegacyColumn('business_entities', [
+            'format',
+            'document_format',
+            'letter_format',
+            'number_format',
+        ]);
+        $colorColumn = $this->firstExistingLegacyColumn('business_entities', [
+            'color',
+            'document_color',
+        ]);
+        $letterheadColumn = $this->firstExistingLegacyColumn('business_entities', [
+            'letterhead_path',
+            'letterhead',
+            'logo',
+            'header_image',
+        ]);
+
+        if ($formatColumn === null && $colorColumn === null && $letterheadColumn === null) {
+            $this->line('Legacy business_entities document columns not found. Skipping shelf company document settings.');
+
+            return;
+        }
+
+        $selectColumns = array_values(array_unique(array_filter([
+            'id',
+            'name',
+            $formatColumn,
+            $colorColumn,
+            $letterheadColumn,
+        ])));
+        $query = DB::connection($this->legacyConnection)->table('business_entities')->select($selectColumns);
+
+        $this->syncRows('Shelf company document settings', $query, function (object $row) use (
+            $colorColumn,
+            $formatColumn,
+            $letterheadColumn,
+        ): void {
+            $companyId = $this->resolveHelpdeskCompanyId($this->nullableInt($row->id ?? null));
+
+            if ($companyId === null) {
+                $this->warnMissingRelation('business_entities', $row->id, 'company_id', $row->id);
+
+                return;
+            }
+
+            $existingSetting = DB::table('shelf_company_document_settings')
+                ->where('company_id', $companyId)
+                ->first();
+            $format = $formatColumn !== null
+                ? $this->nullableString(data_get($row, $formatColumn))
+                : null;
+            $color = $colorColumn !== null
+                ? $this->nullableString(data_get($row, $colorColumn))
+                : null;
+            $letterheadPath = $letterheadColumn !== null
+                ? $this->normalizeLegacyStoragePath($this->nullableString(data_get($row, $letterheadColumn)))
+                : null;
+
+            if (
+                $format === null
+                && $color === null
+                && $letterheadPath === null
+                && $existingSetting === null
+            ) {
+                return;
+            }
+
+            DB::table('shelf_company_document_settings')->updateOrInsert(
+                ['company_id' => $companyId],
+                [
+                    'format'          => $format ?? $this->nullableString($existingSetting?->format ?? null),
+                    'color'           => $color ?? $this->nullableString($existingSetting?->color ?? null),
+                    'letterhead_path' => $letterheadPath ?? $this->nullableString($existingSetting?->letterhead_path ?? null),
+                    'created_at'      => $existingSetting?->created_at ?? now(),
+                    'updated_at'      => now(),
+                ],
+            );
+        });
+    }
+
+    protected function syncShelfEmployeeJobPositions(): void
+    {
+        if (! Schema::hasTable('employees_job_positions')) {
+            $this->warnOnce(
+                'shelf:employees_job_positions:missing',
+                'Skipping shelf employee job positions sync because target table [employees_job_positions] is missing. Install kepegawaian first.'
+            );
+
+            return;
+        }
+
+        $legacyTable = $this->legacyShelfJobPositionsTable();
+
+        if ($legacyTable === null) {
+            $this->line('Legacy employee job positions table not found. Skipping shelf job titles.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table($legacyTable);
+
+        $this->syncRows('Shelf employee job positions', $query, function (object $row) use ($legacyTable): void {
+            $legacyId = $this->nullableInt($row->id ?? null);
+
+            if ($legacyId === null) {
+                return;
+            }
+
+            $name = $this->nullableString($this->legacyRowValue($row, ['name', 'title', 'job_title']));
+
+            if ($name === null) {
+                $this->warnOnce(
+                    "relation:{$legacyTable}:{$legacyId}:name",
+                    sprintf('Skipping legacy record [%s:%s] because no job position name could be resolved.', $legacyTable, $legacyId)
+                );
+
+                return;
+            }
+
+            $companyId = $this->resolveCompanyId($this->nullableInt($this->legacyRowValue($row, ['company_id', 'business_entity_id'])));
+            $creatorId = $this->resolveUserId($this->nullableInt($this->legacyRowValue($row, ['creator_id', 'created_by'])));
+
+            $targetId = $this->resolveTargetId(
+                $legacyTable,
+                $legacyId,
+                'employees_job_positions',
+                function () use ($companyId, $name): ?int {
+                    $query = DB::table('employees_job_positions')->where('name', $name);
+
+                    if ($companyId === null) {
+                        $query->whereNull('company_id');
+                    } else {
+                        $query->where('company_id', $companyId);
+                    }
+
+                    return $this->nullableInt($query->value('id'));
+                }
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('employees_job_positions')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'sort'               => $this->nullableInt($row->sort ?? null),
+                    'expected_employees' => $this->nullableInt($row->expected_employees ?? null),
+                    'no_of_employee'     => $this->nullableInt($row->no_of_employee ?? null),
+                    'no_of_recruitment'  => $this->nullableInt($row->no_of_recruitment ?? null),
+                    'department_id'      => null,
+                    'company_id'         => $companyId,
+                    'creator_id'         => $creatorId,
+                    'employment_type_id' => null,
+                    'name'               => $name,
+                    'description'        => $this->nullableString($row->description ?? null),
+                    'requirements'       => $this->nullableString($row->requirements ?? null),
+                    'is_active'          => $this->normalizeBoolean($row->is_active ?? null, true),
+                    'deleted_at'         => $row->deleted_at ?? null,
+                    'created_at'         => $row->created_at ?? now(),
+                    'updated_at'         => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping($legacyTable, $legacyId, 'employees_job_positions', $targetId);
+        });
+    }
+
+    protected function syncShelfEmployees(): void
+    {
+        if (! Schema::hasTable('employees_employees')) {
+            $this->warnOnce(
+                'shelf:employees_employees:missing',
+                'Skipping shelf employees sync because target table [employees_employees] is missing. Install kepegawaian first.'
+            );
+
+            return;
+        }
+
+        $legacyTable = $this->legacyShelfEmployeesTable();
+
+        if ($legacyTable === null) {
+            $this->line('Legacy employees table not found. Skipping shelf employees.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table($legacyTable);
+
+        $this->syncRows('Shelf employees', $query, function (object $row) use ($legacyTable): void {
+            $legacyId = $this->nullableInt($row->id ?? null);
+
+            if ($legacyId === null) {
+                return;
+            }
+
+            $companyId = $this->resolveCompanyId($this->nullableInt($this->legacyRowValue($row, ['company_id', 'business_entity_id'])));
+            $userId = $this->resolveUserId($this->nullableInt($row->user_id ?? null), $companyId);
+            $creatorId = $this->resolveUserId($this->nullableInt($this->legacyRowValue($row, ['creator_id', 'created_by'])), $companyId);
+            $legacyJobId = $this->nullableInt($this->legacyRowValue($row, ['job_id', 'job_position_id']));
+            $jobId = $legacyJobId !== null
+                ? $this->resolveShelfEmployeeJobPositionId($legacyJobId)
+                : null;
+
+            $name = $this->nullableString($row->name ?? null);
+            $workEmail = $this->nullableString($row->work_email ?? $row->email ?? null);
+            $privateEmail = $this->nullableString($row->private_email ?? null);
+            $employeeCode = $this->nullableString($row->employee_code ?? null);
+
+            $targetId = $this->resolveTargetId(
+                $legacyTable,
+                $legacyId,
+                'employees_employees',
+                function () use ($companyId, $name, $privateEmail, $userId, $workEmail): ?int {
+                    if ($userId !== null) {
+                        $existingByUserId = $this->nullableInt(
+                            DB::table('employees_employees')->where('user_id', $userId)->value('id')
+                        );
+
+                        if ($existingByUserId !== null) {
+                            return $existingByUserId;
+                        }
+                    }
+
+                    foreach (array_filter([$workEmail, $privateEmail]) as $email) {
+                        $existingByEmail = $this->nullableInt(
+                            DB::table('employees_employees')
+                                ->where(function (Builder $query) use ($email): void {
+                                    $query->where('work_email', $email)
+                                        ->orWhere('private_email', $email);
+                                })
+                                ->value('id')
+                        );
+
+                        if ($existingByEmail !== null) {
+                            return $existingByEmail;
+                        }
+                    }
+
+                    if ($name === null) {
+                        return null;
+                    }
+
+                    $query = DB::table('employees_employees')->where('name', $name);
+
+                    if ($companyId === null) {
+                        $query->whereNull('company_id');
+                    } else {
+                        $query->where('company_id', $companyId);
+                    }
+
+                    return $this->nullableInt($query->value('id'));
+                }
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            $payload = [
+                'company_id'     => $companyId,
+                'user_id'        => $userId,
+                'creator_id'     => $creatorId,
+                'job_id'         => $jobId,
+                'name'           => $name,
+                'job_title'      => $this->nullableString($row->job_title ?? null),
+                'work_email'     => $workEmail,
+                'private_email'  => $privateEmail,
+                'mobile_phone'   => $this->nullableString($row->mobile_phone ?? null),
+                'work_phone'     => $this->nullableString($row->work_phone ?? null),
+                'is_active'      => $this->normalizeBoolean($row->is_active ?? null, true),
+                'deleted_at'     => $row->deleted_at ?? null,
+                'created_at'     => $row->created_at ?? now(),
+                'updated_at'     => $row->updated_at ?? now(),
+            ];
+
+            if (Schema::hasColumn('employees_employees', 'employee_code')) {
+                $payload['employee_code'] = $employeeCode;
+            }
+
+            DB::table('employees_employees')->updateOrInsert(
+                ['id' => $targetId],
+                $payload,
+            );
+
+            $this->rememberMapping($legacyTable, $legacyId, 'employees_employees', $targetId);
+        });
+    }
+
+    protected function syncShelfAssetRow(object $row): ?int
+    {
+        $legacyAssetCompanyId = $this->nullableInt($this->legacyRowValue($row, ['company_id', 'business_entity_id']));
+        $companyId = $this->resolveCompanyId($legacyAssetCompanyId);
+        $categoryId = $this->nullableInt($row->category_id ?? null) !== null
+            ? $this->mappedTargetId('categories', $row->category_id, 'shelf_categories')
+            : null;
+        $brandId = $this->nullableInt($row->brand_id ?? null) !== null
+            ? $this->mappedTargetId('brands', $row->brand_id, 'shelf_brands')
+            : null;
+        $assetLocationId = $this->nullableInt($row->asset_location_id ?? null) !== null
+            ? $this->mappedTargetId('asset_locations', $row->asset_location_id, 'shelf_asset_locations')
+            : null;
+        $legacyRecipientCompanyId = $this->nullableInt($this->legacyRowValue($row, ['recipient_company_id', 'recipient_business_entity_id']));
+        $recipientCompanyId = $this->resolveCompanyId($legacyRecipientCompanyId);
+        $recipientId = $this->resolveUserId(
+            $this->nullableInt($row->recipient_id ?? null),
+            $recipientCompanyId ?? $companyId,
+        );
+        $nbhResponsibleUserId = $this->resolveUserId($this->nullableInt($row->nbh_responsible_user_id ?? null), $companyId);
+
+        $targetId = $this->resolveTargetId(
+            'assets',
+            $row->id,
+            'shelf_assets',
+            fn (): ?int => $this->findExistingShelfAssetId($row)
+        );
+
+        if ($targetId === null) {
+            return null;
+        }
+
+        DB::table('shelf_assets')->updateOrInsert(
+            ['id' => $targetId],
+            [
+                'purchase_date'           => $row->purchase_date ?? null,
+                'company_id'              => $companyId,
+                'name'                    => $this->nullableString($row->name) ?? 'Asset',
+                'image'                   => $this->nullableString($row->image ?? null),
+                'category_id'             => $categoryId,
+                'brand_id'                => $brandId,
+                'type'                    => $this->nullableString($row->type ?? null),
+                'serial_number'           => $this->nullableString($row->serial_number ?? null),
+                'imei1'                   => $this->nullableString($row->imei1 ?? null),
+                'imei2'                   => $this->nullableString($row->imei2 ?? null),
+                'item_price'              => $row->item_price ?? null,
+                'asset_location_id'       => $assetLocationId,
+                'qty'                     => $this->nullableInt($row->qty ?? null) ?? 1,
+                'is_available'            => $this->normalizeBoolean($row->is_available ?? null, true),
+                'condition_status'        => $this->normalizeShelfConditionStatus(
+                    $row->condition_status ?? null,
+                    $row->is_available ?? null,
+                ),
+                'nbh_status'              => $this->normalizeShelfNbhStatus($row->nbh_status ?? null),
+                'nbh_reported_at'         => $row->nbh_reported_at ?? null,
+                'audit_document_path'     => $this->nullableString($row->audit_document_path ?? null),
+                'nbh_document_path'       => $this->nullableString($row->nbh_document_path ?? null),
+                'nbh_notes'               => $this->nullableString($row->nbh_notes ?? null),
+                'nbh_responsible_user_id' => $nbhResponsibleUserId,
+                'recipient_id'            => $recipientId,
+                'recipient_company_id'    => $recipientCompanyId,
+                'created_at'              => $row->created_at ?? now(),
+                'updated_at'              => $row->updated_at ?? now(),
+            ],
+        );
+
+        $this->rememberMapping('assets', $row->id, 'shelf_assets', $targetId);
+        $this->legacyShelfAssetsById[(int) $row->id] = $row;
+
+        return $targetId;
+    }
+
+    protected function syncShelfAssetTransferRow(object $row): ?int
+    {
+        $legacyTransferCompanyId = $this->nullableInt($this->legacyRowValue($row, ['company_id', 'business_entity_id']));
+        $companyId = $this->resolveCompanyId($legacyTransferCompanyId);
+        $fromUserId = $this->resolveUserId($this->nullableInt($row->from_user_id ?? null), $companyId);
+        $toUserId = $this->resolveUserId($this->nullableInt($row->to_user_id ?? null), $companyId);
+        $letterNumber = $this->nullableString($row->letter_number ?? null) ?? sprintf('LEGACY-AST-%d', $row->id);
+
+        if ($companyId === null || $fromUserId === null || $toUserId === null) {
+            $this->warnMissingRelation(
+                'asset_transfers',
+                $row->id,
+                'company_or_users',
+                implode(':', [
+                    (string) ($this->legacyRowValue($row, ['company_id', 'business_entity_id']) ?? ''),
+                    (string) ($row->from_user_id ?? ''),
+                    (string) ($row->to_user_id ?? ''),
+                ])
+            );
+
+            return null;
+        }
+
+        $targetId = $this->resolveTargetId(
+            'asset_transfers',
+            $row->id,
+            'shelf_asset_transfers',
+            fn (): ?int => $this->findExistingShelfAssetTransferId($letterNumber)
+        );
+
+        if ($targetId === null) {
+            return null;
+        }
+
+        DB::table('shelf_asset_transfers')->updateOrInsert(
+            ['id' => $targetId],
+            [
+                'company_id'    => $companyId,
+                'letter_number' => $letterNumber,
+                'transfer_type' => $this->resolveShelfAssetTransferType($row, $fromUserId, $toUserId),
+                'from_user_id'  => $fromUserId,
+                'to_user_id'    => $toUserId,
+                'transfer_date' => $row->transfer_date ?? $row->created_at ?? now(),
+                'document'      => $this->nullableString($row->document ?? null),
+                'created_at'    => $row->created_at ?? now(),
+                'updated_at'    => $row->updated_at ?? now(),
+            ],
+        );
+
+        $this->rememberMapping('asset_transfers', $row->id, 'shelf_asset_transfers', $targetId);
+        $this->legacyShelfAssetTransfersById[(int) $row->id] = $row;
+
+        return $targetId;
+    }
+
+    protected function resolveShelfEmployeeJobPositionId(int $legacyJobId): ?int
+    {
+        $legacyTable = $this->legacyShelfJobPositionsTable();
+
+        if ($legacyTable === null) {
+            return null;
+        }
+
+        $mappedId = $this->mappedTargetId($legacyTable, $legacyJobId, 'employees_job_positions');
+
+        if ($mappedId !== null && $this->targetRecordExists('employees_job_positions', $mappedId)) {
+            return $mappedId;
+        }
+
+        return null;
+    }
+
+    protected function resolveShelfAssetTransferType(object $row, ?int $fromUserId, ?int $toUserId): ?string
+    {
+        $explicitTransferType = $this->extractExplicitLegacyShelfTransferType($row);
+        $configuredTransferType = $this->inferShelfTransferTypeFromConfiguredCustodians(
+            $this->nullableInt($row->from_user_id ?? null),
+            $this->nullableInt($row->to_user_id ?? null),
+            $fromUserId,
+            $toUserId,
+        );
+
+        $fallbackTransferType = (bool) config('legacy-sync.shelf.asset_transfers.fallback_to_role_inference', true)
+            ? \Cesa\Shelf\Models\AssetTransfer::inferTransferTypeFromUserIds($fromUserId, $toUserId)
+            : null;
+
+        return $this->mergeExplicitAndInferredShelfTransferTypes(
+            $explicitTransferType,
+            $configuredTransferType ?? $fallbackTransferType,
+        );
+    }
+
+    protected function mergeExplicitAndInferredShelfTransferTypes(?string $explicitTransferType, ?string $inferredTransferType): ?string
+    {
+        if ($explicitTransferType === null) {
+            return $inferredTransferType;
+        }
+
+        if ($inferredTransferType === null) {
+            return $explicitTransferType;
+        }
+
+        if (
+            $explicitTransferType === \Cesa\Shelf\Models\AssetTransfer::TYPE_REASSIGNMENT
+            && in_array($inferredTransferType, [
+                \Cesa\Shelf\Models\AssetTransfer::TYPE_HANDOVER,
+                \Cesa\Shelf\Models\AssetTransfer::TYPE_RETURN,
+            ], true)
+        ) {
+            return $inferredTransferType;
+        }
+
+        return $explicitTransferType;
+    }
+
+    protected function extractExplicitLegacyShelfTransferType(object $row): ?string
+    {
+        foreach (['transfer_type', 'document_type', 'type', 'status'] as $column) {
+            if (! property_exists($row, $column)) {
+                continue;
+            }
+
+            $normalizedTransferType = $this->normalizeShelfTransferType(
+                $this->nullableString($row->{$column})
+            );
+
+            if ($normalizedTransferType !== null) {
+                return $normalizedTransferType;
+            }
+        }
+
+        return null;
+    }
+
+    protected function inferShelfTransferTypeFromConfiguredCustodians(
+        ?int $legacyFromUserId,
+        ?int $legacyToUserId,
+        ?int $targetFromUserId,
+        ?int $targetToUserId,
+    ): ?string {
+        $fromHasKnownCustodianIdentity = $this->hasKnownShelfCustodianIdentity($legacyFromUserId, $targetFromUserId);
+        $toHasKnownCustodianIdentity = $this->hasKnownShelfCustodianIdentity($legacyToUserId, $targetToUserId);
+
+        if (! $this->hasConfiguredShelfCustodianIdentities() && ! $fromHasKnownCustodianIdentity && ! $toHasKnownCustodianIdentity) {
+            return null;
+        }
+
+        if (($legacyFromUserId === null && $targetFromUserId === null) || ($legacyToUserId === null && $targetToUserId === null)) {
+            return null;
+        }
+
+        $fromIsCustodian = $this->matchesConfiguredShelfCustodianIdentity($legacyFromUserId, $targetFromUserId);
+        $toIsCustodian = $this->matchesConfiguredShelfCustodianIdentity($legacyToUserId, $targetToUserId);
+
+        return match (true) {
+            $fromIsCustodian && ! $toIsCustodian   => \Cesa\Shelf\Models\AssetTransfer::TYPE_HANDOVER,
+            ! $fromIsCustodian && ! $toIsCustodian => \Cesa\Shelf\Models\AssetTransfer::TYPE_REASSIGNMENT,
+            ! $fromIsCustodian && $toIsCustodian   => \Cesa\Shelf\Models\AssetTransfer::TYPE_RETURN,
+            default                                => null,
+        };
+    }
+
+    protected function hasConfiguredShelfCustodianIdentities(): bool
+    {
+        foreach ([
+            'custodian_legacy_user_ids',
+            'custodian_legacy_user_emails',
+            'custodian_legacy_user_names',
+            'custodian_target_user_ids',
+            'custodian_target_user_emails',
+            'custodian_target_user_names',
+        ] as $key) {
+            if (config('legacy-sync.shelf.asset_transfers.'.$key, []) !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function hasKnownShelfCustodianIdentity(?int $legacyUserId, ?int $targetUserId): bool
+    {
+        $legacyUserName = $legacyUserId !== null ? $this->legacyUserName($legacyUserId) : null;
+
+        if ($legacyUserName !== null && in_array($legacyUserName, ['ga', 'general affair', 'general_affair', 'general affairs', 'general_affairs'], true)) {
+            return true;
+        }
+
+        $targetUserName = $targetUserId !== null ? $this->targetUserName($targetUserId) : null;
+
+        return $targetUserName !== null
+            && in_array($targetUserName, ['ga', 'general affair', 'general_affair', 'general affairs', 'general_affairs'], true);
+    }
+
+    protected function matchesConfiguredShelfCustodianIdentity(?int $legacyUserId, ?int $targetUserId): bool
+    {
+        if ($legacyUserId !== null && in_array($legacyUserId, config('legacy-sync.shelf.asset_transfers.custodian_legacy_user_ids', []), true)) {
+            return true;
+        }
+
+        $legacyUserEmail = $legacyUserId !== null ? $this->legacyUserEmail($legacyUserId) : null;
+
+        if ($legacyUserEmail !== null && in_array($legacyUserEmail, config('legacy-sync.shelf.asset_transfers.custodian_legacy_user_emails', []), true)) {
+            return true;
+        }
+
+        $legacyUserName = $legacyUserId !== null ? $this->legacyUserName($legacyUserId) : null;
+
+        if ($this->matchesShelfCustodianName($legacyUserName, 'legacy')) {
+            return true;
+        }
+
+        if ($targetUserId !== null && in_array($targetUserId, config('legacy-sync.shelf.asset_transfers.custodian_target_user_ids', []), true)) {
+            return true;
+        }
+
+        $targetUserEmail = $targetUserId !== null ? $this->targetUserEmail($targetUserId) : null;
+
+        if ($targetUserEmail !== null && in_array($targetUserEmail, config('legacy-sync.shelf.asset_transfers.custodian_target_user_emails', []), true)) {
+            return true;
+        }
+
+        $targetUserName = $targetUserId !== null ? $this->targetUserName($targetUserId) : null;
+
+        return $this->matchesShelfCustodianName($targetUserName, 'target');
+    }
+
+    protected function matchesShelfCustodianName(?string $name, string $source): bool
+    {
+        if ($name === null) {
+            return false;
+        }
+
+        if (in_array($name, ['ga', 'general affair', 'general_affair', 'general affairs', 'general_affairs'], true)) {
+            return true;
+        }
+
+        return in_array(
+            $name,
+            array_map(
+                fn (mixed $configuredName): ?string => $this->normalizeLookupName(is_string($configuredName) ? $configuredName : null),
+                config("legacy-sync.shelf.asset_transfers.custodian_{$source}_user_names", [])
+            ),
+            true
+        );
+    }
+
+    protected function resolveShelfAssetId(?int $legacyAssetId): ?int
+    {
+        if ($legacyAssetId === null) {
+            return null;
+        }
+
+        $mappedId = $this->mappedTargetId('assets', $legacyAssetId, 'shelf_assets');
+
+        if ($mappedId !== null && $this->targetRecordExists('shelf_assets', $mappedId)) {
+            return $mappedId;
+        }
+
+        $legacyAsset = $this->legacyShelfAssetRow($legacyAssetId);
+
+        if ($legacyAsset === null) {
+            return null;
+        }
+
+        $existingId = $this->findExistingShelfAssetId($legacyAsset);
+
+        if ($existingId !== null) {
+            $this->rememberMapping('assets', $legacyAssetId, 'shelf_assets', $existingId);
+
+            return $existingId;
+        }
+
+        return $this->syncShelfAssetRow($legacyAsset);
+    }
+
+    protected function resolveShelfAssetTransferId(?int $legacyAssetTransferId): ?int
+    {
+        if ($legacyAssetTransferId === null) {
+            return null;
+        }
+
+        $mappedId = $this->mappedTargetId('asset_transfers', $legacyAssetTransferId, 'shelf_asset_transfers');
+
+        if ($mappedId !== null && $this->targetRecordExists('shelf_asset_transfers', $mappedId)) {
+            return $mappedId;
+        }
+
+        $legacyAssetTransfer = $this->legacyShelfAssetTransferRow($legacyAssetTransferId);
+
+        if ($legacyAssetTransfer === null) {
+            return null;
+        }
+
+        $letterNumber = $this->nullableString($legacyAssetTransfer->letter_number ?? null)
+            ?? sprintf('LEGACY-AST-%d', $legacyAssetTransferId);
+        $existingId = $this->findExistingShelfAssetTransferId($letterNumber);
+
+        if ($existingId !== null) {
+            $this->rememberMapping('asset_transfers', $legacyAssetTransferId, 'shelf_asset_transfers', $existingId);
+
+            return $existingId;
+        }
+
+        return $this->syncShelfAssetTransferRow($legacyAssetTransfer);
+    }
+
+    protected function findExistingShelfAssetId(object $row): ?int
+    {
+        return $this->nullableInt(
+            DB::table('shelf_assets')
+                ->when(
+                    $this->nullableString($row->serial_number ?? null) !== null,
+                    fn (Builder $query): Builder => $query->where('serial_number', $this->nullableString($row->serial_number))
+                )
+                ->where('name', $this->nullableString($row->name) ?? '')
+                ->value('id')
+        );
+    }
+
+    protected function findExistingShelfAssetTransferId(string $letterNumber): ?int
+    {
+        return $this->nullableInt(
+            DB::table('shelf_asset_transfers')
+                ->where('letter_number', $letterNumber)
+                ->value('id')
+        );
+    }
+
+    protected function legacyShelfAssetRow(int $legacyAssetId): ?object
+    {
+        if (! array_key_exists($legacyAssetId, $this->legacyShelfAssetsById)) {
+            $this->loadLegacyShelfAssets();
+        }
+
+        return $this->legacyShelfAssetsById[$legacyAssetId] ?? null;
+    }
+
+    protected function legacyShelfAssetTransferRow(int $legacyAssetTransferId): ?object
+    {
+        if (! array_key_exists($legacyAssetTransferId, $this->legacyShelfAssetTransfersById)) {
+            $this->loadLegacyShelfAssetTransfers();
+        }
+
+        return $this->legacyShelfAssetTransfersById[$legacyAssetTransferId] ?? null;
+    }
+
+    protected function loadLegacyShelfAssets(): void
+    {
+        if ($this->legacyShelfAssetsLoaded) {
+            return;
+        }
+
+        $this->legacyShelfAssetsLoaded = true;
+
+        if (! Schema::connection($this->legacyConnection)->hasTable('assets')) {
+            return;
+        }
+
+        $this->legacyShelfAssetsById = DB::connection($this->legacyConnection)
+            ->table('assets')
+            ->get()
+            ->mapWithKeys(fn (object $row): array => [(int) $row->id => $row])
+            ->all();
+    }
+
+    protected function loadLegacyShelfAssetTransfers(): void
+    {
+        if ($this->legacyShelfAssetTransfersLoaded) {
+            return;
+        }
+
+        $this->legacyShelfAssetTransfersLoaded = true;
+
+        if (! Schema::connection($this->legacyConnection)->hasTable('asset_transfers')) {
+            return;
+        }
+
+        $this->legacyShelfAssetTransfersById = DB::connection($this->legacyConnection)
+            ->table('asset_transfers')
+            ->get()
+            ->mapWithKeys(fn (object $row): array => [(int) $row->id => $row])
+            ->all();
+    }
+
+    protected function syncShelfApprovalLevels(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('approval_levels')) {
+            $this->line('Legacy approval_levels table not found. Skipping shelf approval levels.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('approval_levels');
+        $hasDivisionColumn = $this->legacyTableHasColumn('approval_levels', 'division');
+
+        $this->syncRows('Shelf approval levels', $query, function (object $row) use ($hasDivisionColumn): void {
+            $requestType = $this->normalizeShelfRequestType($row->request_type ?? null);
+            $division = $hasDivisionColumn
+                ? ($this->nullableString($row->division ?? null) ?? '*')
+                : '*';
+            $level = (int) ($row->level ?? 1);
+
+            $targetId = $this->resolveTargetId(
+                'approval_levels',
+                $row->id,
+                'shelf_approval_levels',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_approval_levels')
+                        ->where('request_type', $requestType)
+                        ->where('level', $level)
+                        ->where('division', $division)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_approval_levels')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'request_type'   => $requestType,
+                    'division'       => $division,
+                    'level'          => $level,
+                    'approver_name'  => $this->nullableString($row->approver_name) ?? '',
+                    'approver_email' => $this->nullableString($row->approver_email) ?? '',
+                    'created_at'     => $row->created_at ?? now(),
+                    'updated_at'     => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('approval_levels', $row->id, 'shelf_approval_levels', $targetId);
+        });
+    }
+
+    protected function syncShelfAssetRequests(): void
+    {
+        $legacyTable = $this->firstExistingLegacyTable(['asset_requests', 'public_asset_requests']);
+
+        if ($legacyTable === null) {
+            $this->line('Legacy asset request table not found. Skipping shelf asset requests.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table($legacyTable);
+
+        $hasApprovalTrackColumn = $this->legacyTableHasColumn($legacyTable, 'approval_track');
+        $hasAttachmentPathColumn = $this->legacyTableHasColumn($legacyTable, 'attachment_path');
+        $hasAttachmentOriginalNameColumn = $this->legacyTableHasColumn($legacyTable, 'attachment_original_name');
+        $hasStatusColumn = $this->legacyTableHasColumn($legacyTable, 'status');
+        $hasAdminNotesColumn = $this->legacyTableHasColumn($legacyTable, 'admin_notes');
+        $hasUserIdColumn = $this->legacyTableHasColumn($legacyTable, 'user_id');
+        $hasAssetIdColumn = $this->legacyTableHasColumn($legacyTable, 'asset_id');
+
+        $this->syncRows('Shelf asset requests', $query, function (object $row) use (
+            $legacyTable,
+            $hasAdminNotesColumn,
+            $hasApprovalTrackColumn,
+            $hasAssetIdColumn,
+            $hasAttachmentOriginalNameColumn,
+            $hasAttachmentPathColumn,
+            $hasStatusColumn,
+            $hasUserIdColumn,
+        ): void {
+            $assetId = $hasAssetIdColumn && $this->nullableInt($row->asset_id ?? null) !== null
+                ? $this->resolveShelfAssetId($this->nullableInt($row->asset_id ?? null))
+                : null;
+            $assetCompanyId = $assetId !== null
+                ? $this->nullableInt(DB::table('shelf_assets')->where('id', $assetId)->value('company_id'))
+                : null;
+            $userId = $hasUserIdColumn
+                ? $this->resolveUserId($this->nullableInt($row->user_id ?? null), $assetCompanyId)
+                : null;
+            $uuid = $this->nullableString($row->uuid ?? null) ?? (string) Str::uuid();
+
+            if ($hasAssetIdColumn && $this->nullableInt($row->asset_id ?? null) !== null && $assetId === null) {
+                $this->warnMissingRelation($legacyTable, $row->id, 'asset_id', $row->asset_id);
+
+                return;
+            }
+
+            $targetId = $this->resolveTargetId(
+                $legacyTable,
+                $row->id,
+                'shelf_asset_requests',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_asset_requests')
+                        ->where('uuid', $uuid)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_asset_requests')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'uuid'                     => $uuid,
+                    'request_type'             => $this->normalizeShelfRequestType($row->request_type ?? null),
+                    'requester_name'           => $this->nullableString($row->requester_name) ?? '',
+                    'email'                    => $this->nullableString($row->email) ?? '',
+                    'division'                 => $this->nullableString($row->division) ?? '',
+                    'approval_track'           => $hasApprovalTrackColumn ? $this->nullableString($row->approval_track ?? null) : null,
+                    'placement'                => $this->nullableString($row->placement) ?? '',
+                    'item_name'                => $this->nullableString($row->item_name) ?? '',
+                    'qty'                      => $this->nullableInt($row->qty ?? null) ?? 1,
+                    'attachment_path'          => $hasAttachmentPathColumn ? $this->nullableString($row->attachment_path ?? null) : null,
+                    'attachment_original_name' => $hasAttachmentOriginalNameColumn ? $this->nullableString($row->attachment_original_name ?? null) : null,
+                    'status'                   => $hasStatusColumn ? $this->normalizeSimpleStatus($row->status ?? null) : 'pending',
+                    'admin_notes'              => $hasAdminNotesColumn ? $this->nullableString($row->admin_notes ?? null) : null,
+                    'user_id'                  => $userId,
+                    'asset_id'                 => $assetId,
+                    'created_at'               => $row->created_at ?? now(),
+                    'updated_at'               => $row->updated_at ?? now(),
+                    'deleted_at'               => $row->deleted_at ?? null,
+                ],
+            );
+
+            $this->rememberMapping($legacyTable, $row->id, 'shelf_asset_requests', $targetId);
+        });
+    }
+
+    protected function syncShelfRequestApprovals(): void
+    {
+        if (! Schema::connection($this->legacyConnection)->hasTable('request_approvals')) {
+            $this->line('Legacy request_approvals table not found. Skipping shelf request approvals.');
+
+            return;
+        }
+
+        $legacyRequestTable = $this->firstExistingLegacyTable(['asset_requests', 'public_asset_requests']) ?? 'asset_requests';
+        $requestForeignKey = $this->legacyTableHasColumn('request_approvals', 'asset_request_id')
+            ? 'asset_request_id'
+            : ($this->legacyTableHasColumn('request_approvals', 'public_asset_request_id') ? 'public_asset_request_id' : null);
+
+        if ($requestForeignKey === null) {
+            $this->line('Legacy request_approvals table does not have an asset request foreign key. Skipping shelf request approvals.');
+
+            return;
+        }
+
+        $query = DB::connection($this->legacyConnection)->table('request_approvals');
+
+        $this->syncRows('Shelf request approvals', $query, function (object $row) use ($legacyRequestTable, $requestForeignKey): void {
+            $assetRequestId = $this->mappedTargetId($legacyRequestTable, $row->{$requestForeignKey}, 'shelf_asset_requests');
+            $approvalLevelId = $this->mappedTargetId('approval_levels', $row->approval_level_id, 'shelf_approval_levels');
+
+            if ($assetRequestId === null || $approvalLevelId === null) {
+                $this->warnMissingRelation(
+                    'request_approvals',
+                    $row->id,
+                    'asset_request_or_approval_level',
+                    implode(':', [(string) $row->{$requestForeignKey}, (string) $row->approval_level_id])
+                );
+
+                return;
+            }
+
+            $token = $this->nullableString($row->token ?? null) ?? sprintf('legacy-shelf-approval-%s', $row->id);
+
+            $targetId = $this->resolveTargetId(
+                'request_approvals',
+                $row->id,
+                'shelf_request_approvals',
+                fn (): ?int => $this->nullableInt(
+                    DB::table('shelf_request_approvals')
+                        ->where('token', $token)
+                        ->value('id')
+                ),
+            );
+
+            if ($targetId === null) {
+                return;
+            }
+
+            DB::table('shelf_request_approvals')->updateOrInsert(
+                ['id' => $targetId],
+                [
+                    'asset_request_id'  => $assetRequestId,
+                    'approval_level_id' => $approvalLevelId,
+                    'token'             => $token,
+                    'level'             => (int) ($row->level ?? 1),
+                    'approver_name'     => $this->nullableString($row->approver_name) ?? '',
+                    'approver_email'    => $this->nullableString($row->approver_email) ?? '',
+                    'status'            => $this->normalizeSimpleStatus($row->status ?? null),
+                    'notes'             => $this->nullableString($row->notes ?? null),
+                    'responded_at'      => $row->responded_at ?? null,
+                    'created_at'        => $row->created_at ?? now(),
+                    'updated_at'        => $row->updated_at ?? now(),
+                ],
+            );
+
+            $this->rememberMapping('request_approvals', $row->id, 'shelf_request_approvals', $targetId);
+        });
     }
 
     /**
@@ -1744,7 +3343,7 @@ class SyncLegacySqlData extends Command
         );
     }
 
-    protected function resolveUserId(?int $legacyUserId): ?int
+    protected function resolveUserId(?int $legacyUserId, ?int $targetCompanyId = null): ?int
     {
         if ($legacyUserId === null) {
             return null;
@@ -1759,15 +3358,32 @@ class SyncLegacySqlData extends Command
         $this->loadLegacyUsers();
 
         if (isset($this->legacyUsersById[$legacyUserId])) {
-            $legacyEmail = strtolower((string) ($this->legacyUsersById[$legacyUserId]['email'] ?? ''));
-            $targetId = $legacyEmail !== ''
+            $legacyEmail = $this->normalizeEmail($this->legacyUsersById[$legacyUserId]['email'] ?? null);
+            $targetId = $legacyEmail !== null
                 ? ($this->targetUsersByEmail[$legacyEmail] ?? null)
                 : null;
 
             if ($targetId !== null) {
+                $this->attachUserToMatchingEmployee($legacyUserId, $targetId);
                 $this->rememberMapping('users', $legacyUserId, 'users', $targetId);
 
                 return $targetId;
+            }
+
+            $targetEmployeeUserId = $this->resolveEmployeeLinkedUserId($legacyUserId);
+
+            if ($targetEmployeeUserId !== null) {
+                $this->rememberMapping('users', $legacyUserId, 'users', $targetEmployeeUserId);
+
+                return $targetEmployeeUserId;
+            }
+
+            $targetUserIdByName = $this->resolveTargetUserIdByLegacyName($legacyUserId, $targetCompanyId);
+
+            if ($targetUserIdByName !== null) {
+                $this->rememberMapping('users', $legacyUserId, 'users', $targetUserIdByName);
+
+                return $targetUserIdByName;
             }
         }
 
@@ -1776,6 +3392,12 @@ class SyncLegacySqlData extends Command
 
             if ($createdUserId !== null) {
                 return $createdUserId;
+            }
+
+            $placeholderUserId = $this->createPlaceholderUserFromLegacyId($legacyUserId);
+
+            if ($placeholderUserId !== null) {
+                return $placeholderUserId;
             }
         }
 
@@ -1796,6 +3418,64 @@ class SyncLegacySqlData extends Command
         return null;
     }
 
+    protected function resolveTargetUserIdByLegacyName(int $legacyUserId, ?int $targetCompanyId = null): ?int
+    {
+        $legacyUserName = $this->legacyUserName($legacyUserId);
+
+        if ($legacyUserName === null) {
+            return null;
+        }
+
+        $candidateUserIds = array_values(array_unique($this->targetUserIdsByName[$legacyUserName] ?? []));
+
+        if ($candidateUserIds === []) {
+            return null;
+        }
+
+        if ($targetCompanyId !== null) {
+            $companyMatchedUserIds = array_values(array_filter(
+                $candidateUserIds,
+                fn (int $userId): bool => $this->targetUserMatchesCompany($userId, $targetCompanyId),
+            ));
+
+            if (count($companyMatchedUserIds) === 1) {
+                return $companyMatchedUserIds[0];
+            }
+        }
+
+        return count($candidateUserIds) === 1 ? $candidateUserIds[0] : null;
+    }
+
+    protected function targetUserMatchesCompany(int $userId, int $companyId): bool
+    {
+        if (($this->targetUserDefaultCompaniesById[$userId] ?? null) === $companyId) {
+            return true;
+        }
+
+        if (Schema::hasTable('employees_employees')) {
+            $query = DB::table('employees_employees')
+                ->where('user_id', $userId)
+                ->where('company_id', $companyId);
+
+            if (Schema::hasColumn('employees_employees', 'deleted_at')) {
+                $query->whereNull('deleted_at');
+            }
+
+            if ($query->exists()) {
+                return true;
+            }
+        }
+
+        if (Schema::hasTable('user_allowed_companies')) {
+            return DB::table('user_allowed_companies')
+                ->where('user_id', $userId)
+                ->where('company_id', $companyId)
+                ->exists();
+        }
+
+        return false;
+    }
+
     protected function resolveCompanyId(?int $legacyCompanyId): ?int
     {
         if ($legacyCompanyId === null) {
@@ -1805,6 +3485,8 @@ class SyncLegacySqlData extends Command
         $mappedId = $this->mappedTargetId('companies', $legacyCompanyId, 'companies');
 
         if ($mappedId !== null && $this->targetRecordExists('companies', $mappedId)) {
+            $this->syncMappedCompanyNameFromBusinessEntity($mappedId, $legacyCompanyId);
+
             return $mappedId;
         }
 
@@ -1813,9 +3495,37 @@ class SyncLegacySqlData extends Command
         $legacyCompany = $this->legacyCompaniesById[$legacyCompanyId] ?? null;
 
         if ($legacyCompany !== null) {
-            $companyCode = strtolower((string) ($legacyCompany['company_id'] ?? ''));
-            $targetId = $companyCode !== ''
+            $companyCode = $this->normalizeCompanyCode($legacyCompany['company_id'] ?? null);
+            $targetId = $companyCode !== null
                 ? ($this->targetCompaniesByCompanyCode[$companyCode] ?? null)
+                : null;
+
+            if ($targetId === null) {
+                $normalizedName = $this->normalizeLookupName($legacyCompany['name'] ?? null);
+                $targetId = $normalizedName !== null
+                    ? ($this->targetCompaniesByName[$normalizedName] ?? null)
+                    : null;
+            }
+
+            if ($targetId !== null) {
+                $this->rememberMapping('companies', $legacyCompanyId, 'companies', $targetId);
+
+                return $targetId;
+            }
+
+            $createdCompanyId = $this->createMissingLegacyCompany($legacyCompanyId, $legacyCompany);
+
+            if ($createdCompanyId !== null) {
+                return $createdCompanyId;
+            }
+        }
+
+        $legacyBusinessEntityName = $this->legacyBusinessEntityName($legacyCompanyId);
+
+        if ($legacyBusinessEntityName !== null) {
+            $normalizedLegacyBusinessEntityName = $this->normalizeLookupName($legacyBusinessEntityName);
+            $targetId = $normalizedLegacyBusinessEntityName !== null
+                ? ($this->targetCompaniesByName[$normalizedLegacyBusinessEntityName] ?? null)
                 : null;
 
             if ($targetId !== null) {
@@ -1823,12 +3533,27 @@ class SyncLegacySqlData extends Command
 
                 return $targetId;
             }
+
+            $createdCompanyId = $this->createMissingLegacyCompany($legacyCompanyId, [
+                'company_id' => null,
+                'name'       => $legacyBusinessEntityName,
+            ]);
+
+            if ($createdCompanyId !== null) {
+                return $createdCompanyId;
+            }
         }
 
         if ((bool) $this->option('trust-legacy-company-ids') && $this->targetRecordExists('companies', $legacyCompanyId)) {
             $this->rememberMapping('companies', $legacyCompanyId, 'companies', $legacyCompanyId);
 
             return $legacyCompanyId;
+        }
+
+        $placeholderCompanyId = $this->createPlaceholderLegacyCompany($legacyCompanyId);
+
+        if ($placeholderCompanyId !== null) {
+            return $placeholderCompanyId;
         }
 
         $this->warnOnce(
@@ -1842,6 +3567,50 @@ class SyncLegacySqlData extends Command
         return null;
     }
 
+    protected function legacyBusinessEntityName(int $legacyBusinessEntityId): ?string
+    {
+        $this->loadHelpdeskBusinessEntities();
+
+        return $this->legacyHelpdeskBusinessEntitiesById[$legacyBusinessEntityId] ?? null;
+    }
+
+    protected function syncMappedCompanyNameFromBusinessEntity(int $companyId, int $legacyBusinessEntityId): void
+    {
+        $legacyBusinessEntityName = $this->legacyBusinessEntityName($legacyBusinessEntityId);
+
+        if ($legacyBusinessEntityName === null || $legacyBusinessEntityName === '') {
+            return;
+        }
+
+        $company = Company::query()->find($companyId);
+
+        if (! $company) {
+            return;
+        }
+
+        if (! preg_match('/^Legacy Company \d+$/', (string) $company->name)) {
+            return;
+        }
+
+        if ($company->name === $legacyBusinessEntityName) {
+            return;
+        }
+
+        $previousNormalizedName = $this->normalizeLookupName($company->name);
+        $company->name = $legacyBusinessEntityName;
+        $company->save();
+
+        if ($previousNormalizedName !== null) {
+            unset($this->targetCompaniesByName[$previousNormalizedName]);
+        }
+
+        $normalizedBusinessEntityName = $this->normalizeLookupName($legacyBusinessEntityName);
+
+        if ($normalizedBusinessEntityName !== null) {
+            $this->targetCompaniesByName[$normalizedBusinessEntityName] = $companyId;
+        }
+    }
+
     protected function loadLegacyUsers(): void
     {
         if ($this->legacyUsersLoaded) {
@@ -1849,11 +3618,68 @@ class SyncLegacySqlData extends Command
         }
 
         $this->legacyUsersLoaded = true;
-        $this->targetUsersByEmail = DB::table('users')
-            ->whereNotNull('email')
-            ->select('id', 'email')
-            ->get()
-            ->mapWithKeys(fn (object $row): array => [strtolower((string) $row->email) => (int) $row->id])
+        $targetUserColumns = ['id', 'email', 'name'];
+
+        if (Schema::hasColumn('users', 'default_company_id')) {
+            $targetUserColumns[] = 'default_company_id';
+        }
+
+        $targetUsers = DB::table('users')
+            ->select($targetUserColumns)
+            ->get();
+
+        $this->targetUserEmailsById = $targetUsers
+            ->mapWithKeys(function (object $row): array {
+                $normalizedEmail = $this->normalizeEmail($this->nullableString($row->email ?? null));
+
+                if ($normalizedEmail === null) {
+                    return [];
+                }
+
+                return [(int) $row->id => $normalizedEmail];
+            })
+            ->all();
+
+        $this->targetUserNamesById = $targetUsers
+            ->mapWithKeys(function (object $row): array {
+                $normalizedName = $this->normalizeLookupName($this->nullableString($row->name ?? null));
+
+                if ($normalizedName === null) {
+                    return [];
+                }
+
+                return [(int) $row->id => $normalizedName];
+            })
+            ->all();
+
+        $this->targetUserIdsByName = $targetUsers
+            ->reduce(function (array $carry, object $row): array {
+                $normalizedName = $this->normalizeLookupName($this->nullableString($row->name ?? null));
+
+                if ($normalizedName === null) {
+                    return $carry;
+                }
+
+                $carry[$normalizedName] ??= [];
+                $carry[$normalizedName][] = (int) $row->id;
+
+                return $carry;
+            }, []);
+
+        $this->targetUserDefaultCompaniesById = $targetUsers
+            ->mapWithKeys(fn (object $row): array => [(int) $row->id => $this->nullableInt($row->default_company_id ?? null)])
+            ->all();
+
+        $this->targetUsersByEmail = $targetUsers
+            ->mapWithKeys(function (object $row): array {
+                $normalizedEmail = $this->normalizeEmail($this->nullableString($row->email ?? null));
+
+                if ($normalizedEmail === null) {
+                    return [];
+                }
+
+                return [$normalizedEmail => (int) $row->id];
+            })
             ->all();
 
         if (! Schema::connection($this->legacyConnection)->hasTable('users')) {
@@ -1896,9 +3722,10 @@ class SyncLegacySqlData extends Command
         }
 
         $email = $this->resolveLegacyUserEmail($legacyUserId, $legacyUser['email']);
-        $existingUserId = $this->targetUsersByEmail[strtolower($email)] ?? null;
+        $existingUserId = $this->targetUsersByEmail[$this->normalizeEmail($email) ?? ''] ?? null;
 
         if ($existingUserId !== null) {
+            $this->attachUserToMatchingEmployee($legacyUserId, $existingUserId);
             $this->rememberMapping('users', $legacyUserId, 'users', $existingUserId);
 
             return $existingUserId;
@@ -1918,11 +3745,51 @@ class SyncLegacySqlData extends Command
         ]);
         $user->save();
 
-        $this->targetUsersByEmail[strtolower($email)] = (int) $user->id;
+        $this->targetUsersByEmail[$this->normalizeEmail($email) ?? strtolower($email)] = (int) $user->id;
+        $this->attachUserToMatchingEmployee($legacyUserId, (int) $user->id);
         $this->rememberMapping('users', $legacyUserId, 'users', (int) $user->id);
 
         $this->line(sprintf(
             'Created missing user [%s] from legacy user ID [%d].',
+            $email,
+            $legacyUserId
+        ));
+
+        return (int) $user->id;
+    }
+
+    protected function createPlaceholderUserFromLegacyId(int $legacyUserId): ?int
+    {
+        $email = sprintf('legacy-user-%d@legacy-sync.local', $legacyUserId);
+        $normalizedEmail = $this->normalizeEmail($email);
+        $existingUserId = $normalizedEmail !== null
+            ? ($this->targetUsersByEmail[$normalizedEmail] ?? null)
+            : null;
+
+        if ($existingUserId !== null) {
+            $this->rememberMapping('users', $legacyUserId, 'users', $existingUserId);
+
+            return $existingUserId;
+        }
+
+        $user = new SecurityUser;
+        $user->forceFill([
+            'name'      => 'Legacy User '.$legacyUserId,
+            'email'     => $email,
+            'password'  => Hash::make(Str::random(32)),
+            'language'  => config('app.locale'),
+            'is_active' => true,
+        ]);
+        $user->save();
+
+        if ($normalizedEmail !== null) {
+            $this->targetUsersByEmail[$normalizedEmail] = (int) $user->id;
+        }
+
+        $this->rememberMapping('users', $legacyUserId, 'users', (int) $user->id);
+
+        $this->line(sprintf(
+            'Created placeholder user [%s] for unresolved legacy user ID [%d].',
             $email,
             $legacyUserId
         ));
@@ -1943,14 +3810,18 @@ class SyncLegacySqlData extends Command
             $candidate = sprintf('legacy-user-%d@legacy-sync.local', $legacyUserId);
         }
 
-        $normalizedCandidate = strtolower($candidate);
-        $existingUserId = $this->targetUsersByEmail[$normalizedCandidate] ?? null;
+        $normalizedCandidate = $this->normalizeEmail($candidate);
+        $normalizedFallback = $this->normalizeEmail(sprintf('legacy-user-%d@legacy-sync.local', $legacyUserId))
+            ?? sprintf('legacy-user-%d@legacy-sync.local', $legacyUserId);
+        $existingUserId = $normalizedCandidate !== null
+            ? ($this->targetUsersByEmail[$normalizedCandidate] ?? null)
+            : null;
 
         if ($existingUserId === null) {
             return $candidate;
         }
 
-        return sprintf('legacy-user-%d@legacy-sync.local', $legacyUserId);
+        return $normalizedFallback;
     }
 
     protected function loadLegacyCompanies(): void
@@ -1994,6 +3865,211 @@ class SyncLegacySqlData extends Command
                 'name'       => $this->nullableString($row->name),
             ]])
             ->all();
+    }
+
+    protected function loadTargetEmployees(): void
+    {
+        if ($this->targetEmployeesLoaded) {
+            return;
+        }
+
+        $this->targetEmployeesLoaded = true;
+
+        if (! Schema::hasTable('employees_employees')) {
+            return;
+        }
+
+        $query = DB::table('employees_employees');
+
+        if (Schema::hasColumn('employees_employees', 'deleted_at')) {
+            $query->whereNull('deleted_at');
+        }
+
+        $availableColumns = ['id'];
+
+        foreach (['user_id', 'name', 'work_email', 'private_email'] as $column) {
+            if (Schema::hasColumn('employees_employees', $column)) {
+                $availableColumns[] = $column;
+            }
+        }
+
+        $employeeUserCandidates = [];
+        $employeeWithoutUserCandidates = [];
+
+        foreach ($query->select($availableColumns)->get() as $row) {
+            $employeeId = $this->nullableInt($row->id ?? null);
+
+            if ($employeeId === null) {
+                continue;
+            }
+
+            $userId = $this->nullableInt($row->user_id ?? null);
+
+            if ($userId !== null && ! $this->targetRecordExists('users', $userId)) {
+                $userId = null;
+            }
+
+            $identifiers = $this->employeeLookupIdentifiers(
+                $this->nullableString($row->work_email ?? null),
+                $this->nullableString($row->private_email ?? null),
+                $this->nullableString($row->name ?? null),
+            );
+
+            if ($identifiers === []) {
+                continue;
+            }
+
+            $this->targetEmployeeIdentifiersById[$employeeId] = $identifiers;
+
+            foreach ($identifiers as $identifier) {
+                if ($userId !== null) {
+                    $employeeUserCandidates[$identifier][] = $userId;
+
+                    continue;
+                }
+
+                $employeeWithoutUserCandidates[$identifier][] = $employeeId;
+            }
+        }
+
+        foreach ($employeeUserCandidates as $identifier => $candidateUserIds) {
+            $uniqueUserIds = array_values(array_unique($candidateUserIds));
+
+            if (count($uniqueUserIds) === 1) {
+                $this->targetEmployeeUserIdsByIdentifier[$identifier] = $uniqueUserIds[0];
+            }
+        }
+
+        foreach ($employeeWithoutUserCandidates as $identifier => $candidateEmployeeIds) {
+            $uniqueEmployeeIds = array_values(array_unique($candidateEmployeeIds));
+
+            if (count($uniqueEmployeeIds) === 1 && ! isset($this->targetEmployeeUserIdsByIdentifier[$identifier])) {
+                $this->targetEmployeesWithoutUsersByIdentifier[$identifier] = $uniqueEmployeeIds[0];
+            }
+        }
+    }
+
+    protected function resolveEmployeeLinkedUserId(int $legacyUserId): ?int
+    {
+        $this->loadTargetEmployees();
+
+        foreach ($this->legacyUserLookupIdentifiers($legacyUserId) as $identifier) {
+            $userId = $this->targetEmployeeUserIdsByIdentifier[$identifier] ?? null;
+
+            if ($userId !== null && $this->targetRecordExists('users', $userId)) {
+                return $userId;
+            }
+        }
+
+        return null;
+    }
+
+    protected function attachUserToMatchingEmployee(int $legacyUserId, int $userId): void
+    {
+        $this->loadTargetEmployees();
+
+        if (! Schema::hasTable('employees_employees')) {
+            return;
+        }
+
+        foreach ($this->legacyUserLookupIdentifiers($legacyUserId) as $identifier) {
+            $employeeId = $this->targetEmployeesWithoutUsersByIdentifier[$identifier] ?? null;
+
+            if ($employeeId === null) {
+                continue;
+            }
+
+            $payload = ['user_id' => $userId];
+
+            if (Schema::hasColumn('employees_employees', 'updated_at')) {
+                $payload['updated_at'] = now();
+            }
+
+            DB::table('employees_employees')
+                ->where('id', $employeeId)
+                ->update($payload);
+
+            foreach ($this->targetEmployeeIdentifiersById[$employeeId] ?? [$identifier] as $employeeIdentifier) {
+                unset($this->targetEmployeesWithoutUsersByIdentifier[$employeeIdentifier]);
+                $this->targetEmployeeUserIdsByIdentifier[$employeeIdentifier] = $userId;
+            }
+
+            return;
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function legacyUserLookupIdentifiers(int $legacyUserId): array
+    {
+        $legacyUser = $this->legacyUsersById[$legacyUserId] ?? null;
+
+        if ($legacyUser === null) {
+            return [];
+        }
+
+        return $this->employeeLookupIdentifiers(
+            $legacyUser['email'] ?? null,
+            null,
+            $legacyUser['name'] ?? null,
+        );
+    }
+
+    protected function legacyUserEmail(int $legacyUserId): ?string
+    {
+        $this->loadLegacyUsers();
+
+        return $this->normalizeEmail($this->legacyUsersById[$legacyUserId]['email'] ?? null);
+    }
+
+    protected function legacyUserName(int $legacyUserId): ?string
+    {
+        $this->loadLegacyUsers();
+
+        return $this->normalizeLookupName($this->legacyUsersById[$legacyUserId]['name'] ?? null);
+    }
+
+    protected function targetUserEmail(int $targetUserId): ?string
+    {
+        $this->loadLegacyUsers();
+
+        return $this->targetUserEmailsById[$targetUserId] ?? null;
+    }
+
+    protected function targetUserName(int $targetUserId): ?string
+    {
+        $this->loadLegacyUsers();
+
+        return $this->targetUserNamesById[$targetUserId] ?? null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function employeeLookupIdentifiers(?string $workEmail, ?string $privateEmail, ?string $name): array
+    {
+        $identifiers = [];
+        $normalizedWorkEmail = $this->normalizeEmail($workEmail);
+        $normalizedPrivateEmail = $this->normalizeEmail($privateEmail);
+
+        if ($normalizedWorkEmail !== null) {
+            $identifiers[] = 'email:'.$normalizedWorkEmail;
+        }
+
+        if ($normalizedPrivateEmail !== null) {
+            $identifiers[] = 'email:'.$normalizedPrivateEmail;
+        }
+
+        if ($normalizedWorkEmail === null && $normalizedPrivateEmail === null) {
+            $normalizedName = $this->normalizeLookupName($name);
+
+            if ($normalizedName !== null) {
+                $identifiers[] = 'name:'.$normalizedName;
+            }
+        }
+
+        return array_values(array_unique($identifiers));
     }
 
     protected function loadHelpdeskBusinessEntities(): void
@@ -2117,6 +4193,106 @@ class SyncLegacySqlData extends Command
         return $companyId;
     }
 
+    /**
+     * @param  array{company_id: string|null, name: string|null}  $legacyCompany
+     */
+    protected function createMissingLegacyCompany(int $legacyCompanyId, array $legacyCompany): ?int
+    {
+        $legacyCompanyName = $this->nullableString($legacyCompany['name'] ?? null);
+        $normalizedName = $this->normalizeLookupName($legacyCompanyName);
+        $normalizedCompanyCode = $this->normalizeCompanyCode($legacyCompany['company_id'] ?? null);
+
+        if ($normalizedCompanyCode !== null) {
+            $existingCompanyId = $this->targetCompaniesByCompanyCode[$normalizedCompanyCode] ?? null;
+
+            if ($existingCompanyId !== null && $this->targetRecordExists('companies', $existingCompanyId)) {
+                $this->rememberMapping('companies', $legacyCompanyId, 'companies', $existingCompanyId);
+
+                return $existingCompanyId;
+            }
+        }
+
+        if ($normalizedName !== null) {
+            $existingCompanyId = $this->targetCompaniesByName[$normalizedName] ?? null;
+
+            if ($existingCompanyId !== null && $this->targetRecordExists('companies', $existingCompanyId)) {
+                $this->rememberMapping('companies', $legacyCompanyId, 'companies', $existingCompanyId);
+
+                return $existingCompanyId;
+            }
+        }
+
+        $companyName = $legacyCompanyName
+            ?? ($legacyCompany['company_id'] !== null ? trim((string) $legacyCompany['company_id']) : null)
+            ?? 'Legacy Company '.$legacyCompanyId;
+        $companyCode = $normalizedCompanyCode !== null && ! isset($this->targetCompaniesByCompanyCode[$normalizedCompanyCode])
+            ? trim((string) $legacyCompany['company_id'])
+            : $this->generateCompanyCode($companyName);
+
+        $company = Company::query()->create([
+            'name'       => $companyName,
+            'company_id' => $companyCode,
+            'is_active'  => true,
+        ]);
+
+        $companyId = (int) $company->id;
+
+        $this->targetCompaniesByName[$this->normalizeLookupName($companyName) ?? Str::lower($companyName)] = $companyId;
+        $this->targetCompaniesByCompanyCode[strtolower($companyCode)] = $companyId;
+
+        $this->rememberMapping('companies', $legacyCompanyId, 'companies', $companyId);
+
+        $this->line(sprintf(
+            'Created missing company [%s] from legacy company ID [%d].',
+            $companyName,
+            $legacyCompanyId
+        ));
+
+        return $companyId;
+    }
+
+    protected function createPlaceholderLegacyCompany(int $legacyCompanyId): ?int
+    {
+        $placeholderName = 'Legacy Company '.$legacyCompanyId;
+        $normalizedName = $this->normalizeLookupName($placeholderName);
+        $placeholderCode = sprintf('LEGACY-%d', $legacyCompanyId);
+
+        if ($normalizedName !== null) {
+            $existingCompanyId = $this->targetCompaniesByName[$normalizedName] ?? null;
+
+            if ($existingCompanyId !== null && $this->targetRecordExists('companies', $existingCompanyId)) {
+                $this->rememberMapping('companies', $legacyCompanyId, 'companies', $existingCompanyId);
+
+                return $existingCompanyId;
+            }
+        }
+
+        $company = Company::query()->create([
+            'name'       => $placeholderName,
+            'company_id' => isset($this->targetCompaniesByCompanyCode[strtolower($placeholderCode)])
+                ? $this->generateCompanyCode($placeholderName)
+                : $placeholderCode,
+            'is_active'  => true,
+        ]);
+
+        $companyId = (int) $company->id;
+
+        if ($normalizedName !== null) {
+            $this->targetCompaniesByName[$normalizedName] = $companyId;
+        }
+
+        $this->targetCompaniesByCompanyCode[strtolower((string) $company->company_id)] = $companyId;
+        $this->rememberMapping('companies', $legacyCompanyId, 'companies', $companyId);
+
+        $this->line(sprintf(
+            'Created placeholder company [%s] for unresolved legacy company ID [%d].',
+            $placeholderName,
+            $legacyCompanyId
+        ));
+
+        return $companyId;
+    }
+
     protected function generateCompanyCode(string $companyName): string
     {
         $baseCode = 'CMP-'.Str::upper(substr(sha1(Str::lower(Str::squish($companyName))), 0, 8));
@@ -2129,6 +4305,26 @@ class SyncLegacySqlData extends Command
         }
 
         return $candidate;
+    }
+
+    protected function normalizeCompanyCode(?string $companyCode): ?string
+    {
+        $normalizedCompanyCode = Str::of((string) $companyCode)
+            ->trim()
+            ->lower()
+            ->toString();
+
+        return $normalizedCompanyCode !== '' ? $normalizedCompanyCode : null;
+    }
+
+    protected function normalizeEmail(?string $email): ?string
+    {
+        $normalizedEmail = Str::of((string) $email)
+            ->trim()
+            ->lower()
+            ->toString();
+
+        return $normalizedEmail !== '' ? $normalizedEmail : null;
     }
 
     protected function normalizeLookupName(?string $name): ?string
@@ -2365,6 +4561,65 @@ class SyncLegacySqlData extends Command
             : 'pending';
     }
 
+    protected function normalizeShelfTaskStatus(mixed $status): string
+    {
+        return match (strtolower(trim((string) $status))) {
+            'in_progress',
+            'progress',
+            'processing' => 'in_progress',
+            'completed',
+            'done',
+            'closed'     => 'completed',
+            default      => 'open',
+        };
+    }
+
+    protected function normalizeShelfRequestType(mixed $requestType): string
+    {
+        return match (strtolower(trim((string) $requestType))) {
+            'perbaikan_aset',
+            'perbaikan-aset' => 'perbaikan_aset',
+            'penarikan_aset',
+            'penarikan-aset' => 'penarikan_aset',
+            default          => 'pengadaan_aset',
+        };
+    }
+
+    protected function normalizeShelfConditionStatus(mixed $conditionStatus, mixed $isAvailable): string
+    {
+        $value = strtolower(trim((string) $conditionStatus));
+
+        return match ($value) {
+            'lost'        => 'lost',
+            'damaged'     => 'damaged',
+            'transferred',
+            'transfer'    => 'transferred',
+            'available',
+            'tersedia'    => 'available',
+            default       => $this->normalizeBoolean($isAvailable, true) ? 'available' : 'transferred',
+        };
+    }
+
+    protected function normalizeShelfNbhStatus(mixed $nbhStatus): string
+    {
+        return match (strtolower(trim((string) $nbhStatus))) {
+            'pending',
+            'process'    => 'pending',
+            'resolved',
+            'done'       => 'resolved',
+            default      => 'none',
+        };
+    }
+
+    protected function normalizeShelfNotificationType(mixed $notificationType): ?string
+    {
+        $value = strtolower(trim((string) $notificationType));
+
+        return in_array($value, ['fixed_date', 'relative_date', 'monthly'], true)
+            ? $value
+            : null;
+    }
+
     protected function normalizeJsonString(mixed $value): ?string
     {
         if ($value === null) {
@@ -2435,6 +4690,57 @@ class SyncLegacySqlData extends Command
             && Schema::connection($this->legacyConnection)->hasColumn($table, $column);
     }
 
+    protected function firstExistingLegacyTable(array $tables): ?string
+    {
+        foreach ($tables as $table) {
+            if (Schema::connection($this->legacyConnection)->hasTable($table)) {
+                return $table;
+            }
+        }
+
+        return null;
+    }
+
+    protected function legacyShelfJobPositionsTable(): ?string
+    {
+        return $this->legacyShelfJobPositionsTable ??= $this->firstExistingLegacyTable([
+            'employees_job_positions',
+            'job_positions',
+            'employee_job_positions',
+        ]);
+    }
+
+    protected function legacyShelfEmployeesTable(): ?string
+    {
+        return $this->legacyShelfEmployeesTable ??= $this->firstExistingLegacyTable([
+            'employees_employees',
+            'employees',
+            'employee_profiles',
+        ]);
+    }
+
+    protected function legacyRowValue(object $row, array $columns): mixed
+    {
+        foreach ($columns as $column) {
+            if (property_exists($row, $column)) {
+                return $row->{$column};
+            }
+        }
+
+        return null;
+    }
+
+    protected function firstExistingLegacyColumn(string $table, array $columns): ?string
+    {
+        foreach ($columns as $column) {
+            if ($this->legacyTableHasColumn($table, $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
     protected function normalizeHelpdeskStatusName(?string $value): string
     {
         return match (strtolower(trim((string) $value))) {
@@ -2447,6 +4753,32 @@ class SyncLegacySqlData extends Command
         };
     }
 
+    protected function normalizeShelfTransferType(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalizedValue = trim((string) preg_replace('/[^a-z0-9]+/', '_', strtolower($value)), '_');
+
+        return match ($normalizedValue) {
+            'handover',
+            'serah_terima',
+            'berita_acara_serah_terima',
+            'ba',
+            'bast' => \Cesa\Shelf\Models\AssetTransfer::TYPE_HANDOVER,
+            'reassignment',
+            'pengalihan_barang',
+            'berita_acara_pengalihan_barang',
+            'bapab' => \Cesa\Shelf\Models\AssetTransfer::TYPE_REASSIGNMENT,
+            'return',
+            'pengembalian_barang',
+            'berita_acara_pengembalian_barang',
+            'bapeb' => \Cesa\Shelf\Models\AssetTransfer::TYPE_RETURN,
+            default => null,
+        };
+    }
+
     protected function nullableString(mixed $value): ?string
     {
         if ($value === null) {
@@ -2456,6 +4788,23 @@ class SyncLegacySqlData extends Command
         $string = trim((string) $value);
 
         return $string === '' ? null : $string;
+    }
+
+    protected function normalizeLegacyStoragePath(?string $path): ?string
+    {
+        $normalizedPath = $this->nullableString($path);
+
+        if ($normalizedPath === null) {
+            return null;
+        }
+
+        return ltrim((string) Str::of($normalizedPath)
+            ->replaceStart('storage/app/public/', '')
+            ->replaceStart('/storage/app/public/', '')
+            ->replaceStart('public/', '')
+            ->replaceStart('/public/', '')
+            ->replaceStart('storage/', '')
+            ->replaceStart('/storage/', ''), '/');
     }
 
     protected function nullableInt(mixed $value): ?int

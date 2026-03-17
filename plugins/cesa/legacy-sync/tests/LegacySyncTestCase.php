@@ -7,6 +7,7 @@ use Cesa\FormTransfer\FormTransferServiceProvider;
 use Cesa\Helpdesk\HelpdeskServiceProvider;
 use Cesa\LegacySync\LegacySyncServiceProvider;
 use Cesa\Presensi\PresensiServiceProvider;
+use Cesa\Shelf\ShelfServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -25,6 +26,11 @@ abstract class LegacySyncTestCase extends TestCase
         $this->useSqliteInMemoryDatabase();
 
         parent::setUp();
+
+        config([
+            'database.default'                     => 'sqlite',
+            'database.connections.sqlite.database' => ':memory:',
+        ]);
 
         $this->legacyDatabasePath = tempnam(sys_get_temp_dir(), 'legacy-sync-');
 
@@ -47,7 +53,23 @@ abstract class LegacySyncTestCase extends TestCase
         $this->app->register(ExitClearanceServiceProvider::class);
         $this->app->register(PresensiServiceProvider::class);
         $this->app->register(HelpdeskServiceProvider::class);
+        $this->app->register(ShelfServiceProvider::class);
         $this->app->register(LegacySyncServiceProvider::class);
+
+        $this->artisan('migrate', [
+            '--path'     => 'database/migrations/0001_01_01_000000_create_users_table.php',
+            '--realpath' => false,
+        ]);
+
+        $this->artisan('migrate', [
+            '--path'     => 'database/migrations/2024_11_26_053234_add_resource_permission_column_to_users_table.php',
+            '--realpath' => false,
+        ]);
+
+        $this->artisan('migrate', [
+            '--path'     => 'database/migrations/2024_11_04_132945_create_permission_tables.php',
+            '--realpath' => false,
+        ]);
 
         $this->artisan('migrate', [
             '--path'     => 'plugins/webkul/support/database/migrations/2024_12_06_061927_create_currencies_table.php',
@@ -83,6 +105,11 @@ abstract class LegacySyncTestCase extends TestCase
 
         $this->artisan('migrate', [
             '--path'     => 'plugins/cesa/helpdesk/database/migrations',
+            '--realpath' => false,
+        ]);
+
+        $this->artisan('migrate', [
+            '--path'     => 'plugins/cesa/shelf/database/migrations',
             '--realpath' => false,
         ]);
 
