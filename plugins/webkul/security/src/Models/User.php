@@ -120,6 +120,16 @@ class User extends BaseUser implements FilamentUser, HasAppAuthentication, HasAp
             $user->creator_id ??= Auth::id();
         });
 
+        static::updated(function (self $user): void {
+            if (($user->wasChanged('is_active') && ! $user->is_active) || $user->wasChanged('password')) {
+                $user->tokens()->delete();
+            }
+        });
+
+        static::deleted(function (self $user): void {
+            $user->tokens()->delete();
+        });
+
         static::saved(function ($user) {
             if (! $user->partner_id) {
                 $user->handlePartnerCreation($user);

@@ -21,7 +21,7 @@ class UnitResource extends Resource
 {
     protected static ?string $model = Unit::class;
 
-    protected static BackedEnum|string|null $navigationIcon = null;
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static ?string $cluster = Configurations::class;
 
@@ -46,17 +46,19 @@ class UnitResource extends Resource
     {
         return $schema->components([
             TextInput::make('name')
+                ->columnSpanFull()
                 ->required()
                 ->maxLength(255),
             Textarea::make('description')
-                ->rows(3)
-                ->columnSpanFull(),
+                ->columnSpanFull()
+                ->rows(3),
             Select::make('users')
                 ->label('Assigned Users')
                 ->relationship('users', 'name')
                 ->multiple()
                 ->preload()
                 ->searchable()
+                ->columnSpanFull()
                 ->options(User::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id')->all()),
         ])->columns(1);
     }
@@ -78,11 +80,11 @@ class UnitResource extends Resource
                     ->sortable(),
             ])
             ->recordActions([
-                EditAction::make()->slideOver()->modalWidth('lg'),
-                DeleteAction::make(),
+                EditAction::make()->slideOver()->modalWidth('md'),
+                DeleteAction::make()->slideOver()->modalWidth('md'),
             ])
             ->bulkActions([
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()->slideOver()->modalWidth('md'),
             ])
             ->defaultSort('name');
     }

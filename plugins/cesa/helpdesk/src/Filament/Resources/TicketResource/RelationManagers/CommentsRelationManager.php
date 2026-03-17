@@ -2,16 +2,19 @@
 
 namespace Cesa\Helpdesk\Filament\Resources\TicketResource\RelationManagers;
 
+use Cesa\Helpdesk\Models\Comment;
+use Cesa\Helpdesk\Services\TicketCommentService;
 use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\RichEditor;
-use Filament\Notifications\Notification;
+use Filament\Forms\Components\Select;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Livewire\Component;
+use Illuminate\Support\Facades\Gate;
+use Webkul\Security\Models\User;
 
 class CommentsRelationManager extends RelationManager
 {
@@ -26,6 +29,14 @@ class CommentsRelationManager extends RelationManager
                 RichEditor::make('comment')
                     ->required()
                     ->columnSpanFull(),
+                Select::make('visibility')
+                    ->label('Visibility')
+                    ->options([
+                        Comment::VISIBILITY_PUBLIC   => 'Public Comment',
+                        Comment::VISIBILITY_INTERNAL => 'Internal Note',
+                    ])
+                    ->default(Comment::VISIBILITY_PUBLIC)
+                    ->visible(fn (): bool => Gate::allows('addInternalNote', $this->ownerRecord)),
                 FileUpload::make('attachments')
                     ->multiple()
                     ->disk(config('helpdesk.attachments.comment.disk'))
@@ -45,35 +56,23 @@ class CommentsRelationManager extends RelationManager
             ->headerActions([
                 CreateAction::make()
                     ->icon('heroicon-o-plus-circle')
-                    ->mutateFormDataUsing(function (array $data): array {
-                        $data['user_id'] = auth()->id();
-
-                        return $data;
-                    })
-                    ->after(function (Component $livewire): void {
-                        $ticket = $livewire->ownerRecord;
-
-                        $recipients = collect([$ticket->owner, $ticket->responsible])
-                            ->filter()
-                            ->merge($ticket->unit?->users ?? collect())
-                            ->unique('id')
-                            ->reject(fn ($user): bool => (int) $user->id === (int) auth()->id())
-                            ->values();
-
-                        if ($recipients->isEmpty()) {
-                            return;
-                        }
-
-                        Notification::make()
-                            ->title('Komentar baru pada tiket')
-                            ->body('Ada komentar baru yang perlu Anda cek.')
-                            ->sendToDatabase($recipients);
+                    ->visible(fn (): bool => Gate::allows('comment', $this->ownerRecord))
+                    ->using(function (array $data, RelationManager $livewire, TicketCommentService $ticketCommentService): Comment {
+                        return $ticketCommentService->create(
+                            $this->resolveAuthenticatedUser(),
+                            $livewire->ownerRecord,
+                            $data,
+                        );
                     }),
             ])
             ->columns([
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('User')
                     ->weight('bold'),
+                Tables\Columns\TextColumn::make('visibility')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => $state === Comment::VISIBILITY_INTERNAL ? 'Internal' : 'Public')
+                    ->color(fn (string $state): string => $state === Comment::VISIBILITY_INTERNAL ? 'warning' : 'success'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created')
                     ->dateTime('d M Y H:i')
@@ -90,5 +89,14 @@ class CommentsRelationManager extends RelationManager
             ])
             ->paginated(false)
             ->defaultSort('created_at', 'desc');
+    }
+
+    protected function resolveAuthenticatedUser(): User
+    {
+        $user = auth()->user();
+
+        abort_unless($user instanceof User, 403, 'Authenticated user is invalid.');
+
+        return $user;
     }
 }

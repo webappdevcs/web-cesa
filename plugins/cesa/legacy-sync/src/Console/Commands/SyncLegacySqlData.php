@@ -3092,8 +3092,17 @@ class SyncLegacySqlData extends Command
         $query = DB::connection($this->legacyConnection)->table('tickets');
         $hasBusinessEntityColumn = $this->legacyTableHasColumn('tickets', 'business_entities_id');
         $hasAttachmentColumn = $this->legacyTableHasColumn('tickets', 'supporting_attachments');
+        $hasCloseReasonColumn = Schema::hasColumn('helpdesk_tickets', 'close_reason');
+        $hasCancelReasonColumn = Schema::hasColumn('helpdesk_tickets', 'cancel_reason');
+        $hasReopenReasonColumn = Schema::hasColumn('helpdesk_tickets', 'reopen_reason');
 
-        $this->syncRows('Helpdesk tickets', $query, function (object $row) use ($hasAttachmentColumn, $hasBusinessEntityColumn): void {
+        $this->syncRows('Helpdesk tickets', $query, function (object $row) use (
+            $hasAttachmentColumn,
+            $hasBusinessEntityColumn,
+            $hasCancelReasonColumn,
+            $hasCloseReasonColumn,
+            $hasReopenReasonColumn,
+        ): void {
             $priorityId = $this->mappedTargetId('priorities', $row->priority_id, 'helpdesk_priorities');
             $unitId = $this->mappedTargetId('units', $row->unit_id, 'helpdesk_units');
             $ownerId = $this->resolveUserId($this->nullableInt($row->owner_id));
@@ -3147,6 +3156,9 @@ class SyncLegacySqlData extends Command
                     'created_at'             => $row->created_at ?? now(),
                     'updated_at'             => $row->updated_at ?? now(),
                     'deleted_at'             => $row->deleted_at ?? null,
+                    ...($hasCloseReasonColumn ? ['close_reason' => null] : []),
+                    ...($hasCancelReasonColumn ? ['cancel_reason' => null] : []),
+                    ...($hasReopenReasonColumn ? ['reopen_reason' => null] : []),
                 ],
             );
 
@@ -3164,8 +3176,9 @@ class SyncLegacySqlData extends Command
 
         $query = DB::connection($this->legacyConnection)->table('comments');
         $hasAttachmentColumn = $this->legacyTableHasColumn('comments', 'attachments');
+        $hasVisibilityColumn = Schema::hasColumn('helpdesk_comments', 'visibility');
 
-        $this->syncRows('Helpdesk comments', $query, function (object $row) use ($hasAttachmentColumn): void {
+        $this->syncRows('Helpdesk comments', $query, function (object $row) use ($hasAttachmentColumn, $hasVisibilityColumn): void {
             $ticketId = $this->mappedTargetId('tickets', $row->tiket_id, 'helpdesk_tickets');
             $userId = $this->resolveUserId($this->nullableInt($row->user_id));
 
@@ -3193,6 +3206,7 @@ class SyncLegacySqlData extends Command
                     'created_at'  => $row->created_at ?? now(),
                     'updated_at'  => $row->updated_at ?? now(),
                     'deleted_at'  => $row->deleted_at ?? null,
+                    ...($hasVisibilityColumn ? ['visibility' => 'public'] : []),
                 ],
             );
 

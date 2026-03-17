@@ -13,6 +13,15 @@ return [
         'ticket' => [
             'single' => 'Tiket',
             'plural' => 'Tiket',
+            'pages'  => [
+                'list' => [
+                    'tabs' => [
+                        'incoming' => 'Masuk',
+                        'outgoing' => 'Keluar',
+                        'all'      => 'Semua',
+                    ],
+                ],
+            ],
         ],
         'priority' => [
             'single' => 'Prioritas',

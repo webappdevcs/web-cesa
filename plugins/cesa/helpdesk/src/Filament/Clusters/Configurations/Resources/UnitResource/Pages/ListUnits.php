@@ -13,7 +13,7 @@ class ListUnits extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            CreateAction::make()->icon('heroicon-o-plus-circle')->slideOver()->modalWidth('lg'),
+            CreateAction::make()->icon('heroicon-o-plus-circle')->slideOver()->modalWidth('md'),
         ];
     }
 }

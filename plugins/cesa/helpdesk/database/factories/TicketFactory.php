@@ -29,6 +29,9 @@ class TicketFactory extends Factory
             'responsible_id'         => null,
             'approved_at'            => null,
             'solved_at'              => null,
+            'close_reason'           => null,
+            'cancel_reason'          => null,
+            'reopen_reason'          => null,
         ];
     }
 

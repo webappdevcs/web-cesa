@@ -14,20 +14,23 @@ class TicketPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_helpdesk_ticket') || $user->can('create_helpdesk_ticket');
+        return $user->can('view_any_helpdesk_ticket')
+            || $user->can('view_helpdesk_ticket')
+            || $user->can('update_helpdesk_ticket')
+            || $user->can('create_helpdesk_ticket');
     }
 
     public function view(User $user, Ticket $ticket): bool
     {
+        if ($user->can('view_any_helpdesk_ticket')) {
+            return true;
+        }
+
         if ($user->getKey() === $ticket->owner_id || $user->getKey() === $ticket->responsible_id) {
             return true;
         }
 
-        if (! ($user->can('view_any_helpdesk_ticket') || $user->can('view_helpdesk_ticket'))) {
-            return false;
-        }
-
-        return $this->belongsToTicketUnit($user, $ticket);
+        return $this->canAccessTicketUnitInbox($user) && $this->belongsToTicketUnit($user, $ticket);
     }
 
     public function create(User $user): bool
@@ -37,7 +40,7 @@ class TicketPolicy
 
     public function update(User $user, Ticket $ticket): bool
     {
-        if ((int) $ticket->ticket_status_id === TicketStatus::CANCELLED || (int) $ticket->ticket_status_id === TicketStatus::CLOSED) {
+        if ($ticket->isTerminal()) {
             return false;
         }
 
@@ -50,7 +53,69 @@ class TicketPolicy
             return true;
         }
 
-        return $user->can('update_helpdesk_ticket') && $this->belongsToTicketUnit($user, $ticket);
+        return $user->can('update_helpdesk_ticket')
+            && ($user->can('view_any_helpdesk_ticket') || $this->belongsToTicketUnit($user, $ticket));
+    }
+
+    public function comment(User $user, Ticket $ticket): bool
+    {
+        if ($ticket->isTerminal()) {
+            return false;
+        }
+
+        return $this->view($user, $ticket);
+    }
+
+    public function cancel(User $user, Ticket $ticket): bool
+    {
+        if ($ticket->isStatus(TicketStatus::OPEN) && $user->getKey() === $ticket->owner_id) {
+            return $user->can('create_helpdesk_ticket') || $user->can('update_helpdesk_ticket');
+        }
+
+        if (! in_array((int) $ticket->ticket_status_id, [
+            TicketStatus::OPEN,
+            TicketStatus::IN_PROGRESS,
+        ], true)) {
+            return false;
+        }
+
+        return $user->can('update_helpdesk_ticket')
+            && ($user->can('view_any_helpdesk_ticket') || $user->getKey() === $ticket->responsible_id || $this->belongsToTicketUnit($user, $ticket));
+    }
+
+    public function close(User $user, Ticket $ticket): bool
+    {
+        if (! $ticket->isStatus(TicketStatus::IN_PROGRESS)) {
+            return false;
+        }
+
+        return $user->can('update_helpdesk_ticket')
+            && ($user->can('view_any_helpdesk_ticket') || $user->getKey() === $ticket->responsible_id || $this->belongsToTicketUnit($user, $ticket));
+    }
+
+    public function reopen(User $user, Ticket $ticket): bool
+    {
+        if (! $ticket->isStatus(TicketStatus::CLOSED)) {
+            return false;
+        }
+
+        if ($user->getKey() !== $ticket->owner_id) {
+            return false;
+        }
+
+        return $user->can('create_helpdesk_ticket') || $user->can('update_helpdesk_ticket');
+    }
+
+    public function viewInternalNotes(User $user, Ticket $ticket): bool
+    {
+        return $this->view($user, $ticket) && $this->canAccessTicketUnitInbox($user);
+    }
+
+    public function addInternalNote(User $user, Ticket $ticket): bool
+    {
+        return $this->comment($user, $ticket)
+            && $user->can('update_helpdesk_ticket')
+            && ($user->can('view_any_helpdesk_ticket') || $this->belongsToTicketUnit($user, $ticket) || $user->getKey() === $ticket->responsible_id);
     }
 
     public function delete(User $user, Ticket $ticket): bool
@@ -98,5 +163,12 @@ class TicketPolicy
             ->where('user_id', $user->getKey())
             ->where('unit_id', $ticket->unit_id)
             ->exists();
+    }
+
+    protected function canAccessTicketUnitInbox(User $user): bool
+    {
+        return $user->can('view_any_helpdesk_ticket')
+            || $user->can('view_helpdesk_ticket')
+            || $user->can('update_helpdesk_ticket');
     }
 }

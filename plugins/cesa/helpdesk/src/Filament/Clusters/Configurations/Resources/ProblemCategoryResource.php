@@ -21,7 +21,7 @@ class ProblemCategoryResource extends Resource
 {
     protected static ?string $model = ProblemCategory::class;
 
-    protected static BackedEnum|string|null $navigationIcon = null;
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-tag';
 
     protected static ?string $cluster = Configurations::class;
 
@@ -51,8 +51,10 @@ class ProblemCategoryResource extends Resource
                 ->required()
                 ->searchable()
                 ->preload()
+                ->columnSpanFull()
                 ->live(),
             TextInput::make('name')
+                ->columnSpanFull()
                 ->required()
                 ->maxLength(255),
             Select::make('default_responsible_id')
@@ -72,6 +74,7 @@ class ProblemCategoryResource extends Resource
                         ->all() ?? [];
                 })
                 ->searchable()
+                ->columnSpanFull()
                 ->preload(),
         ])->columns(1);
     }
@@ -95,10 +98,10 @@ class ProblemCategoryResource extends Resource
             ])
             ->recordActions([
                 EditAction::make()->slideOver()->modalWidth('md'),
-                DeleteAction::make(),
+                DeleteAction::make()->slideOver()->modalWidth('md'),
             ])
             ->bulkActions([
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()->slideOver()->modalWidth('md'),
             ])
             ->defaultSort('name');
     }

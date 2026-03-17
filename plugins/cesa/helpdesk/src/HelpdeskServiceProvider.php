@@ -31,8 +31,10 @@ class HelpdeskServiceProvider extends PackageServiceProvider
         $package->name(static::$name)
             ->hasConfigFile('helpdesk')
             ->hasTranslations()
+            ->hasRoute('api')
             ->hasMigrations([
                 '2026_03_16_000000_create_helpdesk_tables',
+                '2026_03_17_000001_add_mobile_workflow_columns_to_helpdesk_tables',
             ])
             ->runsMigrations()
             ->runsSeeders()

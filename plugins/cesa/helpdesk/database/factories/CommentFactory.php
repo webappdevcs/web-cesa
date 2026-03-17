@@ -17,6 +17,7 @@ class CommentFactory extends Factory
             'ticket_id'    => Ticket::factory(),
             'user_id'      => User::factory(),
             'comment'      => $this->faker->paragraph(),
+            'visibility'   => Comment::VISIBILITY_PUBLIC,
             'attachments'  => [],
         ];
     }

@@ -7,7 +7,7 @@ use Cesa\Helpdesk\Filament\Resources\TicketResource\RelationManagers\CommentsRel
 use Cesa\Helpdesk\Filament\Resources\TicketResource\RelationManagers\TicketHistoriesRelationManager;
 use Cesa\Helpdesk\Models\ProblemCategory;
 use Cesa\Helpdesk\Models\Ticket;
-use Cesa\Helpdesk\Models\Unit;
+use Cesa\Helpdesk\Support\TicketOptions;
 use Cesa\Helpdesk\Traits\HasHelpdeskResourceAccess;
 use Filament\Actions;
 use Filament\Forms;
@@ -21,7 +21,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Webkul\Security\Models\User;
-use Webkul\Support\Models\Company;
 
 class TicketResource extends HelpdeskResource
 {
@@ -134,12 +133,9 @@ class TicketResource extends HelpdeskResource
                                 ->default(static::defaultCompanyId())
                                 ->searchable()
                                 ->required(),
-                            Forms\Components\Select::make('ticket_status_id')
+                            Forms\Components\Placeholder::make('ticket_status_name')
                                 ->label('Status')
-                                ->relationship('ticketStatus', 'name')
-                                ->searchable()
-                                ->preload()
-                                ->visible(fn (): bool => static::userCan('update_helpdesk_ticket')),
+                                ->content(fn (?Ticket $record): string => $record?->ticketStatus?->name ?? 'Open'),
                             Forms\Components\Select::make('responsible_id')
                                 ->label('Responsible')
                                 ->options(fn (Get $get): array => static::unitUserOptions($get('unit_id')))
@@ -156,6 +152,21 @@ class TicketResource extends HelpdeskResource
                             Forms\Components\Placeholder::make('solved_at')
                                 ->label('Solved At')
                                 ->content(fn (?Ticket $record): string => $record?->solved_at?->format('d M Y H:i') ?? '-')
+                                ->hiddenOn('create'),
+                            Forms\Components\Placeholder::make('close_reason')
+                                ->label('Close Reason')
+                                ->content(fn (?Ticket $record): string => $record?->close_reason ?? '-')
+                                ->hidden(fn (?Ticket $record): bool => blank($record?->close_reason))
+                                ->hiddenOn('create'),
+                            Forms\Components\Placeholder::make('cancel_reason')
+                                ->label('Cancel Reason')
+                                ->content(fn (?Ticket $record): string => $record?->cancel_reason ?? '-')
+                                ->hidden(fn (?Ticket $record): bool => blank($record?->cancel_reason))
+                                ->hiddenOn('create'),
+                            Forms\Components\Placeholder::make('reopen_reason')
+                                ->label('Reopen Reason')
+                                ->content(fn (?Ticket $record): string => $record?->reopen_reason ?? '-')
+                                ->hidden(fn (?Ticket $record): bool => blank($record?->reopen_reason))
                                 ->hiddenOn('create'),
                         ])
                         ->columnSpan(1),
@@ -273,6 +284,12 @@ class TicketResource extends HelpdeskResource
                         Infolists\Components\TextEntry::make('solved_at')
                             ->dateTime('d M Y H:i')
                             ->placeholder('-'),
+                        Infolists\Components\TextEntry::make('close_reason')
+                            ->placeholder('-'),
+                        Infolists\Components\TextEntry::make('cancel_reason')
+                            ->placeholder('-'),
+                        Infolists\Components\TextEntry::make('reopen_reason')
+                            ->placeholder('-'),
                     ])
                     ->columns(2),
                 Section::make('Attachments')
@@ -321,50 +338,22 @@ class TicketResource extends HelpdeskResource
     {
         $user = auth()->user();
 
-        if (! $user instanceof User) {
-            return [];
-        }
-
-        if (static::userCan('view_any_helpdesk_ticket', $user)) {
-            return Company::query()->orderBy('name')->pluck('name', 'id')->all();
-        }
-
-        $companyIds = array_filter(array_unique(array_merge(
-            $user->allowedCompanies()->pluck('companies.id')->map(fn (mixed $value): int => (int) $value)->all(),
-            $user->default_company_id ? [(int) $user->default_company_id] : [],
-        )));
-
-        $query = Company::query()->orderBy('name');
-
-        if ($companyIds !== []) {
-            $query->whereIn('id', $companyIds);
-        }
-
-        return $query->pluck('name', 'id')->all();
+        return $user instanceof User
+            ? TicketOptions::companyOptionsForUser($user)
+            : [];
     }
 
     protected static function defaultCompanyId(): ?int
     {
         $user = auth()->user();
 
-        if ($user instanceof User && $user->default_company_id) {
-            return (int) $user->default_company_id;
-        }
-
-        return array_key_first(static::companyOptions());
+        return $user instanceof User
+            ? TicketOptions::defaultCompanyIdForUser($user)
+            : null;
     }
 
     protected static function unitUserOptions(mixed $unitId): array
     {
-        if (! $unitId) {
-            return [];
-        }
-
-        return Unit::query()
-            ->find($unitId)?->users()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->pluck('name', 'users.id')
-            ->all() ?? [];
+        return TicketOptions::unitUserOptions($unitId);
     }
 }

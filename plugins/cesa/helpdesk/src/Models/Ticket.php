@@ -34,6 +34,9 @@ class Ticket extends Model
         'responsible_id',
         'approved_at',
         'solved_at',
+        'close_reason',
+        'cancel_reason',
+        'reopen_reason',
     ];
 
     protected function casts(): array
@@ -49,6 +52,9 @@ class Ticket extends Model
             'supporting_attachments'  => 'array',
             'approved_at'             => 'datetime',
             'solved_at'               => 'datetime',
+            'close_reason'            => 'string',
+            'cancel_reason'           => 'string',
+            'reopen_reason'           => 'string',
         ];
     }
 
@@ -130,25 +136,48 @@ class Ticket extends Model
         return $this->hasMany(TicketHistory::class, 'ticket_id');
     }
 
+    public function isStatus(int $status): bool
+    {
+        return (int) $this->ticket_status_id === $status;
+    }
+
+    public function isTerminal(): bool
+    {
+        return in_array((int) $this->ticket_status_id, [
+            TicketStatus::CANCELLED,
+            TicketStatus::CLOSED,
+        ], true);
+    }
+
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         if ($user->can('view_any_helpdesk_ticket')) {
             return $query;
         }
 
-        $unitIds = DB::table('helpdesk_unit_user')
-            ->where('user_id', $user->getKey())
-            ->pluck('unit_id')
-            ->map(fn (mixed $value): int => (int) $value)
-            ->all();
-
-        return $query->where(function (Builder $builder) use ($user, $unitIds): void {
+        return $query->where(function (Builder $builder) use ($user): void {
             $builder
-                ->where('owner_id', $user->getKey())
-                ->orWhere('responsible_id', $user->getKey());
+                ->outgoingFor($user)
+                ->orWhere(fn (Builder $incomingQuery): Builder => $incomingQuery->incomingFor($user));
+        });
+    }
 
-            if ($unitIds !== []) {
-                $builder->orWhereIn('unit_id', $unitIds);
+    public function scopeOutgoingFor(Builder $query, User $user): Builder
+    {
+        return $query->where('owner_id', $user->getKey());
+    }
+
+    public function scopeIncomingFor(Builder $query, User $user): Builder
+    {
+        return $query->where(function (Builder $builder) use ($user): void {
+            $builder->where('responsible_id', $user->getKey());
+
+            if (static::canAccessUnitInbox($user)) {
+                $unitIds = static::getUnitIdsForUser($user);
+
+                if ($unitIds !== []) {
+                    $builder->orWhereIn('unit_id', $unitIds);
+                }
             }
         });
     }
@@ -192,5 +221,24 @@ class Ticket extends Model
     protected static function newFactory(): Factory
     {
         return TicketFactory::new();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    protected static function getUnitIdsForUser(User $user): array
+    {
+        return DB::table('helpdesk_unit_user')
+            ->where('user_id', $user->getKey())
+            ->pluck('unit_id')
+            ->map(fn (mixed $value): int => (int) $value)
+            ->all();
+    }
+
+    protected static function canAccessUnitInbox(User $user): bool
+    {
+        return $user->can('view_any_helpdesk_ticket')
+            || $user->can('view_helpdesk_ticket')
+            || $user->can('update_helpdesk_ticket');
     }
 }

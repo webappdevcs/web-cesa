@@ -18,7 +18,7 @@ class TicketStatusResource extends Resource
 {
     protected static ?string $model = TicketStatus::class;
 
-    protected static BackedEnum|string|null $navigationIcon = null;
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-check-circle';
 
     protected static ?string $cluster = Configurations::class;
 
@@ -43,9 +43,10 @@ class TicketStatusResource extends Resource
     {
         return $schema->components([
             TextInput::make('name')
+                ->columnSpanFull()
                 ->required()
                 ->maxLength(255),
-        ]);
+        ])->columns(1);
     }
 
     public static function table(Table $table): Table
@@ -62,10 +63,10 @@ class TicketStatusResource extends Resource
             ])
             ->recordActions([
                 EditAction::make()->slideOver()->modalWidth('md'),
-                DeleteAction::make(),
+                DeleteAction::make()->slideOver()->modalWidth('md'),
             ])
             ->bulkActions([
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()->slideOver()->modalWidth('md'),
             ])
             ->defaultSort('id');
     }

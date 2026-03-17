@@ -13,6 +13,15 @@ return [
         'ticket' => [
             'single' => 'Ticket',
             'plural' => 'Tickets',
+            'pages'  => [
+                'list' => [
+                    'tabs' => [
+                        'incoming' => 'Incoming',
+                        'outgoing' => 'Outgoing',
+                        'all'      => 'All',
+                    ],
+                ],
+            ],
         ],
         'priority' => [
             'single' => 'Priority',
