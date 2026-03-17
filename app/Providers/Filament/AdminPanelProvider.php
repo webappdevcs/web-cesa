@@ -78,6 +78,9 @@ class AdminPanelProvider extends PanelProvider
                     ->label(__('admin.navigation.kepegawaian'))
                     ->icon('icon-kepegawaian'),
                 NavigationGroup::make()
+                    ->label(__('admin.navigation.shelf'))
+                    ->icon('icon-shelf'),
+                NavigationGroup::make()
                     ->label(__('admin.navigation.contact'))
                     ->icon('icon-contacts'),
                 NavigationGroup::make()

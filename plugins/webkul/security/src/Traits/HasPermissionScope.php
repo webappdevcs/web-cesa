@@ -17,6 +17,9 @@ trait HasPermissionScope
 
     protected ?string $pivotRelatedKey = 'user_id';
 
+    /** @var array<string, bool> */
+    protected static array $columnExistsCache = [];
+
     protected function getOwnerColumn(): string
     {
         return $this->ownerColumn;
@@ -86,10 +89,7 @@ trait HasPermissionScope
 
             $assignmentColumn = $this->getAssignmentColumn();
 
-            if (
-                $assignmentColumn &&
-                $this->getConnection()->getSchemaBuilder()->hasColumn($this->getTable(), $assignmentColumn)
-            ) {
+            if ($assignmentColumn && $this->hasColumnCached($this->getTable(), $assignmentColumn)) {
                 $subQuery->orWhereIn($assignmentColumn, $userIds);
             }
 
@@ -106,5 +106,16 @@ trait HasPermissionScope
                 });
             }
         });
+    }
+
+    protected function hasColumnCached(string $table, string $column): bool
+    {
+        $cacheKey = "{$table}.{$column}";
+
+        if (array_key_exists($cacheKey, static::$columnExistsCache)) {
+            return static::$columnExistsCache[$cacheKey];
+        }
+
+        return static::$columnExistsCache[$cacheKey] = $this->getConnection()->getSchemaBuilder()->hasColumn($table, $column);
     }
 }

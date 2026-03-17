@@ -30,6 +30,7 @@ class ShelfPlugin implements Plugin
                 $panel
                     ->discoverResources(in: $this->getPluginBasePath('/Filament/Resources'), for: 'Cesa\\Shelf\\Filament\\Resources')
                     ->discoverPages(in: $this->getPluginBasePath('/Filament/Pages'), for: 'Cesa\\Shelf\\Filament\\Pages')
+                    ->discoverClusters(in: $this->getPluginBasePath('/Filament/Clusters'), for: 'Cesa\\Shelf\\Filament\\Clusters')
                     ->discoverWidgets(in: $this->getPluginBasePath('/Filament/Widgets'), for: 'Cesa\\Shelf\\Filament\\Widgets');
             });
     }

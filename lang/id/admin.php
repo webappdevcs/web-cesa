@@ -24,5 +24,6 @@ return [
         'form-transfer'  => 'Form Transfer',
         'exit-clearance' => 'Exit Clearance',
         'helpdesk'       => 'Helpdesk',
+        'shelf'          => 'Shelf',
     ],
 ];
