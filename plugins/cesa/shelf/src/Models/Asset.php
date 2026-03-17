@@ -77,11 +77,6 @@ class Asset extends ShelfModel
         return $this->belongsToIncludingTrashed(AssetLocation::class);
     }
 
-    public function assetTransfers(): HasMany
-    {
-        return $this->hasManyIncludingTrashed(AssetTransfer::class);
-    }
-
     public function assetTransferDetails(): HasMany
     {
         return $this->hasManyIncludingTrashed(AssetTransferDetail::class);
@@ -290,7 +285,6 @@ class Asset extends ShelfModel
 
     protected function performValidRecipientCheck(): bool
     {
-        // Use the relationship if already loaded, otherwise query
         $latestTransferDetail = $this->relationLoaded('latestTransferDetail')
             ? $this->latestTransferDetail
             : $this->cachedLatestTransferDetail ??= AssetTransferDetail::where('asset_id', $this->id)
@@ -301,7 +295,6 @@ class Asset extends ShelfModel
             return true;
         }
 
-        // Use the relationship if already loaded
         $latestTransfer = $this->relationLoaded('latestTransferDetail.assetTransfer')
             ? $latestTransferDetail->assetTransfer
             : $this->cachedLatestTransfer ??= AssetTransfer::withTrashed()->find($latestTransferDetail->asset_transfer_id);

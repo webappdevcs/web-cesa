@@ -114,10 +114,33 @@ class ShelfPluginSmokeTest extends TestCase
         );
 
         $this->assertIsString($foreignKeyMigrationContents);
-        $this->assertStringContainsString("addForeignKeyIfMissing('shelf_assets', 'company_id', 'companies', 'set null')", $foreignKeyMigrationContents);
-        $this->assertStringContainsString("addForeignKeyIfMissing('shelf_assets', 'recipient_company_id', 'companies', 'set null')", $foreignKeyMigrationContents);
-        $this->assertStringContainsString("addForeignKeyIfMissing('shelf_asset_transfers', 'company_id', 'companies', 'cascade')", $foreignKeyMigrationContents);
-        $this->assertStringContainsString("addForeignKeyIfMissing('shelf_tasks', 'company_id', 'companies')", $foreignKeyMigrationContents);
+        $this->assertStringContainsString("'table'         => 'shelf_assets'", $foreignKeyMigrationContents);
+        $this->assertStringContainsString("'column'        => 'company_id'", $foreignKeyMigrationContents);
+        $this->assertStringContainsString("'column'        => 'recipient_company_id'", $foreignKeyMigrationContents);
+        $this->assertStringContainsString("'table'         => 'shelf_asset_transfers'", $foreignKeyMigrationContents);
+        $this->assertStringContainsString("'on_delete'     => 'cascade'", $foreignKeyMigrationContents);
+        $this->assertStringContainsString("'table'         => 'shelf_tasks'", $foreignKeyMigrationContents);
+    }
+
+    public function test_shelf_performance_migrations_target_live_indexes_only(): void
+    {
+        $performanceMigrationPath = base_path('plugins/cesa/shelf/database/migrations/2026_03_17_020000_add_performance_indexes_to_shelf_tables.php');
+        $cleanupMigrationPath = base_path('plugins/cesa/shelf/database/migrations/2026_03_17_160000_cleanup_redundant_shelf_indexes.php');
+
+        $performanceMigrationContents = file_get_contents($performanceMigrationPath);
+        $cleanupMigrationContents = file_get_contents($cleanupMigrationPath);
+
+        $this->assertIsString($performanceMigrationContents);
+        $this->assertIsString($cleanupMigrationContents);
+        $this->assertStringContainsString("'shelf_vehicle_checksheets'", $performanceMigrationContents);
+        $this->assertStringContainsString("'license_plate'", $performanceMigrationContents);
+        $this->assertStringContainsString("'pic'", $performanceMigrationContents);
+        $this->assertStringContainsString("'location'", $performanceMigrationContents);
+        $this->assertStringNotContainsString('shelf_asset_transfer_details_asset_id_index', $performanceMigrationContents);
+        $this->assertStringContainsString("'shelf_vehicle_checksheets'", $cleanupMigrationContents);
+        $this->assertFileDoesNotExist(
+            base_path('plugins/cesa/shelf/database/migrations/2026_03_17_070000_add_creator_indexes_to_permission_scoped_shelf_tables.php')
+        );
     }
 
     public function test_it_can_autoload_shelf_feature_entrypoints(): void
@@ -213,6 +236,14 @@ class ShelfPluginSmokeTest extends TestCase
     public function test_shelf_base_resource_uses_resource_permission_query_trait(): void
     {
         $this->assertContains(HasResourcePermissionQuery::class, class_uses_recursive(ShelfResource::class));
+    }
+
+    public function test_shelf_base_resource_falls_back_to_shelf_model_namespace(): void
+    {
+        $this->assertSame(
+            'Cesa\\Shelf\\Models\\ExampleManaged',
+            ExampleManagedResource::getModel(),
+        );
     }
 
     public function test_shelf_navigation_matches_other_cesa_plugins(): void
@@ -360,3 +391,5 @@ class ShelfPluginSmokeTest extends TestCase
         return $user;
     }
 }
+
+class ExampleManagedResource extends ShelfResource {}

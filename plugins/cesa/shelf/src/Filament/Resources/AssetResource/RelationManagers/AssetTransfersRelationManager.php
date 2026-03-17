@@ -59,19 +59,13 @@ class AssetTransfersRelationManager extends RelationManager
                     ->label(__('Created at')),
             ])
             ->defaultSort('created_at', 'desc')
-            ->filters([
-                //
-            ])
+            ->filters([])
             ->headerActions([
                 \Filament\Actions\Action::make('createAssetTransfer')
                     ->label('Transfer Asset')
                     ->url(AssetTransferResource::getUrl('create'))
                     ->icon('heroicon-o-plus')
                     ->color('success'),
-            ])
-            ->actions([
-                // \Filament\Actions\EditAction::make(),
-                // \Filament\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([

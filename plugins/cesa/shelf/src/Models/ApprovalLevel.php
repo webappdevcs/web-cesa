@@ -64,7 +64,7 @@ class ApprovalLevel extends ShelfModel
             return;
         }
 
-        $duplicateExists = self::query()
+        $duplicateExists = self::withTrashed()
             ->where('request_type', $this->request_type)
             ->where('level', $this->level)
             ->whereRaw('LOWER(division) = ?', [self::normalizeDivisionKey($this->division)])

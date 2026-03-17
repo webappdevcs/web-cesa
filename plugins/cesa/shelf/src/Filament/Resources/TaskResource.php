@@ -268,7 +268,7 @@ class TaskResource extends ShelfResource
                         ])
                         ->action(function ($record, $data) {
                             $record->update([
-                                'document_upload' => $data['document_upload'], // Save the uploaded document
+                                'document_upload' => $data['document_upload'],
                             ]);
                         }),
 
@@ -421,9 +421,7 @@ class TaskResource extends ShelfResource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array

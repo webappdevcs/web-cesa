@@ -8,6 +8,7 @@ use Cesa\FormTransfer\Enums\ApprovalStatus;
 use Cesa\FormTransfer\Enums\TransferRequestApprovalStatus;
 use Cesa\FormTransfer\Enums\TransferRequestRealizationStatus;
 use Cesa\FormTransfer\Enums\TransferRequestSubmissionStatus;
+use Cesa\Shelf\Support\InteractsWithShelfCreatorBackfill;
 use Illuminate\Console\Command;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,8 @@ use Webkul\Support\Models\Company;
 
 class SyncLegacySqlData extends Command
 {
+    use InteractsWithShelfCreatorBackfill;
+
     protected $signature = 'legacy:sync
                             {--module=* : Modules to sync (form-transfer, exit-clearance, presensi, helpdesk, shelf)}
                             {--connection=legacy_sync : Legacy database connection name}
@@ -490,6 +493,7 @@ class SyncLegacySqlData extends Command
         $this->syncShelfApprovalLevels();
         $this->syncShelfAssetRequests();
         $this->syncShelfRequestApprovals();
+        $this->backfillShelfCreatorIds();
     }
 
     protected function syncShelfCategories(): void

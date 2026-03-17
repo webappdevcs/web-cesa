@@ -103,16 +103,21 @@ class ApprovalLevelResource extends ShelfResource
                 SelectFilter::make('request_type')
                     ->label('Jenis Pengajuan')
                     ->options(AssetRequest::requestTypeOptions()),
+                \Filament\Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
                 \Filament\Actions\EditAction::make()
                     ->slideOver()
                     ->modalWidth('md'),
                 \Filament\Actions\DeleteAction::make(),
+                \Filament\Actions\RestoreAction::make(),
+                \Filament\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 \Filament\Actions\BulkActionGroup::make([
                     \Filament\Actions\DeleteBulkAction::make(),
+                    \Filament\Actions\RestoreBulkAction::make(),
+                    \Filament\Actions\ForceDeleteBulkAction::make(),
                 ]),
             ]);
     }

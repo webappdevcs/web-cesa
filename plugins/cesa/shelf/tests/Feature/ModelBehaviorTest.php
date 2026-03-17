@@ -76,6 +76,13 @@ class ModelBehaviorTest extends TestCase
         $this->assertFalse(method_exists(new AssetTransfer, 'businessEntity'));
     }
 
+    public function test_shelf_models_drop_legacy_relations_without_backing_columns(): void
+    {
+        $this->assertFalse(method_exists(new Asset, 'assetTransfers'));
+        $this->assertFalse(method_exists(new AssetTransfer, 'asset'));
+        $this->assertFalse(method_exists(new CustomAssetAttribute, 'category'));
+    }
+
     public function test_task_attachment_files_round_trip_multiple_uploads(): void
     {
         $task = new Task;
@@ -163,6 +170,34 @@ class ModelBehaviorTest extends TestCase
         $this->assertSame(AssetTransfer::STATUS_RETURN, $transfer->status);
     }
 
+    public function test_asset_transfer_can_infer_handover_from_ga_sender(): void
+    {
+        $fromUser = new User;
+        $fromUser->name = 'GA';
+
+        $toUser = new User;
+        $toUser->name = 'Requester';
+
+        $this->assertSame(
+            AssetTransfer::TYPE_HANDOVER,
+            AssetTransfer::inferTransferTypeFromUsers($fromUser, $toUser),
+        );
+    }
+
+    public function test_asset_transfer_can_infer_return_from_ga_receiver(): void
+    {
+        $fromUser = new User;
+        $fromUser->name = 'Requester';
+
+        $toUser = new User;
+        $toUser->name = 'General Affair';
+
+        $this->assertSame(
+            AssetTransfer::TYPE_RETURN,
+            AssetTransfer::inferTransferTypeFromUsers($fromUser, $toUser),
+        );
+    }
+
     public function test_asset_transfer_status_is_unknown_without_transfer_type(): void
     {
         $transfer = new AssetTransfer;
@@ -217,7 +252,6 @@ class ModelBehaviorTest extends TestCase
         $this->assertRelationQueryDoesNotFilterDeletedAt(new Asset, 'category', ['shelf_categories']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new Asset, 'brand', ['shelf_brands']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new Asset, 'assetLocation', ['shelf_asset_locations']);
-        $this->assertRelationQueryDoesNotFilterDeletedAt(new Asset, 'assetTransfers', ['shelf_asset_transfers']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new Asset, 'assetTransferDetails', ['shelf_asset_transfer_details']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new Asset, 'recipient', ['users']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new Asset, 'recipientCompany', ['companies']);
@@ -232,7 +266,6 @@ class ModelBehaviorTest extends TestCase
         $this->assertRelationQueryDoesNotFilterDeletedAt(new AssetTransfer, 'creator', ['users']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new AssetTransfer, 'company', ['companies']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new AssetTransfer, 'companyDocumentSetting', ['shelf_company_document_settings']);
-        $this->assertRelationQueryDoesNotFilterDeletedAt(new AssetTransfer, 'asset', ['shelf_assets']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new AssetTransfer, 'details', ['shelf_asset_transfer_details']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new AssetTransfer, 'fromUser', ['users']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new AssetTransfer, 'toUser', ['users']);
@@ -246,7 +279,6 @@ class ModelBehaviorTest extends TestCase
         $this->assertRelationQueryDoesNotFilterDeletedAt(new Category, 'creator', ['users']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new CompanyDocumentSetting, 'company', ['companies']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new CompanyDocumentSetting, 'creator', ['users']);
-        $this->assertRelationQueryDoesNotFilterDeletedAt(new CustomAssetAttribute, 'category', ['shelf_categories']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new CustomAssetAttribute, 'assetAttributes', ['shelf_asset_attributes']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new CustomAssetAttribute, 'creator', ['users']);
         $this->assertRelationQueryDoesNotFilterDeletedAt(new RequestApproval, 'assetRequest', ['shelf_asset_requests']);

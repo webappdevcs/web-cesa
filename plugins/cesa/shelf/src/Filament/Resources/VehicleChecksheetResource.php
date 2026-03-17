@@ -27,12 +27,8 @@ class VehicleChecksheetResource extends ShelfResource
     {
         return $schema
             ->components([
-                // Informasi Kendaraan
                 Section::make('Informasi Kendaraan')
                     ->schema([
-                        // Forms\Components\Select::make('asset_id')
-                        //     ->relationship('asset', 'name')
-                        //     ->label('Nama Aset'),
                         Forms\Components\TextInput::make('reference_number')
                             ->required()
                             ->maxLength(255)
@@ -44,10 +40,9 @@ class VehicleChecksheetResource extends ShelfResource
                         Forms\Components\Select::make('license_plate')
                             ->label('Plat Nomor')
                             ->options(function () {
-                                // Ambil data dari AssetAttribute yang terkait dengan CustomAssetAttribute "Plat Nomor"
                                 return \Cesa\Shelf\Models\AssetAttribute::whereHas('customAttribute', function ($query) {
                                     $query->where('name', 'Plat Nomor');
-                                })->pluck('attribute_value', 'attribute_value'); // Menggunakan attribute_value sebagai key dan value
+                                })->pluck('attribute_value', 'attribute_value');
                             })
                             ->searchable()
                             ->required()
@@ -67,8 +62,6 @@ class VehicleChecksheetResource extends ShelfResource
                             ->placeholder('Contoh: Depo 1, Workshop, dll.')
                             ->required(),
                     ]),
-
-                // Informasi Keberangkatan
                 Section::make('Informasi Keberangkatan')
                     ->schema([
                         Forms\Components\TextInput::make('start_km')
@@ -103,8 +96,6 @@ class VehicleChecksheetResource extends ShelfResource
                             ->label('Laporan Kerusakan Saat Keberangkatan')
                             ->helperText('Unggah dokumentasi kondisi saat kendaraan berangkat.'),
                     ]),
-
-                // Informasi Pengembalian
                 Section::make('Informasi Pengembalian')
                     ->schema([
                         Forms\Components\TextInput::make('end_km')
@@ -139,18 +130,17 @@ class VehicleChecksheetResource extends ShelfResource
                             ->helperText('Unggah dokumentasi kondisi saat kendaraan kembali.'),
                     ])
                     ->hidden(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\CreateRecord),
-                // Informasi Tambahan
                 Section::make('Informasi Tambahan')
                     ->schema([
                         Forms\Components\TextInput::make('rental_duration')
                             ->numeric()
                             ->label('Durasi Sewa (jam)')
-                            ->disabled(), // Set as read-only
+                            ->disabled(),
                         Forms\Components\TextInput::make('distance_traveled')
                             ->numeric()
                             ->default(0.00)
                             ->label('Jarak Tempuh')
-                            ->disabled(), // Set as read-only
+                            ->disabled(),
                         Forms\Components\Textarea::make('remarks')
                             ->columnSpanFull()
                             ->label('Catatan Tambahan'),
@@ -307,9 +297,7 @@ class VehicleChecksheetResource extends ShelfResource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array

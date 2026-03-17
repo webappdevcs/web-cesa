@@ -33,8 +33,8 @@ class VendorResource extends ShelfResource
                     ->columnSpanFull(),
                 TextInput::make('last_price')
                     ->label(__('shelf::app.labels.item_price'))
-                    ->numeric() // Mengatur agar input hanya angka
-                    ->prefix('Rp ') // Tambahkan prefix 'Rp ' di depan input
+                    ->numeric()
+                    ->prefix('Rp ')
                     ->required()
                     ->placeholder(__('shelf::app.labels.item_price'))
                     ->columnSpanFull(),
@@ -58,9 +58,7 @@ class VendorResource extends ShelfResource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
-            ])
+            ->filters([])
             ->actions([
                 EditAction::make()->slideOver()->modalWidth('md'),
                 DeleteAction::make(),

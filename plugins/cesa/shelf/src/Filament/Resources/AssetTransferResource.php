@@ -101,7 +101,6 @@ class AssetTransferResource extends ShelfResource
                                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                         $set('to_user_id', null);
                                         $set('details', null);
-                                        self::syncSuggestedTransferType($set, $get);
                                         self::syncTransferDetails($set, $get);
                                     }),
                                 Select::make('to_user_id')
@@ -112,10 +111,7 @@ class AssetTransferResource extends ShelfResource
                                     ))
                                     ->helperText('Pengguna baru dikelola dari menu user inti CESA.')
                                     ->searchable()
-                                    ->required()
-                                    ->afterStateUpdated(function ($state, callable $set, callable $get): void {
-                                        self::syncSuggestedTransferType($set, $get);
-                                    }),
+                                    ->required(),
                                 Select::make('transfer_type')
                                     ->label('Jenis Dokumen')
                                     ->options(AssetTransfer::transferTypeOptions())
@@ -186,7 +182,7 @@ class AssetTransferResource extends ShelfResource
                     ])
                     ->translateLabel()
                     ->required()
-                    ->hidden(fn (callable $get) => ! $get('from_user_id')) // Hide the repeater when from_user_id is not selected
+                    ->hidden(fn (callable $get) => ! $get('from_user_id'))
                     ->columns(2)
                     ->columnSpan(2),
             ])->columns(3);
@@ -197,7 +193,6 @@ class AssetTransferResource extends ShelfResource
         return $table
             ->modifyQueryUsing(fn (\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder => $query->with([
                 'company',
-                'companyDocumentSetting',
                 'fromUser',
                 'toUser',
             ]))
@@ -205,8 +200,7 @@ class AssetTransferResource extends ShelfResource
                 TextColumn::make('company.name')
                     ->label('Badan Usaha')
                     ->badge()
-                    ->color(fn ($state, AssetTransfer $record) => CompanyDocumentSetting::resolveColor($record->company, $record->companyDocumentSetting))
-                    ->getStateUsing(fn ($state, AssetTransfer $record): string => $record->company?->name ?? '-')
+                    ->color('gray')
                     ->toggleable(),
                 TextColumn::make('status')
                     ->badge()
@@ -286,21 +280,7 @@ class AssetTransferResource extends ShelfResource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
-    }
-
-    protected static function syncSuggestedTransferType(callable $set, callable $get): void
-    {
-        $suggestedTransferType = AssetTransfer::inferTransferTypeFromUserIds(
-            filled($get('from_user_id')) ? (int) $get('from_user_id') : null,
-            filled($get('to_user_id')) ? (int) $get('to_user_id') : null,
-        );
-
-        if ($suggestedTransferType !== null) {
-            $set('transfer_type', $suggestedTransferType);
-        }
+        return [];
     }
 
     protected static function syncTransferDetails(callable $set, callable $get): void
@@ -315,8 +295,8 @@ class AssetTransferResource extends ShelfResource
         }
 
         $details = self::availableAssetsQuery($fromUserId, $transferType)
-            ->get()
-            ->map(fn (Asset $asset): array => ['asset_id' => $asset->id, 'equipment' => ''])
+            ->pluck('id')
+            ->map(fn (int $assetId): array => ['asset_id' => $assetId, 'equipment' => ''])
             ->values()
             ->all();
 
@@ -325,7 +305,9 @@ class AssetTransferResource extends ShelfResource
 
     protected static function availableAssetsQuery(?int $fromUserId, ?string $transferType): Builder
     {
-        $query = Asset::query();
+        $query = Asset::query()
+            ->select(['id', 'name'])
+            ->orderBy('name');
 
         if ($fromUserId === null || ! filled($transferType)) {
             return $query->whereRaw('1 = 0');

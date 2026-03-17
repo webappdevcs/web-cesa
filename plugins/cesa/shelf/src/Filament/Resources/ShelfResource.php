@@ -30,6 +30,17 @@ abstract class ShelfResource extends Resource
         return __(static::getResourceTranslationKey('navigation.title'));
     }
 
+    public static function getModel(): string
+    {
+        if (filled(static::$model)) {
+            return static::$model;
+        }
+
+        return (string) str(class_basename(static::class))
+            ->beforeLast('Resource')
+            ->prepend('Cesa\\Shelf\\Models\\');
+    }
+
     public static function getModelLabel(): string
     {
         return __(static::getResourceTranslationKey('singular'));

@@ -13,7 +13,15 @@ class PdfController extends Controller
 {
     public function downloadAssetTransfer(int $id): Response
     {
-        $relations = ['company', 'details.asset.category', 'details.asset.brand', 'details.asset.attributes'];
+        $relations = [
+            'company',
+            'companyDocumentSetting',
+            'fromUser',
+            'toUser',
+            'details.asset.category',
+            'details.asset.brand',
+            'details.asset.attributes',
+        ];
 
         if (User::supportsJobTitles()) {
             $relations[] = 'fromUser.jobTitle';
@@ -21,6 +29,8 @@ class PdfController extends Controller
         }
 
         $assetTransfer = AssetTransfer::with($relations)->findOrFail($id);
+        $this->authorize('view', $assetTransfer);
+
         $statusMap = [
             'BERITA ACARA SERAH TERIMA'        => 'BA',
             'BERITA ACARA PENGALIHAN BARANG'   => 'BAPAB',
@@ -48,6 +58,7 @@ class PdfController extends Controller
     public function downloadTaskCompletion(int $id): Response
     {
         $task = Task::with(['company', 'companyDocumentSetting'])->findOrFail($id);
+        $this->authorize('view', $task);
 
         $headerImage = CompanyDocumentSetting::resolveLetterheadAbsolutePath($task->company, $task->companyDocumentSetting)
             ?: public_path('images/logo.png');
@@ -72,6 +83,7 @@ class PdfController extends Controller
     public function previewTaskCompletion(int $id): Response
     {
         $task = Task::with(['company', 'companyDocumentSetting'])->findOrFail($id);
+        $this->authorize('view', $task);
 
         $headerImage = CompanyDocumentSetting::resolveLetterheadAbsolutePath($task->company, $task->companyDocumentSetting)
             ?: public_path('images/logo.png');

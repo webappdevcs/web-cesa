@@ -54,11 +54,6 @@ class AssetTransfer extends ShelfModel
         return $this->hasOneIncludingTrashed(CompanyDocumentSetting::class, 'company_id', 'company_id');
     }
 
-    public function asset(): BelongsTo
-    {
-        return $this->belongsToIncludingTrashed(Asset::class);
-    }
-
     public function details(): HasMany
     {
         return $this->hasManyIncludingTrashed(AssetTransferDetail::class);
@@ -137,7 +132,19 @@ class AssetTransfer extends ShelfModel
 
     public static function inferTransferTypeFromUsers(?User $fromUser, ?User $toUser): ?string
     {
-        return null;
+        if ($fromUser === null || $toUser === null) {
+            return null;
+        }
+
+        $fromIsCustodian = self::isCustodianUser($fromUser);
+        $toIsCustodian = self::isCustodianUser($toUser);
+
+        return match (true) {
+            $fromIsCustodian && ! $toIsCustodian   => self::TYPE_HANDOVER,
+            ! $fromIsCustodian && $toIsCustodian   => self::TYPE_RETURN,
+            ! $fromIsCustodian && ! $toIsCustodian => self::TYPE_REASSIGNMENT,
+            default                                => null,
+        };
     }
 
     public static function inferTransferTypeFromUserIds(?int $fromUserId, ?int $toUserId): ?string
@@ -168,5 +175,27 @@ class AssetTransfer extends ShelfModel
                 'directory' => 'shelf/asset-transfers/documents',
             ],
         ];
+    }
+
+    private static function isCustodianUser(User $user): bool
+    {
+        $candidates = [
+            $user->name,
+            $user->jobTitle?->title,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (! is_string($candidate)) {
+                continue;
+            }
+
+            $normalized = strtolower(trim(preg_replace('/\s+/u', ' ', $candidate) ?? ''));
+
+            if (in_array($normalized, ['ga', 'general affair', 'general affairs'], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

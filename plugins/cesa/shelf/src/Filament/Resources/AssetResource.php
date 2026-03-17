@@ -11,7 +11,6 @@ use Cesa\Shelf\Models\AssetAttribute;
 use Cesa\Shelf\Models\AssetLocation;
 use Cesa\Shelf\Models\Brand;
 use Cesa\Shelf\Models\Category;
-use Cesa\Shelf\Models\CompanyDocumentSetting;
 use Cesa\Shelf\Models\CustomAssetAttribute;
 use Cesa\Shelf\Models\User;
 use Cesa\Shelf\Support\ShelfAttachmentField;
@@ -44,7 +43,24 @@ use Webkul\Support\Models\Company;
 
 class AssetResource extends ShelfResource
 {
-    // ... existing code ...
+    protected static ?string $model = Asset::class;
+
+    protected static string|\BackedEnum|null $navigationIcon = null;
+
+    protected static ?int $navigationSort = null;
+
+    protected static function normalizeCategoryIds(mixed $categoryIds): array
+    {
+        $ids = is_array($categoryIds) ? $categoryIds : [$categoryIds];
+
+        return collect($ids)
+            ->map(fn (mixed $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
 
     protected static function getCachedCustomAttribute(int $id): ?CustomAssetAttribute
     {
@@ -55,7 +71,12 @@ class AssetResource extends ShelfResource
 
     protected static function getCachedCustomAttributesByCategory(array $categoryIds): array
     {
-        sort($categoryIds);
+        $categoryIds = self::normalizeCategoryIds($categoryIds);
+
+        if ($categoryIds === []) {
+            return [];
+        }
+
         $cacheKey = 'custom_attributes_category_'.implode('_', $categoryIds);
 
         return Cache::remember($cacheKey, 300, function () use ($categoryIds) {
@@ -64,8 +85,10 @@ class AssetResource extends ShelfResource
                     foreach ($categoryIds as $id) {
                         $query->orWhereJsonContains('category_id', (int) $id);
                     }
+
                     $query->orWhereJsonLength('category_id', 0);
                 })
+                ->orderBy('name')
                 ->get()
                 ->all();
         });
@@ -117,34 +140,14 @@ class AssetResource extends ShelfResource
                                         ->prefixIcon('heroicon-m-rectangle-stack')
                                         ->reactive()
                                         ->afterStateUpdated(function ($state, callable $set) {
-                                            if ($state) {
-                                                $set('attributes', []);
-                                                $categoryId = is_array($state) ? $state : [$state];
+                                            $categoryIds = self::normalizeCategoryIds($state);
 
-                                                // Cache key based on sorted category IDs
-                                                sort($categoryId);
-                                                $cacheKey = 'custom_attributes_'.implode('_', $categoryId);
-
-                                                $attributes = Cache::remember($cacheKey, 300, function () use ($categoryId) {
-                                                    return CustomAssetAttribute::where('is_active', true)
-                                                        ->where(function ($query) use ($categoryId) {
-                                                            foreach ($categoryId as $id) {
-                                                                $query->orWhereJsonContains('category_id', (int) $id);
-                                                            }
-                                                            $query->orWhereJsonLength('category_id', 0);
-                                                        })
-                                                        ->get()
-                                                        ->map(function ($attribute) {
-                                                            return [
-                                                                'custom_attribute_id' => $attribute->id,
-                                                                'attribute_value'     => '',
-                                                            ];
-                                                        })
-                                                        ->toArray();
-                                                });
-
-                                                $set('attributes', $attributes);
-                                            }
+                                            $set('attributes', collect(self::getCachedCustomAttributesByCategory($categoryIds))
+                                                ->map(fn (CustomAssetAttribute $attribute): array => [
+                                                    'custom_attribute_id' => $attribute->id,
+                                                    'attribute_value'     => '',
+                                                ])
+                                                ->all());
                                         }),
 
                                     Select::make('brand_id')
@@ -176,53 +179,33 @@ class AssetResource extends ShelfResource
                                     Select::make('custom_attribute_id')
                                         ->label(__('shelf::filament.resources.asset.fields.attribute'))
                                         ->options(function (callable $get) {
-                                            $categoryId = $get('../../category_id');
+                                            $categoryIds = self::normalizeCategoryIds($get('../../category_id'));
                                             $selectedId = $get('../custom_attribute_id');
-                                            if ($categoryId) {
-                                                $categoryId = is_array($categoryId) ? $categoryId : [$categoryId];
-                                                // Ambil atribut yang sudah dipilih di semua entri repeater
-                                                $selectedAttributes = collect($get('../attributes'))
-                                                    ->pluck('custom_attribute_id')
-                                                    ->filter()
-                                                    ->toArray();
 
-                                                // Use cached custom attributes
-                                                sort($categoryId);
-                                                $cacheKey = 'custom_attributes_by_category_'.implode('_', $categoryId);
-                                                $allAttributes = Cache::remember($cacheKey, 300, function () use ($categoryId) {
-                                                    return CustomAssetAttribute::where('is_active', true)
-                                                        ->where(function ($query) use ($categoryId) {
-                                                            foreach ($categoryId as $id) {
-                                                                $query->orWhereJsonContains('category_id', (int) $id);
-                                                            }
-                                                            $query->orWhereJsonLength('category_id', 0);
-                                                        })
-                                                        ->get()
-                                                        ->keyBy('id');
-                                                });
-
-                                                // Filter out already selected attributes
-                                                $attributes = collect($allAttributes)
-                                                    ->whereNotIn('id', $selectedAttributes)
-                                                    ->pluck('name', 'id')
-                                                    ->toArray();
-
-                                                return $attributes;
+                                            if ($categoryIds === []) {
+                                                return [];
                                             }
 
-                                            return [];
+                                            $selectedAttributes = collect($get('../../attributes') ?? [])
+                                                ->pluck('custom_attribute_id')
+                                                ->filter()
+                                                ->map(fn (mixed $id): int => (int) $id)
+                                                ->all();
+
+                                            return collect(self::getCachedCustomAttributesByCategory($categoryIds))
+                                                ->filter(function (CustomAssetAttribute $attribute) use ($selectedAttributes, $selectedId): bool {
+                                                    return (int) $selectedId === $attribute->id
+                                                        || ! in_array($attribute->id, $selectedAttributes, true);
+                                                })
+                                                ->pluck('name', 'id')
+                                                ->all();
                                         })
                                         ->reactive()
                                         ->searchable()
                                         ->required()
                                         ->afterStateHydrated(function ($state, callable $set) {
                                             if ($state) {
-                                                // Use cached attribute instead of query
-                                                $customAttribute = Cache::remember(
-                                                    "custom_attribute_{$state}",
-                                                    300,
-                                                    fn () => CustomAssetAttribute::withTrashed()->find($state)
-                                                );
+                                                $customAttribute = self::getCachedCustomAttribute((int) $state);
 
                                                 if ($customAttribute) {
                                                     $set('custom_attribute_id', $customAttribute->id);
@@ -235,38 +218,42 @@ class AssetResource extends ShelfResource
                                     TextInput::make('attribute_value')
                                         ->label(__('shelf::filament.resources.asset.fields.attribute_value'))
                                         ->reactive()
-                                        ->visible(fn (callable $get) => $get('custom_attribute_id') && CustomAssetAttribute::withTrashed()->find($get('custom_attribute_id'))?->type === 'text')
+                                        ->visible(fn (callable $get) => filled($get('custom_attribute_id'))
+                                            && self::getCachedCustomAttribute((int) $get('custom_attribute_id'))?->type === 'text')
                                         ->afterStateHydrated(function ($state, callable $set) {
                                             $set('attribute_value', $state ?? '');
                                         }),
 
-                                    // Input numerik
                                     TextInput::make('attribute_value')
                                         ->label(__('shelf::filament.resources.asset.fields.attribute_value'))
-                                        ->required(fn (callable $get) => $get('custom_attribute_id') && CustomAssetAttribute::withTrashed()->find($get('custom_attribute_id'))?->required)
+                                        ->required(fn (callable $get) => filled($get('custom_attribute_id'))
+                                            && (self::getCachedCustomAttribute((int) $get('custom_attribute_id'))?->required ?? false))
                                         ->numeric()
                                         ->reactive()
-                                        ->visible(fn (callable $get) => $get('custom_attribute_id') && CustomAssetAttribute::withTrashed()->find($get('custom_attribute_id'))?->type === 'number')
+                                        ->visible(fn (callable $get) => filled($get('custom_attribute_id'))
+                                            && self::getCachedCustomAttribute((int) $get('custom_attribute_id'))?->type === 'number')
                                         ->afterStateHydrated(function ($state, callable $set) {
                                             $set('attribute_value', $state ?? '');
                                         }),
 
-                                    // Input untuk textarea
                                     Textarea::make('attribute_value')
                                         ->label(__('shelf::filament.resources.asset.fields.attribute_value'))
-                                        ->required(fn (callable $get) => $get('custom_attribute_id') && CustomAssetAttribute::withTrashed()->find($get('custom_attribute_id'))?->required)
+                                        ->required(fn (callable $get) => filled($get('custom_attribute_id'))
+                                            && (self::getCachedCustomAttribute((int) $get('custom_attribute_id'))?->required ?? false))
                                         ->reactive()
-                                        ->visible(fn (callable $get) => $get('custom_attribute_id') && CustomAssetAttribute::withTrashed()->find($get('custom_attribute_id'))?->type === 'textarea')
+                                        ->visible(fn (callable $get) => filled($get('custom_attribute_id'))
+                                            && self::getCachedCustomAttribute((int) $get('custom_attribute_id'))?->type === 'textarea')
                                         ->afterStateHydrated(function ($state, callable $set) {
                                             $set('attribute_value', $state ?? '');
                                         }),
 
-                                    // Input untuk date picker
                                     DatePicker::make('attribute_value')
                                         ->label(__('shelf::filament.resources.asset.fields.attribute_value'))
-                                        ->required(fn (callable $get) => $get('custom_attribute_id') && CustomAssetAttribute::withTrashed()->find($get('custom_attribute_id'))?->required)
+                                        ->required(fn (callable $get) => filled($get('custom_attribute_id'))
+                                            && (self::getCachedCustomAttribute((int) $get('custom_attribute_id'))?->required ?? false))
                                         ->reactive()
-                                        ->visible(fn (callable $get) => $get('custom_attribute_id') && CustomAssetAttribute::withTrashed()->find($get('custom_attribute_id'))?->type === 'date')
+                                        ->visible(fn (callable $get) => filled($get('custom_attribute_id'))
+                                            && self::getCachedCustomAttribute((int) $get('custom_attribute_id'))?->type === 'date')
                                         ->afterStateHydrated(function ($state, callable $set) {
                                             $set('attribute_value', $state ?? '');
                                         }),
@@ -278,7 +265,7 @@ class AssetResource extends ShelfResource
                                     if ($record && $record->attributes) {
                                         $state = [];
                                         foreach ($record->attributes as $attribute) {
-                                            $customAttribute = CustomAssetAttribute::withTrashed()->find($attribute->custom_attribute_id);
+                                            $customAttribute = self::getCachedCustomAttribute((int) $attribute->custom_attribute_id);
                                             $state[] = [
                                                 'custom_attribute_id'    => $attribute->custom_attribute_id,
                                                 'custom_attribute_label' => $customAttribute ? $customAttribute->name : null,
@@ -460,7 +447,6 @@ class AssetResource extends ShelfResource
         return $table
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with([
                 'company',
-                'companyDocumentSetting',
                 'category',
                 'brand',
                 'assetLocation',
@@ -472,8 +458,7 @@ class AssetResource extends ShelfResource
                 TextColumn::make('company.name')
                     ->label('Badan Usaha')
                     ->badge()
-                    ->color(fn ($state, Asset $record) => CompanyDocumentSetting::resolveColor($record->company, $record->companyDocumentSetting))
-                    ->getStateUsing(fn ($state, Asset $record): string => $record->company?->name ?? '-')
+                    ->color('gray')
                     ->toggleable(),
                 TextColumn::make('name')->translateLabel()->sortable()->searchable()->toggleable(),
                 TextColumn::make('category.name')->translateLabel()->sortable()->toggleable(),
@@ -506,8 +491,8 @@ class AssetResource extends ShelfResource
                 TextColumn::make('nbh_status')
                     ->label(__('shelf::filament.resources.asset.lifecycle.nbh_status'))
                     ->badge()
-                    ->formatStateUsing(fn ($state) => $state?->label() ?? 'None')
-                    ->color(fn ($state) => $state?->color() ?? 'secondary')
+                    ->formatStateUsing(fn (?NbhStatus $state): string => $state?->label() ?? NbhStatus::None->label())
+                    ->color(fn (?NbhStatus $state): string => $state?->color() ?? NbhStatus::None->color())
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -703,10 +688,11 @@ class AssetResource extends ShelfResource
                                         ->label(__('shelf::filament.resources.asset.lifecycle.condition_status'))
                                         ->badge()
                                         ->color(fn ($state, Asset $record): string => $record->condition_status_color ?? 'secondary'),
-                                    TextEntry::make('nbh_status_label')
+                                    TextEntry::make('nbh_status')
                                         ->label(__('shelf::filament.resources.asset.lifecycle.nbh_status'))
                                         ->badge()
-                                        ->color(fn ($state, Asset $record): string => $record->nbh_status_color ?? 'secondary'),
+                                        ->formatStateUsing(fn (?NbhStatus $state): string => $state?->label() ?? NbhStatus::None->label())
+                                        ->color(fn (?NbhStatus $state): string => $state?->color() ?? NbhStatus::None->color()),
                                     TextEntry::make('validasi_status')
                                         ->label(__('shelf::filament.resources.asset.validation_status'))
                                         ->badge()
@@ -774,11 +760,9 @@ class AssetResource extends ShelfResource
             ->columns(1);
     }
 
-    // In your AssetAttribute model
     protected static function pindahkanKeAssetAttributeBulk($records)
     {
         foreach ($records as $record) {
-            // Daftar kolom yang akan dipindahkan sebagai `attribute_key` dan `attribute_value`
             $attributes = [
                 '3' => $record->serial_number,
                 '1' => $record->imei1,
@@ -786,7 +770,6 @@ class AssetResource extends ShelfResource
             ];
 
             foreach ($attributes as $key => $value) {
-                // Pastikan hanya memindahkan jika $value tidak null atau kosong
                 if (! is_null($value) && $value !== '') {
                     AssetAttribute::updateOrCreate(
                         [

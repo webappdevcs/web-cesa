@@ -2,6 +2,10 @@
 
 namespace Cesa\Shelf;
 
+use Cesa\Shelf\Livewire\PublicAssetRequestApprovalPage;
+use Cesa\Shelf\Livewire\PublicAssetRequestForm;
+use Cesa\Shelf\Livewire\PublicAssetRequestIndex;
+use Cesa\Shelf\Livewire\PublicAssetRequestProgressPage;
 use Cesa\Shelf\Models\ApprovalLevel;
 use Cesa\Shelf\Models\Asset;
 use Cesa\Shelf\Models\AssetLocation;
@@ -28,6 +32,7 @@ use Cesa\Shelf\Policies\VehicleChecksheetPolicy;
 use Cesa\Shelf\Policies\VendorPolicy;
 use Filament\Panel;
 use Illuminate\Support\Facades\Gate;
+use Livewire\Livewire;
 use Webkul\PluginManager\Console\Commands\InstallCommand;
 use Webkul\PluginManager\Console\Commands\UninstallCommand;
 use Webkul\PluginManager\Package;
@@ -61,9 +66,11 @@ class ShelfServiceProvider extends PackageServiceProvider
                 '2026_03_09_234746_create_approval_levels_table',
                 '2026_03_09_234746_create_request_approvals_table',
                 '2026_03_17_010000_create_company_document_settings_table',
+                '2026_03_17_020000_add_performance_indexes_to_shelf_tables',
                 '2026_03_17_065802_add_resource_permission_support_to_shelf_tables',
                 '2026_03_17_150000_add_soft_deletes_to_shelf_tables',
-                '2026_03_17_020000_add_performance_indexes_to_shelf_tables',
+                '2026_03_17_160000_cleanup_redundant_shelf_indexes',
+                '2026_03_17_161000_backfill_missing_creator_ids_on_shelf_tables',
             ])
             ->runsMigrations()
             ->hasInstallCommand(function (InstallCommand $command): void {
@@ -78,6 +85,11 @@ class ShelfServiceProvider extends PackageServiceProvider
         if (! ($this->package->isCore || $this->package->isInstalled())) {
             return;
         }
+
+        Livewire::component('cesa.shelf.livewire.public-asset-request-index', PublicAssetRequestIndex::class);
+        Livewire::component('cesa.shelf.livewire.public-asset-request-form', PublicAssetRequestForm::class);
+        Livewire::component('cesa.shelf.livewire.public-asset-request-progress', PublicAssetRequestProgressPage::class);
+        Livewire::component('cesa.shelf.livewire.public-asset-request-approval', PublicAssetRequestApprovalPage::class);
 
         Gate::policy(ApprovalLevel::class, ApprovalLevelPolicy::class);
         Gate::policy(AssetLocation::class, AssetLocationPolicy::class);

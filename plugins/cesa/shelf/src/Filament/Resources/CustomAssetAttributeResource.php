@@ -24,7 +24,7 @@ class CustomAssetAttributeResource extends ShelfResource
 
     protected static ?int $navigationSort = 50;
 
-    public static function getCategoryOptions()
+    public static function getCategoryOptions(): array
     {
         $categories = Category::with('children')->get();
 
@@ -230,9 +230,7 @@ class CustomAssetAttributeResource extends ShelfResource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
