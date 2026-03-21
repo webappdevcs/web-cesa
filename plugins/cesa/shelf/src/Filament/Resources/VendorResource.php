@@ -17,7 +17,7 @@ class VendorResource extends ShelfResource
 {
     protected static ?string $model = Vendor::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
 
     protected static ?string $cluster = Configurations::class;
 

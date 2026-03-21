@@ -46,7 +46,7 @@ class FormTransferResource extends Resource
 
     protected static ?string $cluster = Configurations::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
     protected static ?int $navigationSort = 10;
 

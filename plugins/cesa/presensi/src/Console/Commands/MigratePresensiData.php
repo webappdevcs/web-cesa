@@ -147,6 +147,7 @@ class MigratePresensiData extends Command
                         'latitude'   => $row->latitude,
                         'longitude'  => $row->longitude,
                         'radius'     => $row->radius,
+                        'deleted_at' => $row->deleted_at,
                         'created_at' => $row->created_at,
                         'updated_at' => $row->updated_at,
                     ];
@@ -156,7 +157,7 @@ class MigratePresensiData extends Command
                     DB::table('presensi_offices')->upsert(
                         $payload,
                         ['id'],
-                        ['name', 'latitude', 'longitude', 'radius', 'created_at', 'updated_at']
+                        ['name', 'latitude', 'longitude', 'radius', 'deleted_at', 'created_at', 'updated_at']
                     );
                 }
 
@@ -190,6 +191,7 @@ class MigratePresensiData extends Command
                         'name'       => $row->name,
                         'start_time' => $row->start_time,
                         'end_time'   => $row->end_time,
+                        'deleted_at' => $row->deleted_at,
                         'created_at' => $row->created_at,
                         'updated_at' => $row->updated_at,
                     ];
@@ -199,7 +201,7 @@ class MigratePresensiData extends Command
                     DB::table('presensi_shifts')->upsert(
                         $payload,
                         ['id'],
-                        ['name', 'start_time', 'end_time', 'created_at', 'updated_at']
+                        ['name', 'start_time', 'end_time', 'deleted_at', 'created_at', 'updated_at']
                     );
                 }
 
@@ -343,6 +345,7 @@ class MigratePresensiData extends Command
                         'office_id'  => $row->office_id,
                         'is_wfa'     => $row->is_wfa ?? false,
                         'is_banned'  => $row->is_banned ?? false,
+                        'deleted_at' => $row->deleted_at,
                         'created_at' => $row->created_at,
                         'updated_at' => $row->updated_at,
                     ];
@@ -352,7 +355,7 @@ class MigratePresensiData extends Command
                     DB::table('presensi_schedules')->upsert(
                         $payload,
                         ['id'],
-                        ['user_id', 'shift_id', 'office_id', 'is_wfa', 'is_banned', 'created_at', 'updated_at']
+                        ['user_id', 'shift_id', 'office_id', 'is_wfa', 'is_banned', 'deleted_at', 'created_at', 'updated_at']
                     );
                 }
 
@@ -399,6 +402,9 @@ class MigratePresensiData extends Command
                         'start_time'          => $row->start_time,
                         'end_time'            => $row->end_time,
                         'is_leave'            => $row->is_leave ?? false,
+                        'start_photo_path'    => $row->start_photo_path,
+                        'end_photo_path'      => $row->end_photo_path,
+                        'deleted_at'          => $row->deleted_at,
                         'created_at'          => $row->created_at,
                         'updated_at'          => $row->updated_at,
                     ];
@@ -421,6 +427,9 @@ class MigratePresensiData extends Command
                             'start_time',
                             'end_time',
                             'is_leave',
+                            'start_photo_path',
+                            'end_photo_path',
+                            'deleted_at',
                             'created_at',
                             'updated_at',
                         ]
@@ -459,11 +468,14 @@ class MigratePresensiData extends Command
                     $payload[] = [
                         'id'         => $row->id,
                         'user_id'    => $userMap[$row->user_id],
+                        'type'       => $row->type ?? 'Izin',
                         'start_date' => $row->start_date,
                         'end_date'   => $row->end_date,
                         'reason'     => $row->reason,
                         'status'     => $row->status ?? 'pending',
                         'note'       => $row->note,
+                        'attachment' => $row->attachment,
+                        'deleted_at' => $row->deleted_at,
                         'created_at' => $row->created_at,
                         'updated_at' => $row->updated_at,
                     ];
@@ -473,7 +485,7 @@ class MigratePresensiData extends Command
                     DB::table('presensi_leaves')->upsert(
                         $payload,
                         ['id'],
-                        ['user_id', 'start_date', 'end_date', 'reason', 'status', 'note', 'created_at', 'updated_at']
+                        ['user_id', 'type', 'start_date', 'end_date', 'reason', 'status', 'note', 'attachment', 'deleted_at', 'created_at', 'updated_at']
                     );
                 }
 
@@ -515,6 +527,8 @@ class MigratePresensiData extends Command
                         'reason'     => $row->reason,
                         'status'     => $row->status ?? 'pending',
                         'note'       => $row->note,
+                        'attachment' => $row->attachment,
+                        'deleted_at' => $row->deleted_at,
                         'created_at' => $row->created_at,
                         'updated_at' => $row->updated_at,
                     ];
@@ -524,7 +538,7 @@ class MigratePresensiData extends Command
                     DB::table('presensi_overtimes')->upsert(
                         $payload,
                         ['id'],
-                        ['user_id', 'date', 'start_time', 'end_time', 'reason', 'status', 'note', 'created_at', 'updated_at']
+                        ['user_id', 'date', 'start_time', 'end_time', 'reason', 'status', 'note', 'attachment', 'deleted_at', 'created_at', 'updated_at']
                     );
                 }
 

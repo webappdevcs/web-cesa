@@ -17,7 +17,7 @@ class BrandResource extends ShelfResource
 {
     protected static ?string $model = Brand::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-tag';
 
     protected static ?string $cluster = Configurations::class;
 

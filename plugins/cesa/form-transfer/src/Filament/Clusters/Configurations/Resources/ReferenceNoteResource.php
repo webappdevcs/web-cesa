@@ -31,7 +31,7 @@ class ReferenceNoteResource extends Resource
 
     protected static ?string $cluster = Configurations::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?int $navigationSort = 130;
 

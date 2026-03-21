@@ -2,10 +2,12 @@
 
 namespace Cesa\Presensi\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Webkul\Security\Models\User;
 
 class Schedule extends Model
@@ -27,6 +29,14 @@ class Schedule extends Model
         'is_banned',
     ];
 
+    public static function resolveActiveForUser(int $userId, CarbonInterface|string|null $date = null): ?self
+    {
+        return static::query()
+            ->with(['office', 'shift'])
+            ->where('user_id', $userId)
+            ->first();
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class)->withTrashed();
@@ -40,5 +50,40 @@ class Schedule extends Model
     public function office(): BelongsTo
     {
         return $this->belongsTo(Office::class)->withTrashed();
+    }
+
+    public function scheduleStartAt(CarbonInterface $attendanceDate): ?Carbon
+    {
+        if (! $this->shift) {
+            return null;
+        }
+
+        return Carbon::parse($attendanceDate->toDateString().' '.$this->shift->start_time);
+    }
+
+    public function scheduleEndAt(CarbonInterface $attendanceDate): ?Carbon
+    {
+        if (! $this->shift) {
+            return null;
+        }
+
+        $scheduleStartAt = $this->scheduleStartAt($attendanceDate);
+        $scheduleEndAt = Carbon::parse($attendanceDate->toDateString().' '.$this->shift->end_time);
+
+        if ($scheduleStartAt instanceof Carbon && $scheduleEndAt->lessThanOrEqualTo($scheduleStartAt)) {
+            $scheduleEndAt->addDay();
+        }
+
+        return $scheduleEndAt;
+    }
+
+    public function checkInOpensAt(CarbonInterface $attendanceDate): ?Carbon
+    {
+        return null;
+    }
+
+    public function earlyCheckOutThresholdAt(CarbonInterface $attendanceDate): ?Carbon
+    {
+        return null;
     }
 }

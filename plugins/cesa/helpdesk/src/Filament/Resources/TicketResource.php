@@ -140,7 +140,8 @@ class TicketResource extends HelpdeskResource
                                 ->label('Responsible')
                                 ->options(fn (Get $get): array => static::unitUserOptions($get('unit_id')))
                                 ->searchable()
-                                ->visible(fn (): bool => static::userCan('update_helpdesk_ticket')),
+                                ->visible(fn (): bool => static::userCan('update_helpdesk_ticket'))
+                                ->hiddenOn('create'),
                             Forms\Components\Placeholder::make('owner_name')
                                 ->label('Owner')
                                 ->content(fn (?Ticket $record): string => $record?->owner?->name ?? '-')

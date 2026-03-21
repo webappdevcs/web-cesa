@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Dokumen Badan Usaha',
-        'group' => 'Shelf',
+        'group' => 'Dokumen',
     ],
 
     'singular' => 'Dokumen Badan Usaha',

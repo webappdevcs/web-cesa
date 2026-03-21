@@ -9,6 +9,7 @@ use Cesa\Presensi\Models\Schedule;
 use Cesa\Presensi\Models\Shift;
 use Cesa\Presensi\Tests\PresensiTestCase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 
@@ -23,7 +24,7 @@ class OvertimeControllerTest extends PresensiTestCase
 
         $this->createScheduleFor($user);
 
-        $response = $this->post('/api/overtimes', [
+        $this->post('/admin/api/v1/presensi/overtimes', [
             'date'       => now()->toDateString(),
             'start_time' => '18:00',
             'end_time'   => '20:00',
@@ -31,9 +32,7 @@ class OvertimeControllerTest extends PresensiTestCase
             'file'       => UploadedFile::fake()->create('evidence.exe', 50, 'application/octet-stream'),
         ], [
             'Accept' => 'application/json',
-        ]);
-
-        $response
+        ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['file']);
 
@@ -49,7 +48,7 @@ class OvertimeControllerTest extends PresensiTestCase
 
         $this->createScheduleFor($user);
 
-        $response = $this->post('/api/overtimes', [
+        $this->post('/admin/api/v1/presensi/overtimes', [
             'date'       => now()->toDateString(),
             'start_time' => '18:00',
             'end_time'   => '20:00',
@@ -57,9 +56,7 @@ class OvertimeControllerTest extends PresensiTestCase
             'file'       => UploadedFile::fake()->create('evidence.pdf', 120, 'application/pdf'),
         ], [
             'Accept' => 'application/json',
-        ]);
-
-        $response->assertCreated();
+        ])->assertCreated();
 
         $overtime = Overtime::query()->sole();
 
@@ -92,12 +89,67 @@ class OvertimeControllerTest extends PresensiTestCase
         ]);
         $latestOvertime->forceFill(['created_at' => now()->subDay(), 'updated_at' => now()->subDay()])->save();
 
-        $response = $this->getJson('/api/overtimes');
-
-        $response
+        $this->getJson('/admin/api/v1/presensi/overtimes')
             ->assertOk()
             ->assertJsonPath('data.0.id', $latestOvertime->id)
             ->assertJsonPath('data.1.id', $olderOvertime->id);
+    }
+
+    public function test_store_accepts_legacy_attendance_rows_that_use_created_at(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->createScheduleFor($user);
+
+        DB::table('presensi_attendances')->insert([
+            'user_id'             => $user->id,
+            'schedule_latitude'   => -6.2,
+            'schedule_longitude'  => 106.8,
+            'schedule_start_time' => '08:00:00',
+            'schedule_end_time'   => '17:00:00',
+            'start_latitude'      => -6.2,
+            'start_longitude'     => 106.8,
+            'end_latitude'        => -6.2,
+            'end_longitude'       => 106.8,
+            'start_time'          => '08:00:00',
+            'end_time'            => '19:00:00',
+            'is_leave'            => false,
+            'created_at'          => now()->subDay()->setTime(8, 0),
+            'updated_at'          => now()->subDay()->setTime(19, 0),
+        ]);
+
+        $attendanceDate = now()->subDay()->toDateString();
+
+        $this->post('/admin/api/v1/presensi/overtimes', [
+            'date'       => $attendanceDate,
+            'start_time' => '18:00',
+            'end_time'   => '18:30',
+            'reason'     => 'Legacy attendance compatibility',
+        ], [
+            'Accept' => 'application/json',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('data.reason', 'Legacy attendance compatibility');
+    }
+
+    public function test_store_rejects_past_request_without_attendance(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+
+        $this->createScheduleFor($user);
+
+        $this->post('/admin/api/v1/presensi/overtimes', [
+            'date'       => now()->subDay()->toDateString(),
+            'start_time' => '18:00',
+            'end_time'   => '19:00',
+            'reason'     => 'Past overtime without attendance',
+        ], [
+            'Accept' => 'application/json',
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.date.0', 'Attendance record not found for the requested date.');
     }
 
     private function createScheduleFor(User $user): void

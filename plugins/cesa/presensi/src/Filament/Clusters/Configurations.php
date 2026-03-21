@@ -10,7 +10,22 @@ class Configurations extends Cluster
 {
     public static function shouldRegisterNavigation(): bool
     {
-        return Package::isPluginInstalled('presensi');
+        return Package::isPluginInstalled('presensi') && parent::shouldRegisterNavigation();
+    }
+
+    public function mount(): void
+    {
+        foreach (static::getClusteredComponents() as $component) {
+            if (! $component::canAccess()) {
+                continue;
+            }
+
+            redirect($component::getNavigationUrl());
+
+            return;
+        }
+
+        abort(403);
     }
 
     public static function getSlug(?Panel $panel = null): string

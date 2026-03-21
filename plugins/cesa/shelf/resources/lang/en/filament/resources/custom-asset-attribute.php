@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Custom Attributes',
-        'group' => 'Configurations',
+        'group' => 'Asset Master',
     ],
 
     'singular' => 'Custom Asset Attribute',

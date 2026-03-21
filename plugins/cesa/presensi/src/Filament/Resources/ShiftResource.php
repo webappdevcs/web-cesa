@@ -8,8 +8,6 @@ use Cesa\Presensi\Models\Shift;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Group;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -18,7 +16,7 @@ class ShiftResource extends Resource
 {
     protected static ?string $model = Shift::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clock';
 
     protected static ?int $navigationSort = 2;
 
@@ -43,23 +41,16 @@ class ShiftResource extends Resource
     {
         return $schema
             ->components([
-                Group::make()
-                    ->schema([
-                        Section::make()
-                            ->schema([
-                                Forms\Components\TextInput::make('name')
-                                    ->label(__('presensi::app.resources.shift.form.fields.name'))
-                                    ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TimePicker::make('start_time')
-                                    ->label(__('presensi::app.resources.shift.form.fields.start_time'))
-                                    ->required(),
-                                Forms\Components\TimePicker::make('end_time')
-                                    ->label(__('presensi::app.resources.shift.form.fields.end_time'))
-                                    ->required(),
-                            ]),
-                    ]),
-
+                Forms\Components\TextInput::make('name')
+                    ->label(__('presensi::app.resources.shift.form.fields.name'))
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TimePicker::make('start_time')
+                    ->label(__('presensi::app.resources.shift.form.fields.start_time'))
+                    ->required(),
+                Forms\Components\TimePicker::make('end_time')
+                    ->label(__('presensi::app.resources.shift.form.fields.end_time'))
+                    ->required(),
             ]);
     }
 

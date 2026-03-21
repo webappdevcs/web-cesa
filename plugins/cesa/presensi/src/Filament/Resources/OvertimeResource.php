@@ -6,7 +6,6 @@ use Cesa\Presensi\Filament\Resources\OvertimeResource\Pages;
 use Cesa\Presensi\Models\Overtime;
 use Filament\Actions;
 use Filament\Forms;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -38,54 +37,49 @@ class OvertimeResource extends PresensiResource
     public static function form(Schema $schema): Schema
     {
         $components = [
-            Section::make(__('presensi::app.resources.overtime.form.sections.detail'))
-                ->schema([
-                    Forms\Components\Select::make('user_id')
-                        ->label(__('presensi::app.resources.overtime.form.fields.user_id'))
-                        ->relationship('user', 'name')
-                        ->searchable()
-                        ->preload()
-                        ->required(),
-                    Forms\Components\DatePicker::make('date')
-                        ->label(__('presensi::app.resources.overtime.form.fields.date'))
-                        ->required(),
-                    Forms\Components\TimePicker::make('start_time')
-                        ->label(__('presensi::app.resources.overtime.form.fields.start_time'))
-                        ->required()
-                        ->seconds(false),
-                    Forms\Components\TimePicker::make('end_time')
-                        ->label(__('presensi::app.resources.overtime.form.fields.end_time'))
-                        ->required()
-                        ->seconds(false),
-                    Forms\Components\Textarea::make('reason')
-                        ->label(__('presensi::app.resources.overtime.form.fields.reason'))
-                        ->columnSpanFull(),
-                    Forms\Components\FileUpload::make('attachment')
-                        ->label(__('presensi::app.resources.overtime.form.fields.attachment'))
-                        ->directory('presensi/overtimes')
-                        ->nullable()
-                        ->columnSpanFull(),
-                ])
-                ->columns(2),
+            Forms\Components\Select::make('user_id')
+                ->label(__('presensi::app.resources.overtime.form.fields.user_id'))
+                ->relationship('user', 'name')
+                ->searchable()
+                ->preload()
+                ->required(),
+            Forms\Components\DatePicker::make('date')
+                ->label(__('presensi::app.resources.overtime.form.fields.date'))
+                ->required(),
+            Forms\Components\TimePicker::make('start_time')
+                ->label(__('presensi::app.resources.overtime.form.fields.start_time'))
+                ->required()
+                ->seconds(false),
+            Forms\Components\TimePicker::make('end_time')
+                ->label(__('presensi::app.resources.overtime.form.fields.end_time'))
+                ->required()
+                ->seconds(false),
+            Forms\Components\Textarea::make('reason')
+                ->label(__('presensi::app.resources.overtime.form.fields.reason'))
+                ->columnSpanFull(),
+            Forms\Components\FileUpload::make('attachment')
+                ->label(__('presensi::app.resources.overtime.form.fields.attachment'))
+                ->directory('presensi/overtimes')
+                ->nullable()
+                ->columnSpanFull(),
         ];
 
         if (static::userCan('update_presensi_overtime')) {
-            $components[] = Section::make(__('presensi::app.resources.overtime.form.sections.approval'))
-                ->visible(fn (string $operation): bool => $operation === 'edit')
-                ->schema([
-                    Forms\Components\Select::make('status')
-                        ->options([
-                            'pending'  => __('presensi::app.resources.overtime.form.options.pending'),
-                            'approved' => __('presensi::app.resources.overtime.form.options.approved'),
-                            'rejected' => __('presensi::app.resources.overtime.form.options.rejected'),
-                        ])
-                        ->default('pending')
-                        ->required(fn (string $operation): bool => $operation === 'edit')
-                        ->label(__('presensi::app.resources.overtime.form.fields.status')),
-                    Forms\Components\Textarea::make('note')
-                        ->label(__('presensi::app.resources.overtime.form.fields.note'))
-                        ->columnSpanFull(),
-                ]);
+            $components[] = Forms\Components\Select::make('status')
+                ->options([
+                    'pending'  => __('presensi::app.resources.overtime.form.options.pending'),
+                    'approved' => __('presensi::app.resources.overtime.form.options.approved'),
+                    'rejected' => __('presensi::app.resources.overtime.form.options.rejected'),
+                ])
+                ->default('pending')
+                ->required(fn (string $operation): bool => $operation === 'edit')
+                ->label(__('presensi::app.resources.overtime.form.fields.status'))
+                ->visible(fn (string $operation): bool => $operation === 'edit');
+
+            $components[] = Forms\Components\Textarea::make('note')
+                ->label(__('presensi::app.resources.overtime.form.fields.note'))
+                ->columnSpanFull()
+                ->visible(fn (string $operation): bool => $operation === 'edit');
         }
 
         return $schema->components($components);

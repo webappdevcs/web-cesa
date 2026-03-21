@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Kategori',
-        'group' => 'Shelf',
+        'group' => 'Master Aset',
     ],
 
     'singular' => 'Kategori',

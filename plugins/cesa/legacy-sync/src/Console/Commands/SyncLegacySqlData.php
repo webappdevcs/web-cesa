@@ -8,6 +8,7 @@ use Cesa\FormTransfer\Enums\ApprovalStatus;
 use Cesa\FormTransfer\Enums\TransferRequestApprovalStatus;
 use Cesa\FormTransfer\Enums\TransferRequestRealizationStatus;
 use Cesa\FormTransfer\Enums\TransferRequestSubmissionStatus;
+use Cesa\Presensi\Models\Attendance as PresensiAttendance;
 use Cesa\Shelf\Support\InteractsWithShelfCreatorBackfill;
 use Illuminate\Console\Command;
 use Illuminate\Database\Query\Builder;
@@ -2768,10 +2769,21 @@ class SyncLegacySqlData extends Command
                 return;
             }
 
+            $attendanceDate = PresensiAttendance::normalizeLegacyDateValue(null, $row->created_at);
+            $resolvedStatuses = PresensiAttendance::deriveLegacyStatuses(
+                attendanceDate: $attendanceDate,
+                scheduleStartTime: $row->schedule_start_time,
+                scheduleEndTime: $row->schedule_end_time,
+                startTime: $row->start_time,
+                endTime: $row->end_time,
+                isLeave: $this->normalizeBoolean($row->is_leave, false),
+            );
+
             DB::table('presensi_attendances')->updateOrInsert(
                 ['id' => $targetId],
                 [
                     'user_id'             => $targetUserId,
+                    'date'                => $attendanceDate,
                     'schedule_latitude'   => $row->schedule_latitude,
                     'schedule_longitude'  => $row->schedule_longitude,
                     'schedule_start_time' => $row->schedule_start_time,
@@ -2781,8 +2793,11 @@ class SyncLegacySqlData extends Command
                     'end_latitude'        => $row->end_latitude,
                     'end_longitude'       => $row->end_longitude,
                     'start_time'          => $row->start_time,
+                    'check_in_status'     => $resolvedStatuses['check_in_status'],
                     'start_photo_path'    => $this->nullableString($row->start_photo_path ?? null),
                     'end_time'            => $row->end_time,
+                    'check_out_status'    => $resolvedStatuses['check_out_status'],
+                    'attendance_status'   => $resolvedStatuses['attendance_status'],
                     'end_photo_path'      => $this->nullableString($row->end_photo_path ?? null),
                     'is_leave'            => $this->normalizeBoolean($row->is_leave, false),
                     'created_at'          => $row->created_at,

@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Merek',
-        'group' => 'Shelf',
+        'group' => 'Master Aset',
     ],
 
     'singular' => 'Merek',

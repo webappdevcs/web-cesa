@@ -6,6 +6,8 @@ use Cesa\Presensi\Filament\Resources\AttendanceResource\Pages;
 use Cesa\Presensi\Models\Attendance;
 use Filament\Actions;
 use Filament\Forms;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
@@ -39,121 +41,137 @@ class AttendanceResource extends PresensiResource
     {
         return $schema
             ->components([
-                Section::make(__('presensi::app.resources.attendance.form.sections.user'))
+                Grid::make(['default' => 1, 'sm' => 3])
                     ->schema([
-                        Forms\Components\Select::make('user_id')
-                            ->label(__('presensi::app.resources.attendance.form.fields.user_id'))
-                            ->relationship('user', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-                        Forms\Components\Toggle::make('is_leave')
-                            ->label(__('presensi::app.resources.attendance.form.fields.is_leave'))
-                            ->default(false)
-                            ->required(),
-                    ])
-                    ->columns(2),
+                        // Left Column
+                        Group::make([
+                            Section::make('Informasi Kehadiran')
+                                ->description('Data utama presensi pegawai.')
+                                ->schema([
+                                    Forms\Components\Select::make('user_id')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.user_id'))
+                                        ->relationship('user', 'name')
+                                        ->searchable()
+                                        ->preload()
+                                        ->required()
+                                        ->columnSpanFull(),
+                                ]),
 
-                Section::make(__('presensi::app.resources.attendance.form.sections.schedule'))
-                    ->schema([
-                        Forms\Components\TextInput::make('schedule_latitude')
-                            ->label(__('presensi::app.resources.attendance.form.fields.schedule_latitude'))
-                            ->required()
-                            ->numeric()
-                            ->step(0.0000001),
-                        Forms\Components\TextInput::make('schedule_longitude')
-                            ->label(__('presensi::app.resources.attendance.form.fields.schedule_longitude'))
-                            ->required()
-                            ->numeric()
-                            ->step(0.0000001),
-                        Forms\Components\TimePicker::make('schedule_start_time')
-                            ->label(__('presensi::app.resources.attendance.form.fields.schedule_start_time'))
-                            ->required()
-                            ->seconds(false),
-                        Forms\Components\TimePicker::make('schedule_end_time')
-                            ->label(__('presensi::app.resources.attendance.form.fields.schedule_end_time'))
-                            ->required()
-                            ->seconds(false),
-                    ])
-                    ->columns(2),
+                            Section::make('Waktu Mulai')
+                                ->schema([
+                                    Forms\Components\TimePicker::make('start_time')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.start_time'))
+                                        ->required()
+                                        ->seconds(false),
+                                    Forms\Components\TextInput::make('start_latitude')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.start_latitude'))
+                                        ->required()
+                                        ->numeric()
+                                        ->step(0.0000001),
+                                    Forms\Components\TextInput::make('start_longitude')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.start_longitude'))
+                                        ->required()
+                                        ->numeric()
+                                        ->step(0.0000001),
+                                    Forms\Components\FileUpload::make('start_photo_path')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.start_photo_path'))
+                                        ->image()
+                                        ->directory('presensi/attendances/start')
+                                        ->nullable()
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(2),
 
-                Section::make(__('presensi::app.resources.attendance.form.sections.check_in'))
-                    ->schema([
-                        Forms\Components\TimePicker::make('start_time')
-                            ->label(__('presensi::app.resources.attendance.form.fields.start_time'))
-                            ->required()
-                            ->seconds(false),
-                        Forms\Components\TextInput::make('start_latitude')
-                            ->label(__('presensi::app.resources.attendance.form.fields.start_latitude'))
-                            ->required()
-                            ->numeric()
-                            ->step(0.0000001),
-                        Forms\Components\TextInput::make('start_longitude')
-                            ->label(__('presensi::app.resources.attendance.form.fields.start_longitude'))
-                            ->required()
-                            ->numeric()
-                            ->step(0.0000001),
-                        Forms\Components\FileUpload::make('start_photo_path')
-                            ->label(__('presensi::app.resources.attendance.form.fields.start_photo_path'))
-                            ->image()
-                            ->directory('presensi/attendances/start')
-                            ->nullable(),
-                    ])
-                    ->columns(2),
+                            Section::make('Waktu Selesai')
+                                ->schema([
+                                    Forms\Components\TimePicker::make('end_time')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.end_time'))
+                                        ->nullable()
+                                        ->seconds(false),
+                                    Forms\Components\TextInput::make('end_latitude')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.end_latitude'))
+                                        ->nullable()
+                                        ->numeric()
+                                        ->step(0.0000001),
+                                    Forms\Components\TextInput::make('end_longitude')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.end_longitude'))
+                                        ->nullable()
+                                        ->numeric()
+                                        ->step(0.0000001),
+                                    Forms\Components\FileUpload::make('end_photo_path')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.end_photo_path'))
+                                        ->image()
+                                        ->directory('presensi/attendances/end')
+                                        ->nullable()
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(2)
+                                ->collapsed(),
+                        ])->columnSpan(['sm' => 3, 'md' => 3, 'lg' => 2]),
 
-                Section::make(__('presensi::app.resources.attendance.form.sections.check_out'))
-                    ->schema([
-                        Forms\Components\TimePicker::make('end_time')
-                            ->label(__('presensi::app.resources.attendance.form.fields.end_time'))
-                            ->nullable()
-                            ->seconds(false),
-                        Forms\Components\TextInput::make('end_latitude')
-                            ->label(__('presensi::app.resources.attendance.form.fields.end_latitude'))
-                            ->nullable()
-                            ->numeric()
-                            ->step(0.0000001),
-                        Forms\Components\TextInput::make('end_longitude')
-                            ->label(__('presensi::app.resources.attendance.form.fields.end_longitude'))
-                            ->nullable()
-                            ->numeric()
-                            ->step(0.0000001),
-                        Forms\Components\FileUpload::make('end_photo_path')
-                            ->label(__('presensi::app.resources.attendance.form.fields.end_photo_path'))
-                            ->image()
-                            ->directory('presensi/attendances/end')
-                            ->nullable(),
-                    ])
-                    ->columns(2),
-            ]);
+                        // Right Column
+                        Group::make([
+                            Section::make('Referensi Jadwal')
+                                ->description('Jadwal yang seharusnya diikuti.')
+                                ->schema([
+                                    Forms\Components\TimePicker::make('schedule_start_time')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.schedule_start_time'))
+                                        ->required()
+                                        ->seconds(false),
+                                    Forms\Components\TimePicker::make('schedule_end_time')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.schedule_end_time'))
+                                        ->required()
+                                        ->seconds(false),
+                                    Forms\Components\TextInput::make('schedule_latitude')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.schedule_latitude'))
+                                        ->required()
+                                        ->numeric()
+                                        ->step(0.0000001),
+                                    Forms\Components\TextInput::make('schedule_longitude')
+                                        ->label(__('presensi::app.resources.attendance.form.fields.schedule_longitude'))
+                                        ->required()
+                                        ->numeric()
+                                        ->step(0.0000001),
+                                ])
+                                ->columns(1),
+                        ])->columnSpan(['sm' => 3, 'md' => 3, 'lg' => 1]),
+                    ]),
+            ])->columns(1);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => static::applyAuthenticatedUserScope($query))
+            ->modifyQueryUsing(fn (Builder $query) => static::applyAuthenticatedUserScope($query)->orderByAttendanceDate())
             ->columns([
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label(__('presensi::app.resources.attendance.table.columns.created_at'))
+                Tables\Columns\TextColumn::make('date')
+                    ->label('Attendance Date')
                     ->date()
-                    ->searchable()
-                    ->sortable(),
+                    ->getStateUsing(fn (Attendance $record): ?string => $record->attendanceDate()?->toDateString())
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderByAttendanceDate($direction)),
                 Tables\Columns\TextColumn::make('user.name')
                     ->label(__('presensi::app.resources.attendance.table.columns.user'))
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('is_late')
-                    ->label(__('presensi::app.resources.attendance.table.columns.status'))
+                Tables\Columns\TextColumn::make('attendance_status')
+                    ->label('Attendance Status')
                     ->badge()
-                    ->getStateUsing(function ($record) {
-                        return $record->isLate()
-                            ? __('presensi::app.resources.attendance.table.statuses.late')
-                            : __('presensi::app.resources.attendance.table.statuses.on_time');
-                    })
-                    ->color(fn (string $state): string => match ($state) {
-                        __('presensi::app.resources.attendance.table.statuses.on_time') => 'success',
-                        __('presensi::app.resources.attendance.table.statuses.late')    => 'danger',
+                    ->getStateUsing(fn (Attendance $record): string => $record->resolvedAttendanceStatus())
+                    ->formatStateUsing(fn (?string $state): string => filled($state)
+                        ? str($state)->replace('_', ' ')->title()->toString()
+                        : 'Pending')
+                    ->color(fn (?string $state): string => match ($state) {
+                        Attendance::STATUS_CLOSED   => 'success',
+                        Attendance::STATUS_OPEN     => 'warning',
+                        Attendance::STATUS_ON_LEAVE => 'gray',
+                        default                     => 'gray',
                     })
                     ->description(fn (Attendance $record): string => __('presensi::app.resources.attendance.table.description.work_duration', ['value' => $record->workDuration()])),
+                Tables\Columns\TextColumn::make('attendance_flags')
+                    ->label('Flags')
+                    ->getStateUsing(fn (Attendance $record): string => $record->resolvedAttendanceFlagLabel())
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'None' ? 'gray' : 'warning'),
 
                 Tables\Columns\TextColumn::make('start_time')
                     ->label(__('presensi::app.resources.attendance.table.columns.start_time')),
@@ -170,7 +188,6 @@ class AttendanceResource extends PresensiResource
                     ->toggleable(isToggledHiddenByDefault: true),
 
             ])
-            ->defaultSort('created_at', 'desc')
             ->filters([
                 //
             ])

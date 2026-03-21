@@ -41,7 +41,9 @@ use Cesa\Shelf\Policies\VehicleChecksheetPolicy;
 use Cesa\Shelf\Policies\VendorPolicy;
 use Cesa\Shelf\ShelfPlugin;
 use Cesa\Shelf\ShelfServiceProvider;
+use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Webkul\PluginManager\Package;
 use Webkul\Security\Enums\PermissionType;
@@ -233,6 +235,24 @@ class ShelfPluginSmokeTest extends TestCase
         $this->assertContains(Configurations::class, $excludedPages);
     }
 
+    public function test_shelf_configurations_abort_when_no_clustered_component_is_accessible(): void
+    {
+        $cluster = new class extends Configurations
+        {
+            public static function getClusteredComponents(): array
+            {
+                return [InaccessibleShelfConfigurationsPage::class];
+            }
+        };
+
+        try {
+            $cluster->mount();
+            $this->fail('Expected the shelf configurations cluster to abort with 403.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+    }
+
     public function test_shelf_base_resource_uses_resource_permission_query_trait(): void
     {
         $this->assertContains(HasResourcePermissionQuery::class, class_uses_recursive(ShelfResource::class));
@@ -389,6 +409,14 @@ class ShelfPluginSmokeTest extends TestCase
         ));
 
         return $user;
+    }
+}
+
+class InaccessibleShelfConfigurationsPage extends Page
+{
+    public static function canAccess(): bool
+    {
+        return false;
     }
 }
 

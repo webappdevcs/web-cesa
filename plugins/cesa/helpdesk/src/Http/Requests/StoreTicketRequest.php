@@ -24,7 +24,11 @@ class StoreTicketRequest extends FormRequest
             'title'                     => ['required', 'string', 'max:255'],
             'description'               => ['required', 'string'],
             'supporting_attachments'    => ['sometimes', 'array', 'max:'.config('helpdesk.attachments.ticket.max_files')],
-            'supporting_attachments.*'  => ['file', 'max:'.config('helpdesk.attachments.ticket.max_size')],
+            'supporting_attachments.*'  => [
+                'file',
+                'mimes:'.$this->allowedAttachmentExtensions('ticket'),
+                'max:'.config('helpdesk.attachments.ticket.max_size'),
+            ],
         ];
     }
 
@@ -42,6 +46,7 @@ class StoreTicketRequest extends FormRequest
             'description.required'               => 'Deskripsi tiket wajib diisi.',
             'supporting_attachments.max'         => 'Lampiran tiket melebihi batas jumlah file.',
             'supporting_attachments.*.file'      => 'Lampiran tiket harus berupa file.',
+            'supporting_attachments.*.mimes'     => 'Tipe file lampiran tiket tidak didukung.',
             'supporting_attachments.*.max'       => 'Ukuran lampiran tiket melebihi batas maksimum.',
         ];
     }
@@ -73,5 +78,10 @@ class StoreTicketRequest extends FormRequest
                 }
             }
         });
+    }
+
+    protected function allowedAttachmentExtensions(string $scope): string
+    {
+        return implode(',', config("helpdesk.attachments.{$scope}.allowed_extensions", []));
     }
 }

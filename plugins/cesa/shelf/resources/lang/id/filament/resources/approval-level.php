@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Persetujuan Pengajuan Aset',
-        'group' => 'Konfigurasi',
+        'group' => 'Pengajuan Aset',
     ],
 
     'singular' => 'Persetujuan Pengajuan Aset',

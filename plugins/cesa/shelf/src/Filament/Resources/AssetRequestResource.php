@@ -7,7 +7,7 @@ use Cesa\Shelf\Enums\RequestStatus;
 use Cesa\Shelf\Filament\Resources\AssetRequestResource\Pages;
 use Cesa\Shelf\Models\ApprovalLevel;
 use Cesa\Shelf\Models\AssetRequest;
-use Cesa\Shelf\Models\RequestApproval;
+use Cesa\Shelf\Services\PublicAssetRequestService;
 use Cesa\Shelf\Support\ShelfStorage;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
@@ -512,54 +512,7 @@ class AssetRequestResource extends ShelfResource
     protected static function syncApprovalFlow(AssetRequest $record): void
     {
         $record->refresh();
-        $record->loadMissing('approvals');
-
-        if ($record->status !== RequestStatus::Pending) {
-            return;
-        }
-
-        $hasProcessedApprovals = $record->approvals->contains(
-            fn (RequestApproval $approval): bool => $approval->status !== ApprovalStatus::Pending || $approval->responded_at !== null,
-        );
-
-        if ($record->approvals->isNotEmpty() && $hasProcessedApprovals) {
-            return;
-        }
-
-        $record->approvals()->delete();
-
-        $approvalTrack = self::resolveApprovalTrack($record->request_type, $record->division);
-
-        if ($approvalTrack === null) {
-            $record->forceFill([
-                'approval_track' => null,
-                'status'         => RequestStatus::Approved,
-                'admin_notes'    => $record->admin_notes ?: 'Disetujui otomatis karena tidak ada approval yang dikonfigurasi untuk divisi ini.',
-            ])->saveQuietly();
-
-            return;
-        }
-
-        $record->forceFill([
-            'approval_track' => $approvalTrack,
-            'status'         => RequestStatus::Pending,
-        ])->saveQuietly();
-
-        ApprovalLevel::query()
-            ->forTrack($record->request_type, $approvalTrack)
-            ->orderBy('level')
-            ->get()
-            ->each(function (ApprovalLevel $level) use ($record): void {
-                RequestApproval::query()->create([
-                    'asset_request_id'  => $record->id,
-                    'approval_level_id' => $level->id,
-                    'token'             => Str::uuid()->toString(),
-                    'level'             => $level->level,
-                    'approver_name'     => $level->approver_name,
-                    'approver_email'    => $level->approver_email,
-                    'status'            => ApprovalStatus::Pending,
-                ]);
-            });
+        app(PublicAssetRequestService::class)->syncApprovalFlow($record);
     }
 
     protected static function resolveApprovalTrack(string $requestType, string $division): ?string

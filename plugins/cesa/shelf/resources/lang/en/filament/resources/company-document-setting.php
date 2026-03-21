@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Company Documents',
-        'group' => 'Shelf',
+        'group' => 'Documents',
     ],
 
     'singular' => 'Company Document',

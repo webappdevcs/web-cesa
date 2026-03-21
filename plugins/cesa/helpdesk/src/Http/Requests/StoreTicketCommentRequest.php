@@ -21,7 +21,11 @@ class StoreTicketCommentRequest extends FormRequest
                 Comment::VISIBILITY_INTERNAL,
             ])],
             'attachments'      => ['sometimes', 'array', 'max:'.config('helpdesk.attachments.comment.max_files')],
-            'attachments.*'    => ['file', 'max:'.config('helpdesk.attachments.comment.max_size')],
+            'attachments.*'    => [
+                'file',
+                'mimes:'.$this->allowedAttachmentExtensions('comment'),
+                'max:'.config('helpdesk.attachments.comment.max_size'),
+            ],
         ];
     }
 
@@ -32,7 +36,13 @@ class StoreTicketCommentRequest extends FormRequest
             'visibility.in'       => 'Tipe komentar yang dipilih tidak valid.',
             'attachments.max'     => 'Lampiran komentar melebihi batas jumlah file.',
             'attachments.*.file'  => 'Lampiran komentar harus berupa file.',
+            'attachments.*.mimes' => 'Tipe file lampiran komentar tidak didukung.',
             'attachments.*.max'   => 'Ukuran lampiran komentar melebihi batas maksimum.',
         ];
+    }
+
+    protected function allowedAttachmentExtensions(string $scope): string
+    {
+        return implode(',', config("helpdesk.attachments.{$scope}.allowed_extensions", []));
     }
 }

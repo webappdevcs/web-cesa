@@ -44,17 +44,6 @@ class EditOvertime extends EditRecord
             ]);
         }
 
-        $schedule = Schedule::with('shift')
-            ->where('user_id', $userId)
-            ->first();
-
-        $hasSchedule = $schedule && $schedule->shift;
-        if (! $hasSchedule) {
-            throw ValidationException::withMessages([
-                'status' => 'User belum mendapatkan jadwal kerja.',
-            ]);
-        }
-
         $onLeave = Leave::where('user_id', $userId)
             ->where('status', 'approved')
             ->whereDate('start_date', '<=', $requestDate)
@@ -67,12 +56,15 @@ class EditOvertime extends EditRecord
             ]);
         }
 
-        $attendance = null;
         $requiresAttendance = $requestDateAt->lessThan($todayAt);
+        $schedule = Schedule::resolveActiveForUser($userId, $requestDateAt);
+        $attendance = null;
 
         if ($requiresAttendance) {
-            $attendance = Attendance::where('user_id', $userId)
-                ->whereDate('created_at', $requestDate)
+            $attendance = Attendance::query()
+                ->where('user_id', $userId)
+                ->forAttendanceDate($requestDate)
+                ->orderByAttendanceDate()
                 ->first();
 
             if (! $attendance) {
@@ -80,6 +72,12 @@ class EditOvertime extends EditRecord
                     'status' => 'Attendance belum ada untuk tanggal tersebut.',
                 ]);
             }
+        }
+
+        if (! $attendance && (! $schedule || ! $schedule->shift)) {
+            throw ValidationException::withMessages([
+                'status' => 'User belum mendapatkan jadwal kerja.',
+            ]);
         }
         $startTime = $this->normalizeTime($data['start_time'] ?? $this->record->start_time);
         $endTime = $this->normalizeTime($data['end_time'] ?? $this->record->end_time);
@@ -99,8 +97,8 @@ class EditOvertime extends EditRecord
             ]);
         }
 
-        $effectiveScheduleStart = $attendance?->schedule_start_time ?? $schedule->shift->start_time;
-        $effectiveScheduleEnd = $attendance?->schedule_end_time ?? $schedule->shift->end_time;
+        $effectiveScheduleStart = $attendance?->schedule_start_time ?? $schedule?->shift?->start_time;
+        $effectiveScheduleEnd = $attendance?->schedule_end_time ?? $schedule?->shift?->end_time;
 
         $scheduleStartTime = $this->normalizeTime($effectiveScheduleStart);
         $scheduleEndTime = $this->normalizeTime($effectiveScheduleEnd);

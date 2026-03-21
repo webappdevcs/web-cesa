@@ -12,6 +12,8 @@ class CreateTicket extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        unset($data['responsible_id']);
+
         $data['owner_id'] = auth()->id();
         $data['ticket_status_id'] = $data['ticket_status_id'] ?? TicketStatus::OPEN;
 

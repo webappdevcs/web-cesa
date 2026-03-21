@@ -4,7 +4,10 @@ namespace Cesa\Helpdesk\Tests\Feature;
 
 use App\Models\User;
 use Cesa\Helpdesk\Filament\Resources\TicketResource;
+use Cesa\Helpdesk\Filament\Resources\TicketResource\Pages\CreateTicket;
 use Cesa\Helpdesk\Filament\Resources\TicketResource\Pages\ListTickets;
+use Cesa\Helpdesk\Filament\Resources\TicketResource\Pages\ViewTicket;
+use Cesa\Helpdesk\Filament\Resources\TicketResource\RelationManagers\CommentsRelationManager;
 use Cesa\Helpdesk\Models\Comment;
 use Cesa\Helpdesk\Models\Priority;
 use Cesa\Helpdesk\Models\ProblemCategory;
@@ -18,6 +21,8 @@ use Cesa\Helpdesk\Services\TicketCommentService;
 use Cesa\Helpdesk\Services\TicketWorkflowService;
 use Cesa\Helpdesk\Tests\HelpdeskTestCase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use Livewire\Livewire;
 use ReflectionMethod;
 use Webkul\Security\Models\User as SecurityUser;
 
@@ -164,6 +169,145 @@ class HelpdeskTicketLifecycleTest extends HelpdeskTestCase
         $this->assertSame(TicketStatus::OPEN, $ticket->ticket_status_id);
         $this->assertNull($ticket->approved_at);
         $this->assertDatabaseCount('helpdesk_ticket_histories', 1);
+    }
+
+    public function test_comments_relation_manager_hides_internal_notes_from_ticket_owner(): void
+    {
+        $owner = User::factory()->create();
+        $responsible = User::factory()->create();
+
+        $unit = Unit::factory()->create();
+        $unit->users()->attach([$responsible->id]);
+
+        $category = ProblemCategory::factory()->create([
+            'unit_id'                => $unit->id,
+            'default_responsible_id' => $responsible->id,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'priority_id'         => Priority::MEDIUM,
+            'unit_id'             => $unit->id,
+            'owner_id'            => $owner->id,
+            'problem_category_id' => $category->id,
+            'title'               => 'Laptop issue',
+            'description'         => '<p>Laptop restart sendiri.</p>',
+            'ticket_status_id'    => TicketStatus::OPEN,
+        ]);
+
+        $publicComment = Comment::query()->create([
+            'ticket_id'   => $ticket->id,
+            'user_id'     => $responsible->id,
+            'comment'     => 'Mohon kirim screenshot error.',
+            'visibility'  => Comment::VISIBILITY_PUBLIC,
+            'attachments' => [],
+        ]);
+
+        $internalComment = Comment::query()->create([
+            'ticket_id'   => $ticket->id,
+            'user_id'     => $responsible->id,
+            'comment'     => 'Perlu cek stok unit pengganti.',
+            'visibility'  => Comment::VISIBILITY_INTERNAL,
+            'attachments' => [],
+        ]);
+
+        $this->actingAs($this->fakeHelpdeskUser($owner->id, ['create_helpdesk_ticket']));
+
+        Livewire::test(CommentsRelationManager::class, [
+            'ownerRecord' => $ticket,
+            'pageClass'   => ViewTicket::class,
+        ])
+            ->assertCanSeeTableRecords([$publicComment])
+            ->assertCanNotSeeTableRecords([$internalComment]);
+    }
+
+    public function test_comments_relation_manager_shows_internal_notes_to_responsible_user(): void
+    {
+        $owner = User::factory()->create();
+        $responsible = User::factory()->create();
+
+        $unit = Unit::factory()->create();
+        $unit->users()->attach([$responsible->id]);
+
+        $category = ProblemCategory::factory()->create([
+            'unit_id'                => $unit->id,
+            'default_responsible_id' => $responsible->id,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'priority_id'         => Priority::MEDIUM,
+            'unit_id'             => $unit->id,
+            'owner_id'            => $owner->id,
+            'problem_category_id' => $category->id,
+            'title'               => 'Network issue',
+            'description'         => '<p>VPN tidak tersambung.</p>',
+            'ticket_status_id'    => TicketStatus::OPEN,
+        ]);
+
+        $publicComment = Comment::query()->create([
+            'ticket_id'   => $ticket->id,
+            'user_id'     => $responsible->id,
+            'comment'     => 'Sedang kami cek.',
+            'visibility'  => Comment::VISIBILITY_PUBLIC,
+            'attachments' => [],
+        ]);
+
+        $internalComment = Comment::query()->create([
+            'ticket_id'   => $ticket->id,
+            'user_id'     => $responsible->id,
+            'comment'     => 'Butuh follow up ke vendor internet.',
+            'visibility'  => Comment::VISIBILITY_INTERNAL,
+            'attachments' => [],
+        ]);
+
+        $this->actingAs($this->fakeHelpdeskUser($responsible->id, ['update_helpdesk_ticket']));
+
+        Livewire::test(CommentsRelationManager::class, [
+            'ownerRecord' => $ticket,
+            'pageClass'   => ViewTicket::class,
+        ])
+            ->assertCanSeeTableRecords([$publicComment, $internalComment]);
+    }
+
+    public function test_create_ticket_form_hides_responsible_field_even_for_helpdesk_operator(): void
+    {
+        $operator = User::factory()->create();
+
+        $this->actingAs($this->fakeHelpdeskUser($operator->id, [
+            'create_helpdesk_ticket',
+            'update_helpdesk_ticket',
+        ]));
+
+        if (! Route::has('filament.admin.resources.tickets.index')) {
+            Route::get('/filament/admin/tickets', fn (): string => 'tickets')
+                ->name('filament.admin.resources.tickets.index');
+        }
+
+        Livewire::test(CreateTicket::class)
+            ->assertFormFieldHidden('responsible_id');
+    }
+
+    public function test_create_ticket_page_discards_manually_supplied_responsible_id(): void
+    {
+        $operator = User::factory()->create();
+
+        $this->actingAs($this->fakeHelpdeskUser($operator->id, [
+            'create_helpdesk_ticket',
+            'update_helpdesk_ticket',
+        ]));
+
+        $page = app(CreateTicket::class);
+
+        $reflection = new ReflectionMethod($page, 'mutateFormDataBeforeCreate');
+        $reflection->setAccessible(true);
+
+        $data = $reflection->invoke($page, [
+            'responsible_id' => 999,
+            'title'          => 'Test',
+        ]);
+
+        $this->assertArrayNotHasKey('responsible_id', $data);
+        $this->assertSame($operator->id, $data['owner_id']);
+        $this->assertSame(TicketStatus::OPEN, $data['ticket_status_id']);
     }
 
     public function test_company_options_are_limited_to_default_and_allowed_companies(): void

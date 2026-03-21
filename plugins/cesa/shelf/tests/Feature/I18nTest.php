@@ -84,7 +84,7 @@ class I18nTest extends TestCase
             foreach (self::RESOURCE_CLASSES as $resourceClass) {
                 $prefix = $this->resourceTranslationPrefix($resourceClass);
 
-                foreach (['navigation.title', 'singular', 'plural'] as $suffix) {
+                foreach (['navigation.title', 'navigation.group', 'singular', 'plural'] as $suffix) {
                     $translationKey = "{$prefix}.{$suffix}";
 
                     if (trans($translationKey, [], $locale) === $translationKey) {
@@ -114,6 +114,12 @@ class I18nTest extends TestCase
                     trans("{$prefix}.navigation.title", [], $locale),
                     $resourceClass::getNavigationLabel(),
                     "{$locale}:{$resourceClass} navigation label mismatch"
+                );
+
+                $this->assertSame(
+                    trans("{$prefix}.navigation.group", [], $locale),
+                    $resourceClass::getNavigationGroup(),
+                    "{$locale}:{$resourceClass} navigation group mismatch"
                 );
 
                 $this->assertSame(

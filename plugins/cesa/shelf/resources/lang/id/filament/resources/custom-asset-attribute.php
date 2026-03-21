@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Atribut Kustom',
-        'group' => 'Konfigurasi',
+        'group' => 'Master Aset',
     ],
 
     'singular' => 'Atribut Aset Kustom',

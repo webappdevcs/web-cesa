@@ -21,7 +21,7 @@ class DepartmentResource extends Resource
 {
     protected static ?string $model = Department::class;
 
-    protected static BackedEnum|string|null $navigationIcon = null;
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static ?string $cluster = Configurations::class;
 

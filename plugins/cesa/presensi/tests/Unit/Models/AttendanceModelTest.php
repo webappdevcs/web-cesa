@@ -12,6 +12,7 @@ use Cesa\Presensi\Models\Shift;
 use Cesa\Presensi\Tests\PresensiTestCase;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Webkul\Security\Models\User as SecurityUser;
 
 class AttendanceModelTest extends PresensiTestCase
@@ -20,12 +21,17 @@ class AttendanceModelTest extends PresensiTestCase
     {
         $attendance = new Attendance([
             'schedule_start_time' => '08:00:00',
+            'schedule_end_time'   => '17:00:00',
             'start_time'          => '08:15:00',
             'end_time'            => '17:45:00',
+        ]);
+        $attendance->forceFill([
+            'created_at' => Carbon::parse('2026-03-03 08:15:00'),
         ]);
 
         $this->assertTrue($attendance->isLate());
         $this->assertSame('9 jam 30 menit', $attendance->workDuration());
+        $this->assertSame(Attendance::CHECK_OUT_STATUS_ON_TIME, $attendance->resolvedCheckOutStatus());
     }
 
     public function test_schedule_relations_and_boolean_casts_are_consistent(): void
@@ -56,6 +62,7 @@ class AttendanceModelTest extends PresensiTestCase
         $this->assertSame($user->id, $schedule->user->id);
         $this->assertSame($office->id, $schedule->office->id);
         $this->assertSame($shift->id, $schedule->shift->id);
+        $this->assertSame($schedule->id, Schedule::resolveActiveForUser($user->id)?->id);
     }
 
     public function test_overtime_casts_date_attribute_to_carbon(): void
@@ -80,7 +87,7 @@ class AttendanceModelTest extends PresensiTestCase
         $this->assertContains(SoftDeletes::class, class_uses_recursive(Attendance::class));
         $this->assertContains(SoftDeletes::class, class_uses_recursive(Office::class));
         $this->assertContains(SoftDeletes::class, class_uses_recursive(Shift::class));
-        $this->assertContains(SoftDeletes::class, class_uses_recursive(\Cesa\Presensi\Models\Leave::class));
+        $this->assertContains(SoftDeletes::class, class_uses_recursive(Leave::class));
         $this->assertContains(SoftDeletes::class, class_uses_recursive(Overtime::class));
     }
 
@@ -127,12 +134,12 @@ class AttendanceModelTest extends PresensiTestCase
 
         $attendance = Attendance::query()->create([
             'user_id'             => $user->id,
-            'schedule_latitude'   => -6.200000,
-            'schedule_longitude'  => 106.816666,
+            'schedule_latitude'   => -6.2,
+            'schedule_longitude'  => 106.8,
             'schedule_start_time' => '08:00:00',
             'schedule_end_time'   => '17:00:00',
-            'start_latitude'      => -6.200100,
-            'start_longitude'     => 106.816700,
+            'start_latitude'      => -6.2,
+            'start_longitude'     => 106.8,
             'start_time'          => '08:05:00',
             'end_time'            => '17:00:00',
         ]);
@@ -152,5 +159,35 @@ class AttendanceModelTest extends PresensiTestCase
         $this->assertSame($user->id, $freshAttendance->user?->id);
         $this->assertTrue($freshUser->leaves->contains('id', $leave->id));
         $this->assertTrue($freshUser->overtimes->contains('id', $overtime->id));
+    }
+
+    public function test_legacy_rows_still_resolve_attendance_state_from_created_at(): void
+    {
+        $user = User::factory()->create();
+
+        DB::table('presensi_attendances')->insert([
+            'user_id'             => $user->id,
+            'schedule_latitude'   => -6.2,
+            'schedule_longitude'  => 106.8,
+            'schedule_start_time' => '08:00:00',
+            'schedule_end_time'   => '17:00:00',
+            'start_latitude'      => -6.2,
+            'start_longitude'     => 106.8,
+            'end_latitude'        => -6.2,
+            'end_longitude'       => 106.8,
+            'start_time'          => '08:15:00',
+            'end_time'            => '16:30:00',
+            'is_leave'            => false,
+            'created_at'          => '2026-03-03 08:15:00',
+            'updated_at'          => '2026-03-03 16:30:00',
+        ]);
+
+        $attendance = Attendance::query()->sole();
+
+        $this->assertSame('2026-03-03', $attendance->attendanceDate()?->toDateString());
+        $this->assertSame(Attendance::CHECK_IN_STATUS_LATE, $attendance->resolvedCheckInStatus());
+        $this->assertSame(Attendance::CHECK_OUT_STATUS_EARLY_LEAVE, $attendance->resolvedCheckOutStatus());
+        $this->assertSame(Attendance::STATUS_CLOSED, $attendance->resolvedAttendanceStatus());
+        $this->assertSame(['late', 'early_leave'], $attendance->resolvedAttendanceFlags());
     }
 }

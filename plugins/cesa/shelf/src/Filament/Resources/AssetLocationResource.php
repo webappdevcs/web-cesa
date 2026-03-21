@@ -17,7 +17,7 @@ class AssetLocationResource extends ShelfResource
 {
     protected static ?string $model = AssetLocation::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-map-pin';
 
     protected static ?string $cluster = Configurations::class;
 

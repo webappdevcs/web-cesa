@@ -110,13 +110,18 @@ class OvertimeController extends Controller
             $requestDate = Carbon::parse($request->date)->toDateString();
             $requestDateAt = Carbon::parse($request->date)->startOfDay();
             $todayAt = Carbon::today();
-
-            $schedule = Schedule::with('shift')
+            $attendance = Attendance::query()
                 ->where('user_id', Auth::id())
+                ->forAttendanceDate($requestDate)
+                ->orderByAttendanceDate()
                 ->first();
 
-            $hasSchedule = $schedule && $schedule->shift;
-            if (! $hasSchedule) {
+            $schedule = Schedule::resolveActiveForUser(Auth::id(), Carbon::parse($request->date));
+
+            if (
+                $requestDateAt->greaterThanOrEqualTo($todayAt)
+                && (! $schedule || $schedule->is_banned || ! $schedule->shift)
+            ) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User belum mendapatkan jadwal kerja, segera hubungi Admin.',
@@ -138,10 +143,6 @@ class OvertimeController extends Controller
                 ], 422);
             }
 
-            $attendance = Attendance::where('user_id', Auth::id())
-                ->whereDate('created_at', $requestDate)
-                ->first();
-
             if ($requestDateAt->lessThan($todayAt) && ! $attendance) {
                 return response()->json([
                     'success' => false,
@@ -152,8 +153,8 @@ class OvertimeController extends Controller
                 ], 422);
             }
 
-            $effectiveScheduleStart = $attendance?->schedule_start_time ?? $schedule->shift->start_time;
-            $effectiveScheduleEnd = $attendance?->schedule_end_time ?? $schedule->shift->end_time;
+            $effectiveScheduleStart = $attendance?->schedule_start_time ?? $schedule?->shift?->start_time;
+            $effectiveScheduleEnd = $attendance?->schedule_end_time ?? $schedule?->shift?->end_time;
 
             $scheduleStartTime = $this->normalizeTime($effectiveScheduleStart);
             $scheduleEndTime = $this->normalizeTime($effectiveScheduleEnd);

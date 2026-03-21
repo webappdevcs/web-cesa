@@ -8,8 +8,6 @@ use Cesa\Presensi\Models\Office;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Group;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -18,7 +16,7 @@ class OfficeResource extends Resource
 {
     protected static ?string $model = Office::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static ?int $navigationSort = 1;
 
@@ -43,37 +41,22 @@ class OfficeResource extends Resource
     {
         return $schema
             ->components([
-                Group::make()
-                    ->schema([
-                        Section::make()
-                            ->schema([
-                                Forms\Components\TextInput::make('name')
-                                    ->label(__('presensi::app.resources.office.form.fields.name'))
-                                    ->required()
-                                    ->maxLength(255),
-                                Group::make()
-                                    ->schema([
-                                        Forms\Components\TextInput::make('latitude')
-                                            ->label(__('presensi::app.resources.office.form.fields.latitude'))
-                                            ->required()
-                                            ->numeric(),
-                                        Forms\Components\TextInput::make('longitude')
-                                            ->label(__('presensi::app.resources.office.form.fields.longitude'))
-                                            ->required()
-                                            ->numeric(),
-                                    ])->columns(2),
-                            ]),
-                    ]),
-                Group::make()
-                    ->schema([
-                        Section::make()
-                            ->schema([
-                                Forms\Components\TextInput::make('radius')
-                                    ->label(__('presensi::app.resources.office.form.fields.radius'))
-                                    ->required()
-                                    ->numeric(),
-                            ]),
-                    ]),
+                Forms\Components\TextInput::make('name')
+                    ->label(__('presensi::app.resources.office.form.fields.name'))
+                    ->required()
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('latitude')
+                    ->label(__('presensi::app.resources.office.form.fields.latitude'))
+                    ->required()
+                    ->numeric(),
+                Forms\Components\TextInput::make('longitude')
+                    ->label(__('presensi::app.resources.office.form.fields.longitude'))
+                    ->required()
+                    ->numeric(),
+                Forms\Components\TextInput::make('radius')
+                    ->label(__('presensi::app.resources.office.form.fields.radius'))
+                    ->required()
+                    ->numeric(),
             ]);
     }
 

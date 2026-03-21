@@ -9,7 +9,6 @@ use Cesa\Presensi\Traits\HasPresensiResourceAccess;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -21,7 +20,7 @@ class ScheduleResource extends Resource
 
     protected static ?string $model = Schedule::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
 
     protected static ?int $navigationSort = 3;
 
@@ -46,36 +45,29 @@ class ScheduleResource extends Resource
     {
         return $schema
             ->components([
-                Section::make(__('presensi::app.resources.schedule.form.sections.schedule_data'))
-                    ->description(__('presensi::app.resources.schedule.form.descriptions.schedule_data'))
-                    ->schema([
-                        Forms\Components\Select::make('user_id')
-                            ->label(__('presensi::app.resources.schedule.form.fields.user_id'))
-                            ->relationship('user', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-                        Forms\Components\Select::make('shift_id')
-                            ->label(__('presensi::app.resources.schedule.form.fields.shift_id'))
-                            ->relationship('shift', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-                        Forms\Components\Select::make('office_id')
-                            ->label(__('presensi::app.resources.schedule.form.fields.office_id'))
-                            ->relationship('office', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-                    ]),
-                Section::make(__('presensi::app.resources.schedule.form.sections.settings'))
-                    ->schema([
-                        Forms\Components\Toggle::make('is_wfa')
-                            ->label(__('presensi::app.resources.schedule.form.fields.is_wfa')),
-                        Forms\Components\Toggle::make('is_banned')
-                            ->label(__('presensi::app.resources.schedule.form.fields.is_banned'))
-                            ->hidden(fn (): bool => ! static::userCan('update_presensi_schedule')),
-                    ]),
+                Forms\Components\Select::make('user_id')
+                    ->label(__('presensi::app.resources.schedule.form.fields.user_id'))
+                    ->relationship('user', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->required(),
+                Forms\Components\Select::make('shift_id')
+                    ->label(__('presensi::app.resources.schedule.form.fields.shift_id'))
+                    ->relationship('shift', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->required(),
+                Forms\Components\Select::make('office_id')
+                    ->label(__('presensi::app.resources.schedule.form.fields.office_id'))
+                    ->relationship('office', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->required(),
+                Forms\Components\Toggle::make('is_wfa')
+                    ->label(__('presensi::app.resources.schedule.form.fields.is_wfa')),
+                Forms\Components\Toggle::make('is_banned')
+                    ->label(__('presensi::app.resources.schedule.form.fields.is_banned'))
+                    ->hidden(fn (): bool => ! static::userCan('update_presensi_schedule')),
             ]);
     }
 

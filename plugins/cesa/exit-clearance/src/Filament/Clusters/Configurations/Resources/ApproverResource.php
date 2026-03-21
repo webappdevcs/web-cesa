@@ -19,7 +19,7 @@ class ApproverResource extends Resource
 {
     protected static ?string $model = Approver::class;
 
-    protected static BackedEnum|string|null $navigationIcon = null;
+    protected static BackedEnum|string|null $navigationIcon = 'heroicon-o-check-badge';
 
     protected static ?string $cluster = Configurations::class;
 

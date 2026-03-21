@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Categories',
-        'group' => 'Shelf',
+        'group' => 'Asset Master',
     ],
 
     'singular' => 'Category',

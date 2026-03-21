@@ -5,7 +5,7 @@ return [
 
     'navigation' => [
         'title' => 'Asset Request Approvals',
-        'group' => 'Configurations',
+        'group' => 'Asset Requests',
     ],
 
     'singular' => 'Asset Request Approval',

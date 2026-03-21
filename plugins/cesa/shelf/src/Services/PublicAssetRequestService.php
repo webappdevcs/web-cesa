@@ -138,11 +138,7 @@ class PublicAssetRequestService
                 'asset_id'                 => $assetId,
             ]);
 
-            $initialApproval = $this->initiateApprovalFlow($assetRequest);
-
-            if ($initialApproval) {
-                $this->sendApprovalRequestNotification($assetRequest, $initialApproval);
-            }
+            $initialApproval = $this->syncApprovalFlow($assetRequest);
 
             return [
                 'assetRequest'    => $assetRequest,
@@ -152,6 +148,10 @@ class PublicAssetRequestService
 
         $assetRequest = $result['assetRequest'];
         $initialApproval = $result['initialApproval'];
+
+        if ($initialApproval) {
+            $this->sendApprovalRequestNotification($assetRequest, $initialApproval);
+        }
 
         $this->sendInitialNotifications($assetRequest, $initialApproval);
 
@@ -182,6 +182,8 @@ class PublicAssetRequestService
                 ->lockForUpdate()
                 ->findOrFail($lockedApproval->asset_request_id);
 
+            $currentApproval = $this->disconnectInvalidPendingApprovals($assetRequest);
+
             if ($assetRequest->trashed()) {
                 return [
                     'type'    => 'info',
@@ -196,6 +198,26 @@ class PublicAssetRequestService
                 ];
             }
 
+            if ($currentApproval === null) {
+                $this->autoApproveRequest($assetRequest);
+
+                return [
+                    'type'                  => 'info',
+                    'message'               => 'Pengajuan ini tidak lagi memiliki approver aktif dan telah disetujui otomatis.',
+                    'assetRequest'          => $assetRequest->fresh(),
+                    'shouldNotifyRequester' => true,
+                ];
+            }
+
+            if ($lockedApproval->status === ApprovalStatus::Pending && ! $lockedApproval->hasActiveApprover()) {
+                return [
+                    'type'             => 'info',
+                    'message'          => 'Link approval ini sudah tidak aktif karena approver tidak lagi terhubung ke employee / user aktif.',
+                    'assetRequest'     => $assetRequest,
+                    'approvalToNotify' => $currentApproval?->notified_at === null ? $currentApproval : null,
+                ];
+            }
+
             if ($lockedApproval->status !== ApprovalStatus::Pending) {
                 return [
                     'type'    => 'info',
@@ -203,11 +225,7 @@ class PublicAssetRequestService
                 ];
             }
 
-            $currentApprovalId = RequestApproval::query()
-                ->where('asset_request_id', $assetRequest->id)
-                ->where('status', ApprovalStatus::Pending)
-                ->orderBy('level')
-                ->value('id');
+            $currentApprovalId = $currentApproval?->getKey();
 
             if ($currentApprovalId !== $lockedApproval->id) {
                 return [
@@ -225,16 +243,13 @@ class PublicAssetRequestService
             ]);
 
             $shouldNotifyRequester = false;
+            $approvalToNotify = null;
 
             if ($isApproved) {
-                $nextApproval = RequestApproval::query()
-                    ->where('asset_request_id', $assetRequest->id)
-                    ->where('status', ApprovalStatus::Pending)
-                    ->orderBy('level')
-                    ->first();
+                $nextApproval = $this->disconnectInvalidPendingApprovals($assetRequest);
 
                 if ($nextApproval) {
-                    $this->sendApprovalRequestNotification($assetRequest, $nextApproval);
+                    $approvalToNotify = $nextApproval;
                 } else {
                     $assetRequest->update(['status' => RequestStatus::Approved]);
                     $shouldNotifyRequester = true;
@@ -252,9 +267,14 @@ class PublicAssetRequestService
                 'type'                  => 'success',
                 'message'               => $isApproved ? 'Pengajuan berhasil disetujui.' : 'Pengajuan berhasil ditolak.',
                 'assetRequest'          => $assetRequest,
+                'approvalToNotify'      => $approvalToNotify,
                 'shouldNotifyRequester' => $shouldNotifyRequester,
             ];
         });
+
+        if (($result['approvalToNotify'] ?? null) instanceof RequestApproval && isset($result['assetRequest'])) {
+            $this->sendApprovalRequestNotification($result['assetRequest'], $result['approvalToNotify']);
+        }
 
         if (($result['shouldNotifyRequester'] ?? false) === true && isset($result['assetRequest'])) {
             $this->notifyRequesterStatusChanged($result['assetRequest']);
@@ -263,8 +283,30 @@ class PublicAssetRequestService
         return $result;
     }
 
-    private function initiateApprovalFlow(AssetRequest $assetRequest): ?RequestApproval
+    public function syncApprovalFlow(AssetRequest $assetRequest): ?RequestApproval
     {
+        $assetRequest->refresh()->loadMissing('approvals');
+
+        if ($assetRequest->status !== RequestStatus::Pending) {
+            return $assetRequest->currentApproval();
+        }
+
+        $hasProcessedApprovals = $assetRequest->approvals->contains(
+            fn (RequestApproval $approval): bool => $approval->status !== ApprovalStatus::Pending || $approval->responded_at !== null,
+        );
+
+        if ($assetRequest->approvals->isNotEmpty() && $hasProcessedApprovals) {
+            $currentApproval = $this->disconnectInvalidPendingApprovals($assetRequest);
+
+            if ($currentApproval === null) {
+                $this->autoApproveRequest($assetRequest);
+            }
+
+            return $currentApproval;
+        }
+
+        $assetRequest->approvals()->delete();
+
         $approvalTrack = $assetRequest->approval_track
             ?? $this->resolveApprovalTrack($assetRequest->request_type, $assetRequest->division);
 
@@ -289,9 +331,17 @@ class PublicAssetRequestService
             return null;
         }
 
-        return $approvalLevels
-            ->map(fn (ApprovalLevel $level): RequestApproval => $this->createApproval($assetRequest, $level))
-            ->first();
+        $approvals = $approvalLevels
+            ->map(fn (ApprovalLevel $level): ?RequestApproval => $this->createApproval($assetRequest, $level))
+            ->filter();
+
+        if ($approvals->isEmpty()) {
+            $this->autoApproveRequest($assetRequest);
+
+            return null;
+        }
+
+        return $approvals->first();
     }
 
     private function validateAndNormalizeDivision(string $requestType, string $division): string
@@ -343,16 +393,14 @@ class PublicAssetRequestService
             ->exists();
     }
 
-    private function createApproval(AssetRequest $assetRequest, ApprovalLevel $approvalLevel): RequestApproval
+    public function disconnectPendingApprovalsForEmployee(int $employeeId): void
     {
-        return RequestApproval::create([
-            'asset_request_id'  => $assetRequest->id,
-            'approval_level_id' => $approvalLevel->id,
-            'token'             => Str::uuid()->toString(),
-            'level'             => $approvalLevel->level,
-            'approver_name'     => $approvalLevel->approver_name,
-            'approver_email'    => $approvalLevel->approver_email,
-        ]);
+        $this->disconnectPendingApprovals('approver_employee_id', $employeeId);
+    }
+
+    public function disconnectPendingApprovalsForUser(int $userId): void
+    {
+        $this->disconnectPendingApprovals('approver_user_id', $userId);
     }
 
     private function autoApproveRequest(AssetRequest $assetRequest): void
@@ -397,6 +445,12 @@ class PublicAssetRequestService
             $approval->approver_email,
             new ApprovalRequested($assetRequest, $approval),
         );
+
+        if ($approval->notified_at === null) {
+            $approval->forceFill([
+                'notified_at' => now(),
+            ])->saveQuietly();
+        }
     }
 
     private function dispatchMailOrFail(string $recipient, Mailable $mailable): void
@@ -435,6 +489,112 @@ class PublicAssetRequestService
             $callback();
         } catch (Throwable $exception) {
             report($exception);
+        }
+    }
+
+    private function createApproval(AssetRequest $assetRequest, ApprovalLevel $approvalLevel): ?RequestApproval
+    {
+        $approver = $approvalLevel->resolveActiveApprover();
+
+        if ($approver === null) {
+            return null;
+        }
+
+        return RequestApproval::create([
+            'asset_request_id'      => $assetRequest->id,
+            'approval_level_id'     => $approvalLevel->id,
+            'token'                 => Str::uuid()->toString(),
+            'level'                 => $approvalLevel->level,
+            'approver_employee_id'  => $approver['employee_id'],
+            'approver_user_id'      => $approver['user_id'],
+            'approver_name'         => $approver['name'],
+            'approver_email'        => $approver['email'],
+            'status'                => ApprovalStatus::Pending,
+        ]);
+    }
+
+    private function disconnectInvalidPendingApprovals(AssetRequest $assetRequest): ?RequestApproval
+    {
+        $pendingApprovals = RequestApproval::query()
+            ->where('asset_request_id', $assetRequest->getKey())
+            ->where('status', ApprovalStatus::Pending)
+            ->orderBy('level')
+            ->get();
+
+        foreach ($pendingApprovals as $pendingApproval) {
+            if ($pendingApproval->hasActiveApprover()) {
+                return $pendingApproval;
+            }
+
+            $pendingApproval->delete();
+        }
+
+        return null;
+    }
+
+    private function disconnectPendingApprovals(string $column, int $value): void
+    {
+        $assetRequestIds = RequestApproval::query()
+            ->where($column, $value)
+            ->where('status', ApprovalStatus::Pending)
+            ->pluck('asset_request_id')
+            ->unique()
+            ->values();
+
+        foreach ($assetRequestIds as $assetRequestId) {
+            $approvalToNotify = null;
+            $requestToNotify = null;
+
+            DB::transaction(function () use ($assetRequestId, &$approvalToNotify, &$requestToNotify): void {
+                $assetRequest = AssetRequest::query()
+                    ->withTrashed()
+                    ->lockForUpdate()
+                    ->find($assetRequestId);
+
+                if ($assetRequest === null || $assetRequest->trashed() || $assetRequest->status !== RequestStatus::Pending) {
+                    return;
+                }
+
+                $currentApprovalId = RequestApproval::query()
+                    ->where('asset_request_id', $assetRequest->getKey())
+                    ->where('status', ApprovalStatus::Pending)
+                    ->orderBy('level')
+                    ->value('id');
+
+                $nextApproval = $this->disconnectInvalidPendingApprovals($assetRequest);
+
+                if ($nextApproval !== null) {
+                    if ($nextApproval->getKey() !== $currentApprovalId && $nextApproval->notified_at === null) {
+                        $approvalToNotify = $nextApproval->getKey();
+                    }
+
+                    return;
+                }
+
+                $assetRequest->forceFill([
+                    'status'      => RequestStatus::Approved,
+                    'admin_notes' => 'Disetujui otomatis karena approver yang tersisa tidak lagi terhubung ke employee / user aktif.',
+                ])->saveQuietly();
+
+                $requestToNotify = $assetRequest->getKey();
+            });
+
+            if ($approvalToNotify !== null) {
+                $approval = RequestApproval::query()->find($approvalToNotify);
+                $assetRequest = AssetRequest::query()->find($assetRequestId);
+
+                if ($approval !== null && $assetRequest !== null) {
+                    $this->sendApprovalRequestNotification($assetRequest, $approval);
+                }
+            }
+
+            if ($requestToNotify !== null) {
+                $assetRequest = AssetRequest::query()->find($requestToNotify);
+
+                if ($assetRequest !== null) {
+                    $this->notifyRequesterStatusChanged($assetRequest);
+                }
+            }
         }
     }
 }

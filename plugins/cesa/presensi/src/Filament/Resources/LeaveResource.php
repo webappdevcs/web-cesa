@@ -6,7 +6,6 @@ use Cesa\Presensi\Filament\Resources\LeaveResource\Pages;
 use Cesa\Presensi\Models\Leave;
 use Filament\Actions;
 use Filament\Forms;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -38,57 +37,51 @@ class LeaveResource extends PresensiResource
     public static function form(Schema $schema): Schema
     {
         $components = [
-            Section::make(__('presensi::app.resources.leave.form.sections.detail'))
-                ->schema([
-                    Forms\Components\Select::make('user_id')
-                        ->label(__('presensi::app.resources.leave.form.fields.user_id'))
-                        ->relationship('user', 'name')
-                        ->searchable()
-                        ->preload()
-                        ->required(),
-                    Forms\Components\Select::make('type')
-                        ->label(__('presensi::app.resources.leave.form.fields.type'))
-                        ->options([
-                            'Izin'  => __('presensi::app.resources.leave.form.options.izin'),
-                            'Sakit' => __('presensi::app.resources.leave.form.options.sakit'),
-                            'Cuti'  => __('presensi::app.resources.leave.form.options.cuti'),
-                        ])
-                        ->default('Izin')
-                        ->required(),
-                    Forms\Components\DatePicker::make('start_date')
-                        ->label(__('presensi::app.resources.leave.form.fields.start_date'))
-                        ->required(),
-                    Forms\Components\DatePicker::make('end_date')
-                        ->label(__('presensi::app.resources.leave.form.fields.end_date'))
-                        ->required(),
-                    Forms\Components\Textarea::make('reason')
-                        ->label(__('presensi::app.resources.leave.form.fields.reason'))
-                        ->columnSpanFull(),
-                    Forms\Components\FileUpload::make('attachment')
-                        ->label(__('presensi::app.resources.leave.form.fields.attachment'))
-                        ->directory('presensi/leaves')
-                        ->nullable()
-                        ->columnSpanFull(),
+            Forms\Components\Select::make('user_id')
+                ->label(__('presensi::app.resources.leave.form.fields.user_id'))
+                ->relationship('user', 'name')
+                ->searchable()
+                ->preload()
+                ->required(),
+            Forms\Components\Select::make('type')
+                ->label(__('presensi::app.resources.leave.form.fields.type'))
+                ->options([
+                    'Izin'  => __('presensi::app.resources.leave.form.options.izin'),
+                    'Sakit' => __('presensi::app.resources.leave.form.options.sakit'),
+                    'Cuti'  => __('presensi::app.resources.leave.form.options.cuti'),
                 ])
-                ->columns(2),
+                ->default('Izin')
+                ->required(),
+            Forms\Components\DatePicker::make('start_date')
+                ->label(__('presensi::app.resources.leave.form.fields.start_date'))
+                ->required(),
+            Forms\Components\DatePicker::make('end_date')
+                ->label(__('presensi::app.resources.leave.form.fields.end_date'))
+                ->required(),
+            Forms\Components\Textarea::make('reason')
+                ->label(__('presensi::app.resources.leave.form.fields.reason'))
+                ->columnSpanFull(),
+            Forms\Components\FileUpload::make('attachment')
+                ->label(__('presensi::app.resources.leave.form.fields.attachment'))
+                ->directory('presensi/leaves')
+                ->nullable()
+                ->columnSpanFull(),
         ];
 
         if (static::userCan('update_presensi_leave')) {
-            $components[] = Section::make(__('presensi::app.resources.leave.form.sections.approval'))
-                ->schema([
-                    Forms\Components\Select::make('status')
-                        ->options([
-                            'pending'  => __('presensi::app.resources.leave.form.options.pending'),
-                            'approved' => __('presensi::app.resources.leave.form.options.approved'),
-                            'rejected' => __('presensi::app.resources.leave.form.options.rejected'),
-                        ])
-                        ->default('pending')
-                        ->required()
-                        ->label(__('presensi::app.resources.leave.form.fields.status')),
-                    Forms\Components\Textarea::make('note')
-                        ->label(__('presensi::app.resources.leave.form.fields.note'))
-                        ->columnSpanFull(),
-                ]);
+            $components[] = Forms\Components\Select::make('status')
+                ->options([
+                    'pending'  => __('presensi::app.resources.leave.form.options.pending'),
+                    'approved' => __('presensi::app.resources.leave.form.options.approved'),
+                    'rejected' => __('presensi::app.resources.leave.form.options.rejected'),
+                ])
+                ->default('pending')
+                ->required()
+                ->label(__('presensi::app.resources.leave.form.fields.status'));
+
+            $components[] = Forms\Components\Textarea::make('note')
+                ->label(__('presensi::app.resources.leave.form.fields.note'))
+                ->columnSpanFull();
         }
 
         return $schema->components($components);

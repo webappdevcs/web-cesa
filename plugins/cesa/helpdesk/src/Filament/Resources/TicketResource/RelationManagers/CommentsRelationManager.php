@@ -13,6 +13,7 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Webkul\Security\Models\User;
 
@@ -53,6 +54,13 @@ class CommentsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query): Builder {
+                if (Gate::allows('viewInternalNotes', $this->ownerRecord)) {
+                    return $query;
+                }
+
+                return $query->where('visibility', Comment::VISIBILITY_PUBLIC);
+            })
             ->headerActions([
                 CreateAction::make()
                     ->icon('heroicon-o-plus-circle')

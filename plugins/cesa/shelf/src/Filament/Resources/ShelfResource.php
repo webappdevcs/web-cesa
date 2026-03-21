@@ -22,7 +22,14 @@ abstract class ShelfResource extends Resource
 
     public static function getNavigationGroup(): ?string
     {
-        return __('admin.navigation.shelf');
+        $translationKey = static::getResourceTranslationKey('navigation.group');
+        $group = __($translationKey);
+
+        if ($group === $translationKey) {
+            return __('admin.navigation.shelf');
+        }
+
+        return $group;
     }
 
     public static function getNavigationLabel(): string

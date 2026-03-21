@@ -10,6 +10,8 @@ use Cesa\Helpdesk\Models\Ticket;
 use Cesa\Helpdesk\Models\TicketStatus;
 use Cesa\Helpdesk\Models\Unit;
 use Cesa\Helpdesk\Tests\HelpdeskTestCase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Webkul\Security\Models\User as SecurityUser;
 
@@ -123,6 +125,37 @@ class TicketControllerTest extends HelpdeskTestCase
         ]);
     }
 
+    public function test_store_ticket_rejects_unsupported_attachment_types(): void
+    {
+        Storage::fake('public');
+
+        $baseUser = User::factory()->create();
+        $responsible = User::factory()->create();
+
+        $unit = Unit::factory()->create();
+        $unit->users()->attach($responsible->id);
+
+        $category = ProblemCategory::factory()->create([
+            'unit_id'                => $unit->id,
+            'default_responsible_id' => $responsible->id,
+        ]);
+
+        Sanctum::actingAs($this->fakeApiUser($baseUser->id, ['create_helpdesk_ticket']));
+
+        $this->postJson('/admin/api/v1/helpdesk/tickets', [
+            'priority_id'             => Priority::HIGH,
+            'unit_id'                 => $unit->id,
+            'problem_category_id'     => $category->id,
+            'title'                   => 'Need VPN access',
+            'description'             => 'Please review the attached file.',
+            'supporting_attachments'  => [
+                UploadedFile::fake()->create('payload.exe', 10, 'application/octet-stream'),
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['supporting_attachments.0']);
+    }
+
     public function test_index_endpoint_returns_incoming_and_outgoing_boxes(): void
     {
         $baseUser = User::factory()->create();
@@ -203,6 +236,24 @@ class TicketControllerTest extends HelpdeskTestCase
             'comment'    => 'Saya ingin ini jadi internal note.',
             'visibility' => Comment::VISIBILITY_INTERNAL,
         ])->assertForbidden();
+    }
+
+    public function test_store_comment_endpoint_rejects_unsupported_attachment_types(): void
+    {
+        Storage::fake('public');
+
+        ['responsible' => $responsible, 'ticket' => $ticket] = $this->createTicketContext();
+
+        Sanctum::actingAs($this->fakeApiUser($responsible->id, ['update_helpdesk_ticket']));
+
+        $this->postJson("/admin/api/v1/helpdesk/tickets/{$ticket->id}/comments", [
+            'comment'     => 'Please see attached proof.',
+            'attachments' => [
+                UploadedFile::fake()->create('payload.exe', 10, 'application/octet-stream'),
+            ],
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['attachments.0']);
     }
 
     public function test_show_endpoint_hides_internal_notes_from_owner_mobile_client(): void

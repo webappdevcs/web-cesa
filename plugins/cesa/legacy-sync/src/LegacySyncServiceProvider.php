@@ -2,6 +2,7 @@
 
 namespace Cesa\LegacySync;
 
+use Cesa\LegacySync\Console\Commands\SyncAllLegacyData;
 use Cesa\LegacySync\Console\Commands\SyncLegacySqlData;
 use Webkul\PluginManager\Package;
 use Webkul\PluginManager\PackageServiceProvider;
@@ -15,7 +16,10 @@ class LegacySyncServiceProvider extends PackageServiceProvider
         $package->name(static::$name)
             ->isCore()
             ->hasConfigFile('legacy-sync')
-            ->hasCommand(SyncLegacySqlData::class)
+            ->hasCommands([
+                SyncLegacySqlData::class,
+                SyncAllLegacyData::class,
+            ])
             ->hasMigrations([
                 '2026_03_12_004250_create_legacy_sync_mappings_table',
             ])

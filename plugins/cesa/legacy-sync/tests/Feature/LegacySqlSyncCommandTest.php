@@ -712,8 +712,12 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
         ]);
 
         $this->assertDatabaseHas('presensi_attendances', [
-            'id'      => 300,
-            'user_id' => $requesterId,
+            'id'                => 300,
+            'user_id'           => $requesterId,
+            'date'              => '2026-03-10',
+            'check_in_status'   => 'late',
+            'check_out_status'  => 'on_time',
+            'attendance_status' => 'closed',
         ]);
 
         $this->assertDatabaseHas('presensi_overtimes', [

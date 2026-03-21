@@ -33,10 +33,12 @@ use Cesa\Shelf\Policies\VendorPolicy;
 use Filament\Panel;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
+use Webkul\Employee\Models\Employee;
 use Webkul\PluginManager\Console\Commands\InstallCommand;
 use Webkul\PluginManager\Console\Commands\UninstallCommand;
 use Webkul\PluginManager\Package;
 use Webkul\PluginManager\PackageServiceProvider;
+use Webkul\Security\Models\User;
 
 class ShelfServiceProvider extends PackageServiceProvider
 {
@@ -71,6 +73,7 @@ class ShelfServiceProvider extends PackageServiceProvider
                 '2026_03_17_150000_add_soft_deletes_to_shelf_tables',
                 '2026_03_17_160000_cleanup_redundant_shelf_indexes',
                 '2026_03_17_161000_backfill_missing_creator_ids_on_shelf_tables',
+                '2026_03_18_000000_add_approver_relations_to_shelf_approval_flows',
             ])
             ->runsMigrations()
             ->hasInstallCommand(function (InstallCommand $command): void {
@@ -90,6 +93,25 @@ class ShelfServiceProvider extends PackageServiceProvider
         Livewire::component('cesa.shelf.livewire.public-asset-request-form', PublicAssetRequestForm::class);
         Livewire::component('cesa.shelf.livewire.public-asset-request-progress', PublicAssetRequestProgressPage::class);
         Livewire::component('cesa.shelf.livewire.public-asset-request-approval', PublicAssetRequestApprovalPage::class);
+
+        Employee::deleted(function (Employee $employee): void {
+            app(\Cesa\Shelf\Services\PublicAssetRequestService::class)
+                ->disconnectPendingApprovalsForEmployee($employee->getKey());
+        });
+
+        User::deleted(function (User $user): void {
+            app(\Cesa\Shelf\Services\PublicAssetRequestService::class)
+                ->disconnectPendingApprovalsForUser($user->getKey());
+        });
+
+        User::updated(function (User $user): void {
+            if (! $user->wasChanged('is_active') || $user->is_active) {
+                return;
+            }
+
+            app(\Cesa\Shelf\Services\PublicAssetRequestService::class)
+                ->disconnectPendingApprovalsForUser($user->getKey());
+        });
 
         Gate::policy(ApprovalLevel::class, ApprovalLevelPolicy::class);
         Gate::policy(AssetLocation::class, AssetLocationPolicy::class);

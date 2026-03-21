@@ -14,7 +14,17 @@ class CommentPolicy
 
     public function view(User $user, Comment $comment): bool
     {
-        return app(TicketPolicy::class)->view($user, $comment->ticket);
+        $ticketPolicy = app(TicketPolicy::class);
+
+        if (! $ticketPolicy->view($user, $comment->ticket)) {
+            return false;
+        }
+
+        if ($comment->isInternal()) {
+            return $ticketPolicy->viewInternalNotes($user, $comment->ticket);
+        }
+
+        return true;
     }
 
     public function create(User $user): bool

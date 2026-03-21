@@ -2,6 +2,7 @@
 
 namespace Cesa\Payroll\Filament\Pages;
 
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Cesa\Payroll\Settings\PayrollSettings;
 use Cesa\Presensi\Filament\Clusters\Configurations;
 use Filament\Forms;
@@ -13,15 +14,17 @@ use Webkul\PluginManager\Package;
 
 class ManagePayrollSettings extends SettingsPage
 {
+    use HasPageShield;
+
     protected static string $settings = PayrollSettings::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-banknotes';
 
     protected static ?string $cluster = Configurations::class;
 
     public static function shouldRegisterNavigation(): bool
     {
-        return Package::isPluginInstalled('payroll');
+        return Package::isPluginInstalled('payroll') && parent::shouldRegisterNavigation();
     }
 
     public static function getNavigationLabel(): string
@@ -32,6 +35,11 @@ class ManagePayrollSettings extends SettingsPage
     public static function getNavigationSort(): ?int
     {
         return 4;
+    }
+
+    protected static function getPagePermission(): ?string
+    {
+        return 'page_payroll_manage_payroll_settings';
     }
 
     public function form(Schema $schema): Schema

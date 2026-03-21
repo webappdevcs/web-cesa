@@ -13,12 +13,13 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Webkul\Employee\Models\Employee;
 
 class ApprovalLevelResource extends ShelfResource
 {
     protected static ?string $model = ApprovalLevel::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-check-badge';
 
     protected static ?string $navigationLabel = 'Konfigurasi Approval';
 
@@ -46,25 +47,24 @@ class ApprovalLevelResource extends ShelfResource
                     })
                     ->dehydrateStateUsing(fn (?string $state): string => trim((string) $state))
                     ->columnSpanFull(),
-                TextInput::make('level')
-                    ->label('Level Approval')
-                    ->numeric()
-                    ->minValue(1)
-                    ->required()
-                    ->helperText('Urutan persetujuan (1 = pertama, 2 = kedua, dst.)')
-                    ->columnSpanFull(),
-                TextInput::make('approver_name')
+                Select::make('approver_employee_id')
                     ->label('Nama / Jabatan Approver')
+                    ->relationship(
+                        name: 'approverEmployee',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn (Builder $query): Builder => $query
+                            ->whereNotNull('user_id')
+                            ->where('is_active', true)
+                            ->whereNull($query->qualifyColumn('deleted_at'))
+                            ->whereHas('user', fn (Builder $userQuery): Builder => $userQuery
+                                ->where('is_active', true)
+                                ->whereNull($userQuery->qualifyColumn('deleted_at'))),
+                    )
+                    ->getOptionLabelFromRecordUsing(fn (Employee $record): string => ApprovalLevel::formatApproverOptionLabel($record))
+                    ->searchable()
+                    ->preload()
                     ->required()
-                    ->maxLength(255)
-                    ->placeholder('Contoh: Manager Operasional')
-                    ->columnSpanFull(),
-                TextInput::make('approver_email')
-                    ->label('Email Approver')
-                    ->email()
-                    ->required()
-                    ->maxLength(255)
-                    ->placeholder('approver@perusahaan.com')
+                    ->helperText('Pilih employee yang terhubung ke user aktif. Level approval dibuat otomatis dari urutan data, lalu bisa digeser dengan tombol naik / turun di tabel.')
                     ->columnSpanFull(),
             ]);
     }
@@ -98,6 +98,11 @@ class ApprovalLevelResource extends ShelfResource
                 TextColumn::make('approver_email')
                     ->label('Email')
                     ->searchable(),
+                TextColumn::make('approver_connection')
+                    ->label('Relasi Approver')
+                    ->state(fn (ApprovalLevel $record): string => $record->hasActiveApprover() ? 'Aktif' : 'Terputus')
+                    ->badge()
+                    ->color(fn (string $state): string => $state === 'Aktif' ? 'success' : 'danger'),
             ])
             ->filters([
                 SelectFilter::make('request_type')
@@ -106,6 +111,22 @@ class ApprovalLevelResource extends ShelfResource
                 \Filament\Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
+                \Filament\Actions\Action::make('move_up')
+                    ->label('Naik')
+                    ->icon('heroicon-m-arrow-up')
+                    ->color('gray')
+                    ->visible(fn (ApprovalLevel $record): bool => ! $record->trashed() && $record->canMoveUpInTrack())
+                    ->action(function (ApprovalLevel $record): void {
+                        $record->moveUpInTrack();
+                    }),
+                \Filament\Actions\Action::make('move_down')
+                    ->label('Turun')
+                    ->icon('heroicon-m-arrow-down')
+                    ->color('gray')
+                    ->visible(fn (ApprovalLevel $record): bool => ! $record->trashed() && $record->canMoveDownInTrack())
+                    ->action(function (ApprovalLevel $record): void {
+                        $record->moveDownInTrack();
+                    }),
                 \Filament\Actions\EditAction::make()
                     ->slideOver()
                     ->modalWidth('md'),

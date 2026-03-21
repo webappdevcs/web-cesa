@@ -18,7 +18,7 @@ class CustomAssetAttributeResource extends ShelfResource
 {
     protected static ?string $model = CustomAssetAttribute::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-adjustments-horizontal';
 
     protected static ?string $cluster = Configurations::class;
 

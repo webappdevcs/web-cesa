@@ -21,7 +21,7 @@ class CompanyDocumentSettingResource extends ShelfResource
 {
     protected static ?string $model = CompanyDocumentSetting::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $cluster = Configurations::class;
 

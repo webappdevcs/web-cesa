@@ -34,7 +34,7 @@ class LeaveControllerTest extends PresensiTestCase
         ]);
         $latestLeave->forceFill(['created_at' => now()->subDay(), 'updated_at' => now()->subDay()])->save();
 
-        $response = $this->getJson('/api/leaves');
+        $response = $this->getJson('/admin/api/v1/presensi/leaves');
 
         $response
             ->assertOk()

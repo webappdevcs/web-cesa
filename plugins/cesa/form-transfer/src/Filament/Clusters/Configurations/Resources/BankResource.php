@@ -28,7 +28,7 @@ class BankResource extends Resource
 
     protected static ?string $cluster = Configurations::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = null;
+    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-library';
 
     protected static ?int $navigationSort = 20;
 
