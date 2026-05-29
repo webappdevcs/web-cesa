@@ -26,10 +26,15 @@ class PadelnisPlugin implements Plugin
         }
 
         $panel->when($panel->getId() === 'admin', function (Panel $panel): void {
-            $panel->discoverResources(
-                in: $this->getPluginBasePath('/Filament/Resources'),
-                for: 'Cesa\\Padelnis\\Filament\\Resources'
-            );
+            $panel
+                ->discoverResources(
+                    in: $this->getPluginBasePath('/Filament/Resources'),
+                    for: 'Cesa\\Padelnis\\Filament\\Resources'
+                )
+                ->discoverClusters(
+                    in: $this->getPluginBasePath('/Filament/Clusters'),
+                    for: 'Cesa\\Padelnis\\Filament\\Clusters'
+                );
         });
     }
 

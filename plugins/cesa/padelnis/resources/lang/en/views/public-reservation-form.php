@@ -7,9 +7,12 @@ return [
 
     'placeholders' => [
         'customer_name'    => 'Enter customer name',
+        'catalog_item'     => 'Select a service or package',
         'reservation_date' => 'Select reservation date',
         'court'            => 'Select court',
+        'coach'            => 'Select coach',
         'reservation_time' => 'Select start time - end time',
+        'expected_amount'  => 'Filled automatically from the pricing master',
         'transfer_amount'  => 'Example: 150,000',
         'transfer_date'    => 'Select transfer date',
         'notes'            => 'Example: Transfer from BCA under Budi',
@@ -26,7 +29,7 @@ return [
 
     'summary' => [
         'title'       => 'Reservation Submitted',
-        'description' => 'The reservation data has been saved to Reservations.',
+        'description' => 'The reservation is pending admin review. Please keep the reference ID for follow-up.',
     ],
 
     'messages' => [

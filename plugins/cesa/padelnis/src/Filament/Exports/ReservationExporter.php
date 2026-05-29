@@ -16,14 +16,21 @@ class ReservationExporter extends Exporter
     {
         return [
             ExportColumn::make('id_reff'),
+            ExportColumn::make('transaction_type')
+                ->state(fn (Reservation $record): string => $record->transactionTypeLabel()),
+            ExportColumn::make('catalogItem.name'),
             ExportColumn::make('customer_name'),
             ExportColumn::make('reservation_date')
                 ->formatStateUsing(fn (mixed $state): mixed => $state instanceof CarbonInterface ? $state->format('Y-m-d') : $state),
             ExportColumn::make('court'),
+            ExportColumn::make('coach.name'),
             ExportColumn::make('reservation_time')
                 ->formatStateUsing(fn (mixed $state): string => static::formatReservationTime($state)),
             ExportColumn::make('blocked_slots')
                 ->state(fn (Reservation $record): string => $record->blockedSlotSummary()),
+            ExportColumn::make('expected_amount'),
+            ExportColumn::make('price_breakdown')
+                ->state(fn (Reservation $record): string => implode(', ', $record->priceBreakdownLabels())),
             ExportColumn::make('transfer_amount'),
             ExportColumn::make('transfer_date')
                 ->formatStateUsing(fn (mixed $state): mixed => $state instanceof CarbonInterface ? $state->format('Y-m-d') : $state),

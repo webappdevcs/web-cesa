@@ -13,6 +13,7 @@ use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Pages\Concerns\InteractsWithFormActions;
 use Filament\Pages\SimplePage;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
@@ -39,6 +40,8 @@ class PublicReservationForm extends SimplePage
             abort(404);
         }
 
+        $this->data = array_replace($this->defaultFormData(), $this->data ?? []);
+
         $this->form->fill($this->data);
     }
 
@@ -46,36 +49,98 @@ class PublicReservationForm extends SimplePage
     {
         return $schema
             ->components([
+                Select::make('catalog_item_id')
+                    ->label(__('padelnis::filament/resources/reservation.fields.catalog_item'))
+                    ->options(fn (): array => Reservation::publicCatalogItemOptions())
+                    ->searchable()
+                    ->live()
+                    ->required()
+                    ->rule(fn () => Rule::in(array_keys(Reservation::publicCatalogItemOptions())))
+                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                        $set('court', null);
+                        $set('coach_id', null);
+                        $set('reservation_time', null);
+                        $set('expected_amount', null);
+                        $set('transfer_amount', null);
+
+                        static::refreshExpectedAmount($set, $get);
+                    })
+                    ->placeholder(__('padelnis::views/public-reservation-form.placeholders.catalog_item')),
                 TextInput::make('customer_name')
                     ->label(__('padelnis::filament/resources/reservation.fields.customer_name'))
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')))
                     ->required()
                     ->maxLength(255)
                     ->placeholder(__('padelnis::views/public-reservation-form.placeholders.customer_name')),
                 DatePicker::make('reservation_date')
                     ->label(__('padelnis::filament/resources/reservation.fields.reservation_date'))
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')))
                     ->required()
                     ->displayFormat('Y-m-d')
                     ->native(false)
+                    ->live()
+                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                        static::refreshExpectedAmount($set, $get);
+                    })
                     ->placeholder(__('padelnis::views/public-reservation-form.placeholders.reservation_date')),
                 Select::make('court')
                     ->label(__('padelnis::filament/resources/reservation.fields.court'))
                     ->options(fn (): array => Reservation::courtOptions())
                     ->searchable()
-                    ->required()
-                    ->rule(fn () => Rule::in(array_keys(Reservation::courtOptions())))
+                    ->required(fn (Get $get): bool => Reservation::catalogItemRequiresCourt($get('catalog_item_id')))
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')) && Reservation::catalogItemRequiresCourt($get('catalog_item_id')))
+                    ->live()
+                    ->rule(fn (Get $get): mixed => Reservation::catalogItemRequiresCourt($get('catalog_item_id'))
+                        ? Rule::in(array_keys(Reservation::courtOptions()))
+                        : null)
+                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                        static::refreshExpectedAmount($set, $get);
+                    })
                     ->placeholder(__('padelnis::views/public-reservation-form.placeholders.court')),
+                Select::make('coach_id')
+                    ->label(__('padelnis::filament/resources/reservation.fields.coach'))
+                    ->options(fn (): array => Reservation::coachOptions())
+                    ->searchable()
+                    ->live()
+                    ->required(fn (Get $get): bool => Reservation::catalogItemRequiresCoach($get('catalog_item_id')))
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')) && Reservation::catalogItemRequiresCoach($get('catalog_item_id')))
+                    ->rule(fn (Get $get): mixed => Reservation::catalogItemRequiresCoach($get('catalog_item_id'))
+                        ? Rule::in(array_keys(Reservation::coachOptions()))
+                        : null)
+                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                        static::refreshExpectedAmount($set, $get);
+                    })
+                    ->placeholder(__('padelnis::views/public-reservation-form.placeholders.coach')),
                 Select::make('reservation_time')
                     ->label(__('padelnis::filament/resources/reservation.fields.reservation_time'))
                     ->options(fn (): array => Reservation::reservableTimeOptions())
                     ->searchable()
-                    ->required()
-                    ->rule(fn () => Rule::in(array_keys(Reservation::reservableTimeOptions())))
+                    ->required(fn (Get $get): bool => Reservation::catalogItemUsesTimedResources($get('catalog_item_id')))
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')) && Reservation::catalogItemUsesTimedResources($get('catalog_item_id')))
+                    ->live()
+                    ->rule(fn (Get $get): mixed => Reservation::catalogItemUsesTimedResources($get('catalog_item_id'))
+                        ? Rule::in(array_keys(Reservation::reservableTimeOptions()))
+                        : null)
                     ->rule(static fn (Get $get): Closure => static::activeSlotValidationRule($get))
+                    ->afterStateUpdated(function (Set $set, Get $get): void {
+                        static::refreshExpectedAmount($set, $get);
+                    })
                     ->placeholder(__('padelnis::views/public-reservation-form.placeholders.reservation_time')),
+                TextInput::make('expected_amount')
+                    ->label(__('padelnis::filament/resources/reservation.fields.expected_amount'))
+                    ->inputMode('numeric')
+                    ->prefix('Rp')
+                    ->readOnly()
+                    ->dehydrated(false)
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')))
+                    ->formatStateUsing(fn (mixed $state): ?string => Reservation::formatTransferAmountForForm($state))
+                    ->dehydrateStateUsing(fn (mixed $state): ?string => Reservation::normalizeTransferAmount($state))
+                    ->placeholder(__('padelnis::views/public-reservation-form.placeholders.expected_amount')),
                 TextInput::make('transfer_amount')
                     ->label(__('padelnis::filament/resources/reservation.fields.transfer_amount'))
                     ->inputMode('numeric')
                     ->prefix('Rp')
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')))
                     ->required()
                     ->rule('numeric')
                     ->rule('min:0')
@@ -90,11 +155,13 @@ class PublicReservationForm extends SimplePage
                     ]),
                 DatePicker::make('transfer_date')
                     ->label(__('padelnis::filament/resources/reservation.fields.transfer_date'))
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')))
                     ->displayFormat('Y-m-d')
                     ->native(false)
                     ->placeholder(__('padelnis::views/public-reservation-form.placeholders.transfer_date')),
                 Textarea::make('notes')
                     ->label(__('padelnis::filament/resources/reservation.fields.notes'))
+                    ->visible(fn (Get $get): bool => filled($get('catalog_item_id')))
                     ->nullable()
                     ->maxLength(1000)
                     ->rows(3)
@@ -109,9 +176,12 @@ class PublicReservationForm extends SimplePage
 
         try {
             $reservation = Reservation::query()->create([
+
+                'catalog_item_id'  => Arr::get($state, 'catalog_item_id'),
                 'customer_name'    => Arr::get($state, 'customer_name'),
                 'reservation_date' => Arr::get($state, 'reservation_date'),
                 'court'            => Arr::get($state, 'court'),
+                'coach_id'         => Arr::get($state, 'coach_id'),
                 'reservation_time' => Arr::get($state, 'reservation_time'),
                 'transfer_amount'  => Arr::get($state, 'transfer_amount'),
                 'transfer_date'    => Arr::get($state, 'transfer_date'),
@@ -159,14 +229,50 @@ JS;
 
     protected function resetFormAfterSubmission(): void
     {
-        $this->data = [];
+        $this->data = $this->defaultFormData();
         $this->form->fill($this->data);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function defaultFormData(): array
+    {
+        return [];
+    }
+
+    protected static function refreshExpectedAmount(Set $set, Get $get): void
+    {
+        $currentExpectedAmount = Reservation::normalizeTransferAmount($get('expected_amount'));
+        $currentTransferAmount = Reservation::normalizeTransferAmount($get('transfer_amount'));
+        $expectedAmount = Reservation::resolveExpectedAmount(
+            $get('catalog_item_id'),
+            $get('reservation_date'),
+            $get('court'),
+            $get('coach_id'),
+            $get('reservation_time'),
+        );
+
+        $formattedExpectedAmount = Reservation::formatTransferAmountForForm($expectedAmount);
+
+        $set('expected_amount', $formattedExpectedAmount);
+
+        if (filled($formattedExpectedAmount) && (blank($currentTransferAmount) || $currentTransferAmount === $currentExpectedAmount)) {
+            $set('transfer_amount', $formattedExpectedAmount);
+        }
     }
 
     protected static function activeSlotValidationRule(Get $get): Closure
     {
         return static function (string $attribute, mixed $value, Closure $fail) use ($get): void {
-            if (Reservation::activeSlotExists($get('court'), $get('reservation_date'), $value)) {
+            if (Reservation::activeSlotExists(
+                $get('court'),
+                $get('reservation_date'),
+                $value,
+                null,
+                $get('catalog_item_id'),
+                $get('coach_id'),
+            )) {
                 $fail(__('padelnis::filament/resources/reservation.validation.active_slot_unique'));
             }
         };

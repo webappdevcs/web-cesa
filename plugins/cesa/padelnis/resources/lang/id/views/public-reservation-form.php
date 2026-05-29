@@ -7,9 +7,12 @@ return [
 
     'placeholders' => [
         'customer_name'    => 'Masukkan nama customer',
+        'catalog_item'     => 'Pilih layanan atau paket',
         'reservation_date' => 'Pilih tanggal reservasi',
         'court'            => 'Pilih lapangan',
+        'coach'            => 'Pilih coach',
         'reservation_time' => 'Pilih jam mulai - jam berakhir',
+        'expected_amount'  => 'Terisi otomatis dari master harga',
         'transfer_amount'  => 'Contoh: 150.000',
         'transfer_date'    => 'Pilih tanggal transfer',
         'notes'            => 'Contoh: Transfer dari BCA atas nama Budi',
@@ -26,7 +29,7 @@ return [
 
     'summary' => [
         'title'       => 'Reservasi Berhasil Dikirim',
-        'description' => 'Data reservasi sudah masuk ke menu Reservasi.',
+        'description' => 'Reservasi masih pending untuk dicek admin. Simpan ID Reff untuk follow-up.',
     ],
 
     'messages' => [

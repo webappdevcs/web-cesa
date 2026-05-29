@@ -5,13 +5,21 @@
             $formattedTransferAmount = is_numeric($transferAmount)
                 ? 'Rp '.number_format((float) $transferAmount, 0, ',', '.')
                 : ($transferAmount ?: '-');
+            $expectedAmount = $recentSubmission['expected_amount'] ?? null;
+            $formattedExpectedAmount = is_numeric($expectedAmount)
+                ? 'Rp '.number_format((float) $expectedAmount, 0, ',', '.')
+                : ($expectedAmount ?: '-');
 
             $summaryRows = [
+                __('padelnis::filament/resources/reservation.fields.transaction_type') => $recentSubmission['transaction_type'] ?? '-',
+                __('padelnis::filament/resources/reservation.fields.catalog_item') => $recentSubmission['catalog_item'] ?? '-',
                 __('padelnis::filament/resources/reservation.fields.customer_name') => $recentSubmission['customer_name'] ?? '-',
                 __('padelnis::filament/resources/reservation.fields.reservation_date') => $recentSubmission['reservation_date'] ?? '-',
                 __('padelnis::filament/resources/reservation.fields.court') => $recentSubmission['court'] ?? '-',
+                __('padelnis::filament/resources/reservation.fields.coach') => $recentSubmission['coach'] ?? '-',
                 __('padelnis::filament/resources/reservation.fields.reservation_time') => $recentSubmission['reservation_time'] ?? '-',
                 __('padelnis::filament/resources/reservation.fields.blocked_slots') => $recentSubmission['blocked_slots'] ?? '-',
+                __('padelnis::filament/resources/reservation.fields.expected_amount') => $formattedExpectedAmount,
                 __('padelnis::filament/resources/reservation.fields.transfer_amount') => $formattedTransferAmount,
                 __('padelnis::filament/resources/reservation.fields.transfer_date') => $recentSubmission['transfer_date'] ?? '-',
                 __('padelnis::filament/resources/reservation.fields.notes') => $recentSubmission['notes'] ?? '-',
