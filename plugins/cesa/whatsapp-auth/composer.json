@@ -1,0 +1,29 @@
+{
+    "name": "cesa/whatsapp-auth",
+    "description": "Login admin menggunakan OTP WhatsApp sebagai alternatif email dan password.",
+    "type": "library",
+    "authors": [
+        {
+            "name": "apriansyahrs",
+            "email": "developer@rizqis.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Cesa\\WhatsAppAuth\\WhatsAppAuthServiceProvider"
+            ],
+            "aliases": {}
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Cesa\\WhatsAppAuth\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cesa\\WhatsAppAuth\\Tests\\": "tests/"
+        }
+    }
+}

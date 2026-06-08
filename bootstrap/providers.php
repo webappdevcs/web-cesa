@@ -15,6 +15,7 @@ use Cesa\Payroll\PayrollServiceProvider;
 use Cesa\Presensi\PresensiServiceProvider;
 use Cesa\Rekrutmen\RekrutmenServiceProvider;
 use Cesa\Shelf\ShelfServiceProvider;
+use Cesa\WhatsAppAuth\WhatsAppAuthServiceProvider;
 use Webkul\Account\AccountServiceProvider;
 use Webkul\Accounting\AccountingServiceProvider;
 use Webkul\Analytic\AnalyticServiceProvider;
@@ -89,4 +90,5 @@ return [
     RekrutmenServiceProvider::class,
     ShelfServiceProvider::class,
     LegacySyncServiceProvider::class,
+    WhatsAppAuthServiceProvider::class,
 ];
