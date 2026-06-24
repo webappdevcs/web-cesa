@@ -11,6 +11,8 @@ return [
         'description'                    => 'Description',
         'public_entry_type'              => 'Public Entry Type',
         'public_external_url'            => 'External Public URL',
+        'apps_script_web_app_url'         => 'Apps Script Web App URL',
+        'apps_script_web_app_url_helper'  => 'The deployed Apps Script Web App URL for this Google Form.',
         'public_badge_label'             => 'Public Badge Label',
         'public_badge_label_helper'      => 'Optional short label shown on the public card, for example Google Form.',
         'public_sort_order'              => 'Public Sort Order',
@@ -51,7 +53,8 @@ return [
         'access_control_description'    => 'Configure which users can manage transfer requests for this form. Leave empty to allow all users.',
     ],
     'actions' => [
-        'copy_default_template' => 'Copy default template',
+        'copy_default_template'    => 'Copy default template',
+        'resend_external_approval' => 'Open follow-up page',
     ],
     'columns' => [
         'code'                           => 'Code',

@@ -4,6 +4,7 @@ namespace Cesa\FormTransfer;
 
 use Cesa\DatabaseSnapshot\Services\DatabaseSnapshotManager;
 use Cesa\FormTransfer\Livewire\PublicCategoryIndex;
+use Cesa\FormTransfer\Livewire\PublicExternalApprovalResendPage;
 use Cesa\FormTransfer\Livewire\PublicTransferApprovalPage;
 use Cesa\FormTransfer\Livewire\PublicTransferProgressPage;
 use Cesa\FormTransfer\Livewire\PublicTransferRequestForm;
@@ -29,6 +30,7 @@ use Cesa\FormTransfer\Policies\TransferRequestPolicy;
 use Cesa\FormTransfer\Repositories\TransferRequestRepository;
 use Cesa\FormTransfer\Services\ApprovalWorkflowService;
 use Cesa\FormTransfer\Services\EmailNotifier;
+use Cesa\FormTransfer\Services\ExternalApprovalResendService;
 use Cesa\FormTransfer\Services\MailThrottleService;
 use Cesa\FormTransfer\Services\RateLimitGuard;
 use Cesa\FormTransfer\Services\RecaptchaValidator;
@@ -66,6 +68,7 @@ class FormTransferServiceProvider extends PackageServiceProvider
                 '2026_05_15_010100_add_creator_id_to_form_transfer_support_tables',
                 '2026_06_06_141951_create_form_transfer_public_categories_tables',
                 '2026_06_07_000001_normalize_form_transfer_builtin_public_categories',
+                '2026_06_09_000001_add_apps_script_web_app_url_to_form_transfers_table',
             ])
             ->runsMigrations()
             ->hasInstallCommand(function (InstallCommand $command): void {
@@ -91,6 +94,7 @@ class FormTransferServiceProvider extends PackageServiceProvider
         Livewire::component('cesa.form-transfer.livewire.public-transfer-request-form', PublicTransferRequestForm::class);
         Livewire::component('cesa.form-transfer.livewire.public-transfer-request-index', PublicTransferRequestIndex::class);
         Livewire::component('cesa.form-transfer.livewire.public-category-index', PublicCategoryIndex::class);
+        Livewire::component('cesa.form-transfer.livewire.public-external-approval-resend', PublicExternalApprovalResendPage::class);
         Livewire::component('cesa.form-transfer.livewire.public-transfer-approval', PublicTransferApprovalPage::class);
         Livewire::component('cesa.form-transfer.livewire.public-transfer-progress', PublicTransferProgressPage::class);
 
@@ -142,6 +146,7 @@ class FormTransferServiceProvider extends PackageServiceProvider
         $this->app->singleton(ApprovalWorkflowService::class);
         $this->app->singleton(TemplateRenderer::class);
         $this->app->singleton(EmailNotifier::class);
+        $this->app->singleton(ExternalApprovalResendService::class);
         $this->app->singleton(MailThrottleService::class);
         $this->app->singleton(WhatsAppNotifier::class);
         $this->app->singleton(WhatsAppThrottleService::class);
@@ -159,6 +164,7 @@ class FormTransferServiceProvider extends PackageServiceProvider
             ApprovalWorkflowService::class,
             TemplateRenderer::class,
             EmailNotifier::class,
+            ExternalApprovalResendService::class,
             MailThrottleService::class,
             WhatsAppNotifier::class,
             WhatsAppThrottleService::class,

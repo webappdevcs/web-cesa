@@ -11,6 +11,8 @@ return [
         'description'                    => 'Deskripsi',
         'public_entry_type'              => 'Tipe Entri Publik',
         'public_external_url'            => 'URL Publik Eksternal',
+        'apps_script_web_app_url'         => 'URL Apps Script Web App',
+        'apps_script_web_app_url_helper'  => 'URL deployment Apps Script Web App dari Google Form ini.',
         'public_badge_label'             => 'Label Badge Publik',
         'public_badge_label_helper'      => 'Label singkat opsional yang tampil di kartu publik, misalnya Google Form.',
         'public_sort_order'              => 'Urutan Publik',
@@ -51,7 +53,8 @@ return [
         'access_control_description'    => 'Konfigurasi pengguna mana yang dapat mengelola permintaan transfer untuk form ini. Biarkan kosong untuk mengizinkan semua pengguna.',
     ],
     'actions' => [
-        'copy_default_template' => 'Salin template bawaan',
+        'copy_default_template'    => 'Salin template bawaan',
+        'resend_external_approval' => 'Buka halaman follow up',
     ],
     'columns' => [
         'code'                           => 'Kode',

@@ -48,6 +48,20 @@ return [
         ],
     ],
 
+    'external_resend' => [
+        'action'          => env('FORM_TRANSFER_EXTERNAL_RESEND_ACTION', 'resendPendingApprovalByUid'),
+        'secret'          => env('FORM_TRANSFER_EXTERNAL_RESEND_SECRET'),
+        'timeout'         => (int) env('FORM_TRANSFER_EXTERNAL_RESEND_TIMEOUT', 15),
+        'connect_timeout' => (int) env('FORM_TRANSFER_EXTERNAL_RESEND_CONNECT_TIMEOUT', 5),
+        'public'          => [
+            'enabled'    => env('FORM_TRANSFER_EXTERNAL_RESEND_PUBLIC_ENABLED', false),
+            'rate_limit' => [
+                'max_attempts' => (int) env('FORM_TRANSFER_EXTERNAL_RESEND_PUBLIC_RATE_LIMIT', 10),
+                'decay'        => (int) env('FORM_TRANSFER_EXTERNAL_RESEND_PUBLIC_RATE_DECAY', 60),
+            ],
+        ],
+    ],
+
     'account_validation' => [
         'enabled'               => env('FORM_TRANSFER_ACCOUNT_VALIDATION_ENABLED', false),
         'endpoint'              => env('FORM_TRANSFER_ACCOUNT_VALIDATION_ENDPOINT', 'https://netovas.com/api/cekrek/v1/account-inquiry'),

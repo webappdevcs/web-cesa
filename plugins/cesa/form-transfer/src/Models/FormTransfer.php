@@ -40,6 +40,7 @@ class FormTransfer extends Model
         'description',
         'public_entry_type',
         'public_external_url',
+        'apps_script_web_app_url',
         'public_badge_label',
         'public_sort_order',
         'show_on_transfer_request_index',

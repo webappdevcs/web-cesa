@@ -2,6 +2,7 @@
 
 use Cesa\FormTransfer\Http\Controllers\PublicAttachmentDownloadController;
 use Cesa\FormTransfer\Livewire\PublicCategoryIndex;
+use Cesa\FormTransfer\Livewire\PublicExternalApprovalResendPage;
 use Cesa\FormTransfer\Livewire\PublicTransferApprovalPage;
 use Cesa\FormTransfer\Livewire\PublicTransferProgressPage;
 use Cesa\FormTransfer\Livewire\PublicTransferRequestForm;
@@ -28,6 +29,9 @@ Route::middleware(['web'])->group(function (): void {
 
     Route::get('transfer-requests/progress/{response}', PublicTransferProgressPage::class)
         ->name('form-transfer.public.progress');
+
+    Route::get('transfer-requests/followup', PublicExternalApprovalResendPage::class)
+        ->name('form-transfer.public.external-resend');
 
     Route::get('transfer-requests/{formTransfer}', PublicTransferRequestForm::class)
         ->name('form-transfer.public.form');

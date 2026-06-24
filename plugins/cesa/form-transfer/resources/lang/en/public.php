@@ -141,4 +141,39 @@ return [
             'reject'          => 'Are you sure you want to reject this request? The decision will be saved immediately.',
         ],
     ],
+
+    'external_resend' => [
+        'heading'                   => 'Follow Up Request Approval',
+        'description'               => 'Choose a Google Form, enter your request UID, and CESA will process the approval follow-up for the approver.',
+        'form_section_title'        => 'Request approval details',
+        'form_transfer_label'       => 'Google Form',
+        'form_transfer_placeholder' => 'Choose a Google Form',
+        'form_hint'                 => 'Enter your request UID, for example CS-03945.',
+        'uid_label'                 => 'Your Request UID',
+        'uid_placeholder'           => 'Example: CS-03945',
+        'submit'                    => 'Follow up approval',
+        'success_title'             => 'Approval follow-up processed',
+        'failed_title'              => 'Approval follow-up failed',
+        'failed_body'               => 'Check the Google Form and request UID, then try again.',
+        'success' => [
+            'default_message' => 'The approval follow-up for :uid was processed successfully.',
+        ],
+        'empty' => [
+            'title' => 'No Google Forms are ready for follow-up.',
+            'body'  => 'Contact an admin to make sure approval follow-up is enabled for the form.',
+        ],
+        'errors' => [
+            'not_external'       => 'This form cannot be used for approval follow-up.',
+            'form_missing'       => 'Choose a valid external Google Form.',
+            'endpoint_missing'   => 'This form is not ready for approval follow-up.',
+            'connection_failed'  => 'Approval follow-up cannot be processed right now.',
+            'request_failed'     => 'Approval follow-up cannot be processed right now.',
+            'rejected'           => 'Approval follow-up was rejected. Check your request UID.',
+            'unexpected'         => 'An error occurred while processing the approval follow-up.',
+        ],
+        'rate_limit' => [
+            'title' => 'Too Many Attempts',
+            'body'  => 'Please wait :seconds seconds before trying again.',
+        ],
+    ],
 ];

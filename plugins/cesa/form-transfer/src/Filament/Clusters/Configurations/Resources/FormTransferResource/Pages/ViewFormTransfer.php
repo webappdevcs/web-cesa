@@ -14,6 +14,7 @@ class ViewFormTransfer extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            FormTransferResource::resendExternalApprovalAction(),
             EditAction::make()->slideOver(),
             DeleteAction::make(),
         ];

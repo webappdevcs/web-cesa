@@ -30,12 +30,14 @@ class FormTransferResourceConfigurationTest extends FormTransferTestCase
             'name'                   => 'Google Resto',
             'public_entry_type'      => FormTransfer::PUBLIC_ENTRY_TYPE_EXTERNAL,
             'public_external_url'    => 'https://forms.gle/google-resto',
+            'apps_script_web_app_url' => 'https://script.google.com/macros/s/test/exec',
             'public_badge_label'     => 'Google Form',
             'approver_mail_subject'  => 'Should be removed',
         ]);
 
         $this->assertSame(FormTransfer::PUBLIC_ENTRY_TYPE_EXTERNAL, $prepared['public_entry_type']);
         $this->assertSame('https://forms.gle/google-resto', $prepared['public_external_url']);
+        $this->assertSame('https://script.google.com/macros/s/test/exec', $prepared['apps_script_web_app_url']);
         $this->assertArrayNotHasKey('public_open_in_new_tab', $prepared);
         $this->assertArrayHasKey('uid_prefix', $prepared);
         $this->assertNotSame('', $prepared['uid_prefix']);
@@ -53,6 +55,7 @@ class FormTransferResourceConfigurationTest extends FormTransferTestCase
         ]);
 
         $this->assertNull($prepared['public_external_url']);
+        $this->assertNull($prepared['apps_script_web_app_url']);
         $this->assertArrayNotHasKey('public_open_in_new_tab', $prepared);
 
         foreach (FormTransferResource::getDefaultNotificationData() as $field => $value) {
@@ -78,6 +81,10 @@ class FormTransferResourceConfigurationTest extends FormTransferTestCase
             $source
         );
         $this->assertStringContainsString("Select::make('publicCategories')", $source);
+        $this->assertStringContainsString("TextInput::make('apps_script_web_app_url')", $source);
+        $this->assertStringContainsString("Action::make('resend_external_approval')", $source);
+        $this->assertStringContainsString("route('form-transfer.public.external-resend'", $source);
+        $this->assertStringContainsString("'form' => \$record->code ?: \$record->getKey()", $source);
         $this->assertStringContainsString('(/form/{$record->slug})', $source);
         $this->assertStringContainsString("=> '/form/'.\$slug", $source);
         $this->assertStringNotContainsString("Toggle::make('public_open_in_new_tab')", $source);

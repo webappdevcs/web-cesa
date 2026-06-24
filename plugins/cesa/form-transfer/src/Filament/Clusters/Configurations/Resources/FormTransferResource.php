@@ -40,6 +40,7 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Webkul\Security\Traits\HasResourcePermissionQuery;
@@ -108,6 +109,12 @@ class FormTransferResource extends Resource
                                                         ->label(__('form-transfer::filament/clusters/configurations/resources/form-transfer.fields.public_external_url'))
                                                         ->url()
                                                         ->required(fn (Get $get): bool => $get('public_entry_type') === FormTransfer::PUBLIC_ENTRY_TYPE_EXTERNAL)
+                                                        ->visible(fn (Get $get): bool => $get('public_entry_type') === FormTransfer::PUBLIC_ENTRY_TYPE_EXTERNAL)
+                                                        ->columnSpanFull(),
+                                                    TextInput::make('apps_script_web_app_url')
+                                                        ->label(__('form-transfer::filament/clusters/configurations/resources/form-transfer.fields.apps_script_web_app_url'))
+                                                        ->url()
+                                                        ->helperText(__('form-transfer::filament/clusters/configurations/resources/form-transfer.fields.apps_script_web_app_url_helper'))
                                                         ->visible(fn (Get $get): bool => $get('public_entry_type') === FormTransfer::PUBLIC_ENTRY_TYPE_EXTERNAL)
                                                         ->columnSpanFull(),
                                                     TextInput::make('public_badge_label')
@@ -346,6 +353,7 @@ class FormTransferResource extends Resource
         }
 
         $data['public_external_url'] = null;
+        $data['apps_script_web_app_url'] = null;
 
         foreach (static::getDefaultNotificationData() as $field => $value) {
             if (blank($data[$field] ?? null)) {
@@ -396,6 +404,22 @@ class FormTransferResource extends Resource
         }
 
         return $candidate;
+    }
+
+    public static function resendExternalApprovalAction(): Action
+    {
+        return Action::make('resend_external_approval')
+            ->label(__('form-transfer::filament/clusters/configurations/resources/form-transfer.actions.resend_external_approval'))
+            ->icon('heroicon-o-arrow-top-right-on-square')
+            ->color('primary')
+            ->visible(fn (FormTransfer $record): bool => config('form-transfer.external_resend.public.enabled', false)
+                && $record->usesExternalPublicEntry()
+                && filled($record->apps_script_web_app_url)
+                && Gate::allows('update', $record))
+            ->url(fn (FormTransfer $record): string => route('form-transfer.public.external-resend', [
+                'form' => $record->code ?: $record->getKey(),
+            ]))
+            ->openUrlInNewTab();
     }
 
     public static function table(Table $table): Table
@@ -454,6 +478,7 @@ class FormTransferResource extends Resource
                 TrashedFilter::make(),
             ])
             ->recordActions([
+                static::resendExternalApprovalAction(),
                 ViewAction::make(),
                 EditAction::make()->slideOver(),
                 DeleteAction::make(),

@@ -141,4 +141,39 @@ return [
             'reject'          => 'Yakin menolak pengajuan ini? Keputusan akan langsung disimpan.',
         ],
     ],
+
+    'external_resend' => [
+        'heading'                   => 'Follow Up Approval Pengajuan',
+        'description'               => 'Pilih Google Form, masukkan UID pengajuan Anda, lalu CESA akan memproses follow up approval ke approver.',
+        'form_section_title'        => 'Data approval pengajuan',
+        'form_transfer_label'       => 'Google Form',
+        'form_transfer_placeholder' => 'Pilih Google Form',
+        'form_hint'                 => 'Masukkan UID pengajuan Anda, misalnya CS-03945.',
+        'uid_label'                 => 'UID Pengajuan Anda',
+        'uid_placeholder'           => 'Contoh: CS-03945',
+        'submit'                    => 'Follow up approval',
+        'success_title'             => 'Follow up approval diproses',
+        'failed_title'              => 'Follow up approval gagal',
+        'failed_body'               => 'Periksa kembali Google Form dan UID pengajuan, lalu coba lagi.',
+        'success' => [
+            'default_message' => 'Follow up approval untuk :uid berhasil diproses.',
+        ],
+        'empty' => [
+            'title' => 'Belum ada Google Form yang siap follow up.',
+            'body'  => 'Hubungi admin untuk memastikan form follow up approval sudah aktif.',
+        ],
+        'errors' => [
+            'not_external'       => 'Form ini belum bisa dipakai untuk follow up approval.',
+            'form_missing'       => 'Pilih Google Form yang valid.',
+            'endpoint_missing'   => 'Form ini belum siap untuk follow up approval.',
+            'connection_failed'  => 'Follow up approval belum dapat diproses saat ini.',
+            'request_failed'     => 'Follow up approval belum dapat diproses saat ini.',
+            'rejected'           => 'Follow up approval ditolak. Periksa kembali UID pengajuan Anda.',
+            'unexpected'         => 'Terjadi kesalahan saat memproses follow up approval.',
+        ],
+        'rate_limit' => [
+            'title' => 'Terlalu Banyak Percobaan',
+            'body'  => 'Tunggu :seconds detik sebelum mencoba lagi.',
+        ],
+    ],
 ];

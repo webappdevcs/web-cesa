@@ -35,6 +35,7 @@ class FormTransferFactory extends Factory
             'description'                    => $this->faker->optional()->sentence(),
             'public_entry_type'              => FormTransfer::PUBLIC_ENTRY_TYPE_INTERNAL,
             'public_external_url'            => null,
+            'apps_script_web_app_url'    => null,
             'public_badge_label'             => null,
             'public_sort_order'              => $this->faker->numberBetween(0, 100),
             'show_on_transfer_request_index' => true,
