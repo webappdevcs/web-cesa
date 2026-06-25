@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Barryvdh\Debugbar\Facades\Debugbar;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Webkul\PluginManager\Package;
 
@@ -53,7 +55,7 @@ class CesaHomeController extends Controller
         [
             'key'         => 'dnd',
             'name'        => 'DND',
-            'description' => 'Aplikasi internal DND',
+            'description' => 'Manajemen Tugas (Do & Done)',
             'url'         => 'https://dnd.completeselular.com/',
             'color'       => 'navy',
             'icon'        => 'dnd',
@@ -62,7 +64,7 @@ class CesaHomeController extends Controller
         [
             'key'         => 'sumo',
             'name'        => 'SUMO',
-            'description' => 'Aplikasi internal SUMO',
+            'description' => 'Pengajuan ATK (Submission Mobile)',
             'url'         => 'https://sumo.completeselular.com/',
             'color'       => 'pink',
             'icon'        => 'sumo',
@@ -80,7 +82,7 @@ class CesaHomeController extends Controller
         [
             'key'         => 'shelf',
             'name'        => 'Shelf',
-            'description' => 'Pengelolaan rak & inventori',
+            'description' => 'Pengelolaan aset & inventori',
             'url'         => 'https://shelf.completeselular.com/',
             'color'       => 'indigo',
             'icon'        => 'shelf',
@@ -98,10 +100,19 @@ class CesaHomeController extends Controller
         [
             'key'         => 'sam',
             'name'        => 'SAM',
-            'description' => 'Sistem Aktivasi & Monitoring',
-            'url'         => 'https://sam.mediaselularindonesia.com/',
+            'description' => 'Asisten Sales (Sales Assistant Mobile)',
+            'url'         => '/sam/redirect',
             'color'       => 'orange',
             'icon'        => 'sam',
+            'always_show' => true,
+        ],
+        [
+            'key'         => 'owncloud',
+            'name'        => 'Cloud',
+            'description' => 'Penyimpanan cloud internal',
+            'url'         => 'http://csa1.completeselular.com/owncloud/index.php/login',
+            'color'       => 'blue',
+            'icon'        => 'cloud',
             'always_show' => true,
         ],
     ];
@@ -123,5 +134,23 @@ class CesaHomeController extends Controller
         return view('cesa-home', [
             'apps' => $visibleApps,
         ]);
+    }
+
+    /**
+     * Redirect to the appropriate SAM link based on the user's device.
+     */
+    public function samRedirect(Request $request): RedirectResponse
+    {
+        $userAgent = $request->header('User-Agent', '');
+
+        if (preg_match('/android/i', $userAgent)) {
+            return redirect()->away(config('services.sam.playstore'));
+        }
+
+        if (preg_match('/(ipad|iphone|ipod)/i', $userAgent)) {
+            return redirect()->away(config('services.sam.testflight'));
+        }
+
+        return redirect()->away(config('services.sam.web'));
     }
 }

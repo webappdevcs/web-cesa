@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'sam' => [
+        'playstore'  => env('SAM_ANDROID_DOWNLOAD_URL', 'https://play.google.com/store/apps/details?id=com.mediaselularindonesia.sam'),
+        'testflight' => env('SAM_IOS_TESTFLIGHT_URL', 'https://testflight.apple.com/join/yMZWH4CT'),
+        'web'        => env('SAM_WEB_URL', 'https://sam.mediaselularindonesia.com/'),
+    ],
+
 ];

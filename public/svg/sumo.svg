@@ -1,25 +1,41 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" fill="white"/>
-<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" stroke="#DCE0E5"/>
+  <!-- Consistent CESA App Icon Card Container -->
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12.5" fill="white"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12.5" stroke="#DCE0E5"/>
 
-<!-- Phone Body (Blue) -->
-<rect x="20" y="12" width="24" height="40" rx="4" fill="#0070F2"/>
+  <!-- 1. Ruler (Yellow - Rotated -45deg) -->
+  <g transform="rotate(-45 32 32)">
+    <rect x="30" y="10" width="4" height="44" rx="0.5" fill="#FDB421"/>
+    <!-- Ruler markings -->
+    <line x1="30" y1="14" x2="32" y2="14" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="18" x2="33" y2="18" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="22" x2="32" y2="22" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="26" x2="33" y2="26" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="30" x2="32" y2="30" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="34" x2="33" y2="34" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="38" x2="32" y2="38" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="42" x2="33" y2="42" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="46" x2="32" y2="46" stroke="white" stroke-width="0.8"/>
+    <line x1="30" y1="50" x2="33" y2="50" stroke="white" stroke-width="0.8"/>
+  </g>
 
-<!-- Phone Screen (White) -->
-<rect x="22" y="15" width="20" height="34" rx="2.5" fill="white"/>
+  <!-- 2. Pencil (Orange - Rotated 45deg) -->
+  <g transform="rotate(45 32 32)">
+    <rect x="30" y="12" width="4" height="38" rx="0.5" fill="#FC5B1C"/>
+    <rect x="30" y="10" width="4" height="2" rx="0.5" fill="#FDB421"/>
+    <path d="M 30 50 L 32 53 L 34 50 Z" fill="#FDB421"/>
+    <path d="M 31 51.5 L 32 53 L 33 51.5 Z" fill="#111827"/>
+  </g>
 
-<!-- Speaker/Notch (Yellow) -->
-<rect x="29" y="13.5" width="6" height="1" rx="0.5" fill="#FDB421"/>
+  <!-- 3. Binder Clip (Foreground Center - Blue/Gold) -->
+  <!-- Wire Loops/Handles -->
+  <path d="M 28 36 L 28 22 C 28 19, 31 19, 31 22 L 31 36" stroke="#FDB421" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <path d="M 33 36 L 33 22 C 33 19, 36 19, 36 22 L 36 36" stroke="#FDB421" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Trapezoidal Clip Body -->
+  <path d="M 26 36 L 38 36 L 44 50 C 44 51.1 43.1 52 42 52 L 22 52 C 20.9 52 20 51.1 20 50 Z" fill="#0070F2"/>
+  <rect x="22" y="49" width="20" height="2.2" rx="1" fill="#DCE0E5"/>
 
-<!-- Document / Submission Page (Yellow) -->
-<rect x="25" y="19" width="14" height="16" rx="2" fill="#FDB421"/>
-<line x1="28" y1="23" x2="36" y2="23" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-<line x1="28" y1="26" x2="36" y2="26" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-<line x1="28" y1="29" x2="32" y2="29" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
-
-<!-- Action Submission Button (Orange) -->
-<circle cx="32" cy="40" r="6" fill="#FC5B1C"/>
-
-<!-- Upload Arrow (White) -->
-<path d="M 32 37 L 32 43 M 32 37 L 29 39 M 32 37 L 34 39" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 4. Approved Checkmark Badge (Orange) -->
+  <circle cx="43" cy="45" r="6" fill="#FC5B1C"/>
+  <path d="M 40.5 45 L 42 46.5 L 45.5 43.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>
