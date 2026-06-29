@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" dir="{{ $direction ?? 'ltr' }}">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,9 +14,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
-        html, body { height: 100%; }
+        html,
+        body {
+            height: 100%;
+        }
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -44,7 +54,8 @@
 
         .container {
             width: 100%;
-            max-width: 896px; /* max-w-4xl */
+            max-width: 896px;
+            /* max-w-4xl */
             margin: 0 auto;
             padding-left: 16px;
             padding-right: 16px;
@@ -149,7 +160,7 @@
             border-radius: 12px;
             padding: 20px 12px 16px;
             text-decoration: none;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
             transition: background-color 0.15s ease, border-color 0.15s ease;
             cursor: pointer;
         }
@@ -199,18 +210,53 @@
         }
 
         /* Icon color variants */
-        .ic-blue    { background: #2563EB; }
-        .ic-teal    { background: #0D9488; }
-        .ic-purple  { background: #7C3AED; }
-        .ic-pink    { background: #DB2777; }
-        .ic-green   { background: #16A34A; }
-        .ic-yellow  { background: #D97706; }
-        .ic-red     { background: #DC2626; }
-        .ic-slate   { background: #64748B; }
-        .ic-orange  { background: #EA580C; }
-        .ic-amber   { background: #CA8A04; }
-        .ic-indigo  { background: #4F46E5; }
-        .ic-navy    { background: #1E3A8A; }
+        .ic-blue {
+            background: #2563EB;
+        }
+
+        .ic-teal {
+            background: #0D9488;
+        }
+
+        .ic-purple {
+            background: #7C3AED;
+        }
+
+        .ic-pink {
+            background: #DB2777;
+        }
+
+        .ic-green {
+            background: #16A34A;
+        }
+
+        .ic-yellow {
+            background: #D97706;
+        }
+
+        .ic-red {
+            background: #DC2626;
+        }
+
+        .ic-slate {
+            background: #64748B;
+        }
+
+        .ic-orange {
+            background: #EA580C;
+        }
+
+        .ic-amber {
+            background: #CA8A04;
+        }
+
+        .ic-indigo {
+            background: #4F46E5;
+        }
+
+        .ic-navy {
+            background: #1E3A8A;
+        }
 
         /* ===== EMPTY STATE ===== */
         .empty-state {
@@ -219,7 +265,7 @@
             border-radius: 8px;
             padding: 48px 24px;
             text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
         }
 
         .empty-icon {
@@ -269,17 +315,44 @@
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 960px) {
-            .apps-grid { grid-template-columns: repeat(4, 1fr); }
+            .apps-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
         }
 
         @media (max-width: 640px) {
-            .apps-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
-            .app-card { padding: 16px 8px 12px; }
-            .app-card-icon { width: 44px; height: 44px; border-radius: 12px; }
-            .app-card-icon svg { width: 22px; height: 22px; }
-            .app-card-image { width: 44px; height: 44px; }
-            .app-card-name { font-size: 12px; }
-            .nav-brand-name { display: none; }
+            .apps-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 12px;
+            }
+
+            .app-card {
+                padding: 16px 8px 12px;
+            }
+
+            .app-card-icon {
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+            }
+
+            .app-card-icon svg {
+                width: 22px;
+                height: 22px;
+            }
+
+            .app-card-image {
+                width: 44px;
+                height: 44px;
+            }
+
+            .app-card-name {
+                font-size: 12px;
+            }
+
+            .nav-brand-name {
+                display: none;
+            }
         }
 
         /* ===== FLOATING WHATSAPP BUTTON (CIRCLE WIDGET) ===== */
@@ -328,9 +401,11 @@
             0% {
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
             }
+
             70% {
                 box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
             }
+
             100% {
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
             }
@@ -343,10 +418,12 @@
                 width: 48px;
                 height: 48px;
             }
+
             .whatsapp-btn svg {
                 width: 24px;
                 height: 24px;
             }
+
             .whatsapp-badge {
                 width: 10px;
                 height: 10px;
@@ -356,108 +433,116 @@
         }
     </style>
 </head>
+
 <body>
-<div class="page-wrapper">
+    <div class="page-wrapper">
 
-    <!-- HEADER -->
-    <header class="nav-bar">
-        <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
-            <a href="/" class="nav-brand">
-                @if(file_exists(public_path('images/logo.png')))
-                    <img src="{{ asset('images/logo.png') }}" alt="CESA" style="height:36px;width:auto;border-radius:8px;">
-                @else
-                    <div class="nav-brand-logo">C</div>
-                    <span class="nav-brand-name">CESA</span>
-                @endif
-            </a>
+        <!-- HEADER -->
+        <header class="nav-bar">
+            <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
+                <a href="/" class="nav-brand">
+                    @if(file_exists(public_path('images/logo.png')))
+                        <img src="{{ asset('images/logo.png') }}" alt="CESA"
+                            style="height:36px;width:auto;border-radius:8px;">
+                    @else
+                        <div class="nav-brand-logo">C</div>
+                        <span class="nav-brand-name">CESA</span>
+                    @endif
+                </a>
 
-            <div class="nav-actions">
-                @auth
-                    <a href="/admin" class="btn btn-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                            <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
-                        </svg>
-                        Dashboard
-                    </a>
-                @else
-                    <a href="/admin/login" class="btn btn-primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/>
-                        </svg>
-                        Masuk
-                    </a>
-                @endauth
-            </div>
-        </div>
-    </header>
-
-    <!-- MAIN (centered) -->
-    <main class="main-content">
-        <div class="container">
-            @if(count($apps) > 0)
-                <div class="apps-grid">
-                    @foreach($apps as $app)
-                        @php
-                            $isExternal = false;
-                            if (! empty($app['url'])) {
-                                $urlHost = parse_url($app['url'], PHP_URL_HOST);
-                                if ($urlHost && $urlHost !== request()->getHost()) {
-                                    $isExternal = true;
-                                }
-                                if ($app['key'] === 'sam') {
-                                    $isExternal = true;
-                                }
-                            }
-                        @endphp
-                        <a
-                            href="{{ $app['url'] }}"
-                            class="app-card"
-                            title="{{ $app['description'] }}"
-                            id="app-{{ $app['key'] }}"
-                            @if ($isExternal)
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            @endif
-                        >
-                            @if(file_exists(public_path('svg/' . $app['key'] . '.svg')))
-                                <img src="{{ asset('svg/' . $app['key'] . '.svg') }}" class="app-card-image" alt="{{ $app['name'] }}">
-                            @else
-                                <div class="app-card-icon ic-{{ $app['color'] }}">
-                                    @include('cesa-home-icons', ['icon' => $app['icon']])
-                                </div>
-                            @endif
-                            <span class="app-card-name">{{ $app['name'] }}</span>
+                <div class="nav-actions">
+                    @auth
+                        <a href="/admin" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7" rx="1" />
+                                <rect x="14" y="3" width="7" height="7" rx="1" />
+                                <rect x="14" y="14" width="7" height="7" rx="1" />
+                                <rect x="3" y="14" width="7" height="7" rx="1" />
+                            </svg>
+                            Dashboard
                         </a>
-                    @endforeach
+                    @else
+                        <a href="/admin/login" class="btn btn-primary">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                                <polyline points="10 17 15 12 10 7" />
+                                <line x1="15" y1="12" x2="3" y2="12" />
+                            </svg>
+                            Masuk
+                        </a>
+                    @endauth
                 </div>
-            @else
-                <div class="empty-state">
-                    <div class="empty-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
+            </div>
+        </header>
+
+        <!-- MAIN (centered) -->
+        <main class="main-content">
+            <div class="container">
+                @if(count($apps) > 0)
+                    <div class="apps-grid">
+                        @foreach($apps as $app)
+                            @php
+                                $isExternal = false;
+                                if (!empty($app['url'])) {
+                                    $urlHost = parse_url($app['url'], PHP_URL_HOST);
+                                    if ($urlHost && $urlHost !== request()->getHost()) {
+                                        $isExternal = true;
+                                    }
+                                    if ($app['key'] === 'sam') {
+                                        $isExternal = true;
+                                    }
+                                }
+                            @endphp
+                            <a href="{{ $app['url'] }}" class="app-card" title="{{ $app['description'] }}"
+                                id="app-{{ $app['key'] }}" @if ($isExternal) target="_blank" rel="noopener noreferrer" @endif>
+                                @if(file_exists(public_path('svg/' . $app['key'] . '.svg')))
+                                    <img src="{{ asset('svg/' . $app['key'] . '.svg') }}" class="app-card-image"
+                                        alt="{{ $app['name'] }}">
+                                @else
+                                    <div class="app-card-icon ic-{{ $app['color'] }}">
+                                        @include('cesa-home-icons', ['icon' => $app['icon']])
+                                    </div>
+                                @endif
+                                <span class="app-card-name">{{ $app['name'] }}</span>
+                            </a>
+                        @endforeach
                     </div>
-                    <p class="empty-title">Belum ada plugin aktif</p>
-                    <p class="empty-desc">Instal plugin CESA untuk menampilkan aplikasi di sini.</p>
-                    <a href="/admin/plugins" class="btn btn-primary">Kelola Plugin</a>
-                </div>
-            @endif
-        </div>
-    </main>
+                @else
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                        </div>
+                        <p class="empty-title">Belum ada plugin aktif</p>
+                        <p class="empty-desc">Instal plugin CESA untuk menampilkan aplikasi di sini.</p>
+                        <a href="/admin/plugins" class="btn btn-primary">Kelola Plugin</a>
+                    </div>
+                @endif
+            </div>
+        </main>
 
-    <!-- FOOTER -->
-    <footer class="footer">
-        <span class="footer-text">© {{ date('Y') }} IT Support — CESA</span>
-    </footer>
+        <!-- FOOTER -->
+        <footer class="footer">
+            <span class="footer-text">© {{ date('Y') }} IT Support — CESA</span>
+        </footer>
 
-    <!-- FLOATING WHATSAPP BUTTON -->
-    <a href="https://wa.me/{{ env('SUPPORT_WHATSAPP_NUMBER', '628112444444') }}" class="whatsapp-btn" target="_blank" rel="noopener noreferrer" title="Hubungi IT Assistant via WhatsApp">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" fill="#25D366"/>
-        </svg>
-        <div class="whatsapp-badge"></div>
-    </a>
-</div>
+        <!-- FLOATING WHATSAPP BUTTON -->
+        <a href="https://wa.me/6287815742597?text=halo%20saya%20butuh%20bantuan" class="whatsapp-btn" target="_blank"
+            rel="noopener noreferrer" title="Hubungi IT Assistant via WhatsApp">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path
+                    d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"
+                    fill="#25D366" />
+            </svg>
+            <div class="whatsapp-badge"></div>
+        </a>
+    </div>
 </body>
+
 </html>

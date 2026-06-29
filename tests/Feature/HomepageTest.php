@@ -9,7 +9,7 @@ test('homepage renders successfully and opens external links in a new tab', func
     $response->assertSee('href="https://helpdesk.completeselular.com/"', false);
     $response->assertSee('href="/sam/redirect"', false);
     $response->assertSee('href="http://csa1.completeselular.com/owncloud/index.php/login"', false);
-    $response->assertSee('href="https://wa.me/628112444444"', false);
+    $response->assertSee('href="https://wa.me/6287815742597?text=halo%20saya%20butuh%20bantuan"', false);
     $response->assertSee('target="_blank"', false);
     $response->assertSee('rel="noopener noreferrer"', false);
 
