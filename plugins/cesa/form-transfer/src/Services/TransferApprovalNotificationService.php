@@ -5,6 +5,7 @@ namespace Cesa\FormTransfer\Services;
 use Cesa\FormTransfer\Enums\TransferRequestApprovalStatus;
 use Cesa\FormTransfer\Enums\TransferRequestRealizationStatus;
 use Cesa\FormTransfer\Enums\TransferRequestSubmissionStatus;
+use App\Support\WhatsAppGatewayConfiguration;
 use Cesa\FormTransfer\Jobs\SendWhatsAppNotification;
 use Cesa\FormTransfer\Models\TransferRequest;
 use Cesa\FormTransfer\Notifications\ApprovalRequestNotification;
@@ -1018,48 +1019,17 @@ HTML;
             return;
         }
 
-        $endpoint = Arr::get($config, 'endpoint');
-        $apiKey = Arr::get($config, 'api_key');
-        $sender = Arr::get($config, 'sender');
-
-        $provider = strtolower(trim((string) Arr::get($config, 'provider', 'generic')));
-
-        $missing = [];
-
-        if (! $endpoint) {
-            $missing[] = 'endpoint';
-        }
-
-        if (! $apiKey) {
-            $missing[] = 'api_key';
-        }
-
-        if ($provider !== 'fonnte' && ! $sender) {
-            $missing[] = 'sender';
-        }
-
-        if ($missing !== []) {
-            Log::warning('FormTransfer WhatsApp notification skipped due to missing configuration.', [
-                'provider' => $provider,
-                'endpoint' => $endpoint,
-                'api_key'  => $apiKey ? 'configured' : 'missing',
-                'sender'   => $sender,
-                'missing'  => $missing,
-            ]);
+        if (! WhatsAppGatewayConfiguration::isConfigured()) {
+            Log::warning('FormTransfer WhatsApp notification skipped due to missing gateway configuration.');
 
             return;
         }
 
-        $timeout = (int) ($config['timeout'] ?? 10);
         $delaySeconds = app(WhatsAppThrottleService::class)->getDispatchDelaySeconds();
 
         $pendingDispatch = SendWhatsAppNotification::dispatch(
             $phone,
             $message,
-            $endpoint,
-            $apiKey,
-            (string) ($sender ?? ''),
-            $timeout,
         );
 
         if ($delaySeconds > 0) {

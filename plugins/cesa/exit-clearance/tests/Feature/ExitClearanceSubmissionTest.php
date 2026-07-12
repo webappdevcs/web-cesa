@@ -148,9 +148,6 @@ class ExitClearanceSubmissionTest extends ExitClearanceTestCase
         $whatsAppJob = new SendWhatsAppNotification(
             '628123456789',
             'Test message',
-            'https://example.com/whatsapp',
-            'test-api-key',
-            '628111111111'
         );
 
         $this->assertSame('notifications', config('exit-clearance.notifications.queue'));
@@ -163,60 +160,38 @@ class ExitClearanceSubmissionTest extends ExitClearanceTestCase
         $this->assertSame('whatsapp', $whatsAppJob->queue);
     }
 
-    public function test_exit_clearance_fonnte_job_uses_authorization_header_and_local_target(): void
+    public function test_exit_clearance_whatsapp_job_uses_gateway(): void
     {
-        config()->set('exit-clearance.notifications.whatsapp.provider', 'fonnte');
-        config()->set('exit-clearance.notifications.whatsapp.country_code', '62');
-
-        Http::fake([
-            'https://api.fonnte.com/send' => Http::response(['status' => true], 200),
-        ]);
+        $gateway = $this->createMock(\App\Services\WhatsAppGateway::class);
+        $gateway->expects($this->once())
+            ->method('send')
+            ->with('628123456789', 'Test message')
+            ->willReturn(true);
 
         $job = new SendWhatsAppNotification(
             '628123456789',
             'Test message',
-            'https://api.fonnte.com/send',
-            'test-token',
-            '',
         );
 
-        $job->handle();
-
-        Http::assertSent(function (HttpRequest $request): bool {
-            $body = $request->body();
-
-            return $request->url() === 'https://api.fonnte.com/send'
-                && $request->hasHeader('Authorization', 'test-token')
-                && str_contains($body, 'name="target"')
-                && str_contains($body, '08123456789')
-                && str_contains($body, 'name="countryCode"')
-                && str_contains($body, '62');
-        });
+        $job->handle($gateway);
     }
 
-    public function test_exit_clearance_fonnte_job_detects_uppercase_status_failures(): void
+    public function test_exit_clearance_whatsapp_job_throws_when_gateway_fails(): void
     {
-        config()->set('exit-clearance.notifications.whatsapp.provider', 'fonnte');
-
-        Http::fake([
-            'https://api.fonnte.com/send' => Http::response([
-                'Status' => false,
-                'reason' => 'token invalid',
-            ], 200),
-        ]);
+        $gateway = $this->createMock(\App\Services\WhatsAppGateway::class);
+        $gateway->expects($this->once())
+            ->method('send')
+            ->willReturn(false);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('token invalid');
+        $this->expectExceptionMessage('Failed to send WhatsApp notification.');
 
         $job = new SendWhatsAppNotification(
             '628123456789',
             'Test message',
-            'https://api.fonnte.com/send',
-            'test-token',
-            '',
         );
 
-        $job->handle();
+        $job->handle($gateway);
     }
 
     public function test_exit_clearance_whatsapp_messages_include_requester_progress_link(): void

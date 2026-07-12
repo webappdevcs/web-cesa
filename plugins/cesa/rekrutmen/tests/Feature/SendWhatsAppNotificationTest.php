@@ -2,73 +2,50 @@
 
 namespace Cesa\Rekrutmen\Tests\Feature;
 
+use App\Services\WhatsAppGateway;
 use Cesa\Rekrutmen\Enums\StatusKebutuhan;
 use Cesa\Rekrutmen\Jobs\SendWhatsAppNotification;
 use Cesa\Rekrutmen\Models\RequestManPower;
 use Cesa\Rekrutmen\Models\RequestManPowerApproval;
 use Cesa\Rekrutmen\Services\RequestManPowerApprovalWhatsAppNotifier;
 use Cesa\Rekrutmen\Tests\RekrutmenTestCase;
-use Illuminate\Http\Client\Request as HttpRequest;
-use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Webkul\Support\Models\Company;
 
 class SendWhatsAppNotificationTest extends RekrutmenTestCase
 {
-    public function test_rekrutmen_fonnte_job_uses_authorization_header_and_local_target(): void
+    public function test_rekrutmen_whatsapp_job_uses_gateway(): void
     {
-        config()->set('rekrutmen.notifications.whatsapp.provider', 'fonnte');
-        config()->set('rekrutmen.notifications.whatsapp.country_code', '62');
-
-        Http::fake([
-            'https://api.fonnte.com/send' => Http::response(['status' => true], 200),
-        ]);
-
-        $job = new SendWhatsAppNotification(
-            '+628123456789',
-            'Test message',
-            'https://api.fonnte.com/send',
-            'test-token',
-            '',
-        );
-
-        $job->handle();
-
-        Http::assertSent(function (HttpRequest $request): bool {
-            $body = $request->body();
-
-            return $request->url() === 'https://api.fonnte.com/send'
-                && $request->hasHeader('Authorization', 'test-token')
-                && str_contains($body, 'name="target"')
-                && str_contains($body, '08123456789')
-                && str_contains($body, 'name="countryCode"')
-                && str_contains($body, '62');
-        });
-    }
-
-    public function test_rekrutmen_fonnte_job_detects_uppercase_status_failures(): void
-    {
-        config()->set('rekrutmen.notifications.whatsapp.provider', 'fonnte');
-
-        Http::fake([
-            'https://api.fonnte.com/send' => Http::response([
-                'Status' => false,
-                'reason' => 'token invalid',
-            ], 200),
-        ]);
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('token invalid');
+        $gateway = $this->createMock(WhatsAppGateway::class);
+        $gateway->expects($this->once())
+            ->method('send')
+            ->with('628123456789', 'Test message')
+            ->willReturn(true);
 
         $job = new SendWhatsAppNotification(
             '628123456789',
             'Test message',
-            'https://api.fonnte.com/send',
-            'test-token',
-            '',
         );
 
-        $job->handle();
+        $job->handle($gateway);
+    }
+
+    public function test_rekrutmen_whatsapp_job_throws_when_gateway_fails(): void
+    {
+        $gateway = $this->createMock(WhatsAppGateway::class);
+        $gateway->expects($this->once())
+            ->method('send')
+            ->willReturn(false);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Failed to send WhatsApp notification.');
+
+        $job = new SendWhatsAppNotification(
+            '628123456789',
+            'Test message',
+        );
+
+        $job->handle($gateway);
     }
 
     public function test_rekrutmen_whatsapp_message_uses_professional_consistent_copy_without_progress(): void

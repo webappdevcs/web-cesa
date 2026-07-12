@@ -45,9 +45,7 @@ class PublicRequestManPowerApprovalPageTest extends RekrutmenTestCase
         Queue::fake();
 
         config()->set('rekrutmen.notifications.whatsapp.enabled', true);
-        config()->set('rekrutmen.notifications.whatsapp.provider', 'fonnte');
-        config()->set('rekrutmen.notifications.whatsapp.endpoint', 'https://example.com/whatsapp');
-        config()->set('rekrutmen.notifications.whatsapp.api_key', 'test-api-key');
+        config()->set('services.whatsapp_gateway.waha.base_url', 'http://waha.local');
         config()->set('rekrutmen.notifications.whatsapp.queue', 'whatsapp');
 
         RekrutmenPipeline::query()->create([
@@ -155,9 +153,7 @@ class PublicRequestManPowerApprovalPageTest extends RekrutmenTestCase
             'key'                  => 'mail-resend-'.Str::uuid(),
         ]);
         config()->set('rekrutmen.notifications.whatsapp.enabled', true);
-        config()->set('rekrutmen.notifications.whatsapp.provider', 'fonnte');
-        config()->set('rekrutmen.notifications.whatsapp.endpoint', 'https://example.com/whatsapp');
-        config()->set('rekrutmen.notifications.whatsapp.api_key', 'test-api-key');
+        config()->set('services.whatsapp_gateway.waha.base_url', 'http://waha.local');
         config()->set('rekrutmen.notifications.whatsapp.queue', 'whatsapp');
         config()->set('rekrutmen.notifications.whatsapp.throttle', [
             'enabled'              => true,

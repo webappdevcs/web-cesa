@@ -2,6 +2,7 @@
 
 namespace Cesa\Rekrutmen\Services;
 
+use App\Support\WhatsAppGatewayConfiguration;
 use Cesa\Rekrutmen\Jobs\SendWhatsAppNotification;
 use Cesa\Rekrutmen\Models\RequestManPower;
 use Cesa\Rekrutmen\Models\RequestManPowerApproval;
@@ -26,19 +27,8 @@ class RequestManPowerApprovalWhatsAppNotifier
             return;
         }
 
-        $endpoint = Arr::get($config, 'endpoint');
-        $apiKey = Arr::get($config, 'api_key');
-        $sender = Arr::get($config, 'sender');
-        $provider = strtolower(trim((string) Arr::get($config, 'provider', 'generic')));
-        $requiresSender = $provider !== 'fonnte';
-
-        if (! $endpoint || ! $apiKey || ($requiresSender && ! $sender)) {
-            Log::warning('Recruitment WhatsApp approval notification skipped due to missing configuration.', [
-                'provider' => $provider,
-                'endpoint' => $endpoint,
-                'api_key'  => $apiKey ? 'configured' : 'missing',
-                'sender'   => $sender,
-            ]);
+        if (! WhatsAppGatewayConfiguration::isConfigured()) {
+            Log::warning('Recruitment WhatsApp approval notification skipped due to missing gateway configuration.');
 
             return;
         }
@@ -55,16 +45,11 @@ class RequestManPowerApprovalWhatsAppNotifier
         }
 
         $message = $this->buildApprovalRequestMessage($requestManPower, $approval);
-        $timeout = (int) ($config['timeout'] ?? 10);
         $delaySeconds = app(WhatsAppThrottleService::class)->getDispatchDelaySeconds();
 
         $pendingDispatch = SendWhatsAppNotification::dispatch(
             $formattedPhone,
             $message,
-            $endpoint,
-            $apiKey,
-            (string) ($sender ?? ''),
-            $timeout,
         );
 
         if ($delaySeconds > 0) {

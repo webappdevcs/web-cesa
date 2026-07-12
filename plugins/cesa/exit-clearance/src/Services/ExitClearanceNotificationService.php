@@ -2,6 +2,7 @@
 
 namespace Cesa\ExitClearance\Services;
 
+use App\Support\WhatsAppGatewayConfiguration;
 use Cesa\ExitClearance\Jobs\SendWhatsAppNotification;
 use Cesa\ExitClearance\Models\Approver;
 use Cesa\ExitClearance\Models\Request;
@@ -220,20 +221,8 @@ class ExitClearanceNotificationService
             return;
         }
 
-        $endpoint = Arr::get($config, 'endpoint');
-        $apiKey = Arr::get($config, 'api_key');
-        $sender = Arr::get($config, 'sender');
-
-        $provider = strtolower(trim((string) Arr::get($config, 'provider', 'generic')));
-        $requiresSender = $provider !== 'fonnte';
-
-        if (! $endpoint || ! $apiKey || ($requiresSender && ! $sender)) {
-            Log::warning('Exit clearance WhatsApp notification skipped due to missing configuration.', [
-                'provider' => $provider,
-                'endpoint' => $endpoint,
-                'api_key'  => $apiKey ? 'configured' : 'missing',
-                'sender'   => $sender,
-            ]);
+        if (! WhatsAppGatewayConfiguration::isConfigured()) {
+            Log::warning('Exit clearance WhatsApp notification skipped due to missing gateway configuration.');
 
             return;
         }
@@ -248,16 +237,11 @@ class ExitClearanceNotificationService
             return;
         }
 
-        $timeout = (int) ($config['timeout'] ?? 10);
         $delaySeconds = app(WhatsAppThrottleService::class)->getDispatchDelaySeconds();
 
         $pendingDispatch = SendWhatsAppNotification::dispatch(
             $formattedPhone,
             $message,
-            $endpoint,
-            $apiKey,
-            (string) ($sender ?? ''),
-            $timeout,
         );
 
         if ($delaySeconds > 0) {

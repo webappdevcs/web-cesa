@@ -34,7 +34,7 @@ class WhatsAppThrottleService
             $maxIntervalSeconds = $minIntervalSeconds;
         }
 
-        $provider = strtolower(trim((string) config('form-transfer.notifications.whatsapp.provider', 'generic')));
+        $provider = strtolower(trim((string) config('services.whatsapp_gateway.provider', 'waha')));
         $key = (string) Arr::get($config, 'key', 'global');
 
         $stateKey = sprintf('notifications:whatsapp:throttle:%s:%s:next_at', $provider, $key);

@@ -1,27 +1,21 @@
-<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" fill="white"/>
-<rect x="0.5" y="0.5" width="63" height="63" rx="12.5" stroke="#DCE0E5"/>
-
-<!-- Clipboard Board (Blue) -->
-<rect x="18" y="14" width="28" height="38" rx="2" fill="#0070F2"/>
-
-<!-- Clip (Yellow) -->
-<rect x="26" y="10" width="12" height="6" rx="1.5" fill="#FDB421"/>
-
-<!-- Paper Sheet (White) -->
-<rect x="21" y="19" width="22" height="30" rx="1" fill="white"/>
-
-<!-- Checklist Item 1 -->
-<rect x="24" y="24" width="5" height="5" rx="1" fill="#FC5B1C"/>
-<path d="M 25 26.5 L 26 27.5 L 28 25" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="31" y="25" width="9" height="3" rx="1" fill="#0070F2"/>
-
-<!-- Checklist Item 2 -->
-<rect x="24" y="32" width="5" height="5" rx="1" fill="#FC5B1C"/>
-<path d="M 25 34.5 L 26 35.5 L 28 33" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-<rect x="31" y="33" width="9" height="3" rx="1" fill="#0070F2"/>
-
-<!-- Checklist Item 3 -->
-<rect x="24" y="40" width="5" height="5" rx="1" stroke="#DCE0E5" stroke-width="1.5" fill="none"/>
-<rect x="31" y="41" width="7" height="3" rx="1" fill="#DCE0E5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+    <rect width="512" height="512" rx="108" fill="#9333EA"/>
+    <defs>
+        <!-- Mask potongan celah horizontal agar DnD memiliki efek susunan balok horizontal (slats) 
+             yang 100% senada/sekeluarga dengan Logo H (Oranye) dan Logo S (Biru) -->
+        <mask id="slates">
+            <rect width="512" height="512" fill="#FFFFFF"/>
+            <rect x="50" y="172" width="412" height="14" fill="#000000"/>
+            <rect x="50" y="248" width="412" height="14" fill="#000000"/>
+            <rect x="50" y="324" width="412" height="14" fill="#000000"/>
+        </mask>
+    </defs>
+    <g fill="#FFFFFF" fill-rule="evenodd" mask="url(#slates)">
+        <!-- Left D (DO) -->
+        <path d="M 70 112 L 216 88 L 216 400 L 70 424 Z M 118 152 V 360 H 172 V 152 Z"/>
+        <!-- Middle n (AND) -->
+        <path d="M 230 214 H 282 V 360 H 264 V 252 H 248 V 360 H 230 Z"/>
+        <!-- Right D (DONE) -->
+        <path d="M 296 112 L 442 88 L 442 400 L 296 424 Z M 344 152 V 360 H 398 V 152 Z"/>
+    </g>
 </svg>
