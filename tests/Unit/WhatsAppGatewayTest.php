@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\WhatsAppGateway;
+use App\Support\WhatsAppGatewayConfiguration;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -51,6 +52,16 @@ class WhatsAppGatewayTest extends TestCase
         $this->assertSame('notification', $payload['purpose']);
         $this->assertSame('async', $payload['mode']);
         $this->assertSame('web-cesa-messages', $payload['route_key']);
+    }
+
+    public function test_gateway_hub_credentials_enable_whatsapp_notifications(): void
+    {
+        config()->set('services.whatsapp_gateway.waha.base_url');
+        config()->set('services.whatsapp_gateway.fonnte.token');
+        config()->set('services.whatsapp_gateway.gateway_hub.endpoint', 'https://gateway-hub.test/api/v1/messages');
+        config()->set('services.whatsapp_gateway.gateway_hub.token', 'web-cesa-token');
+
+        $this->assertTrue(WhatsAppGatewayConfiguration::isConfigured());
     }
 
     public function test_it_sends_whatsapp_message_via_waha_by_default(): void
