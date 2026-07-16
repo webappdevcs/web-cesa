@@ -42,23 +42,29 @@ return [
     ],
 
     'whatsapp_gateway' => [
-        'provider' => env('WHATSAPP_GATEWAY_PROVIDER', env('WHATSAPP_PROVIDER', 'waha')),
+        'provider'          => env('WHATSAPP_GATEWAY_PROVIDER', 'gateway_hub'),
         'fallback_provider' => env('WHATSAPP_GATEWAY_FALLBACK_PROVIDER', 'fonnte'),
-        'fallback_enabled' => env('WHATSAPP_GATEWAY_FALLBACK_ENABLED', true),
+        'fallback_enabled'  => env('WHATSAPP_GATEWAY_FALLBACK_ENABLED', true),
+        'gateway_hub'       => [
+            'endpoint'  => env('WHATSAPP_GATEWAY_HUB_ENDPOINT'),
+            'token'     => env('WHATSAPP_GATEWAY_HUB_TOKEN'),
+            'route_key' => env('WHATSAPP_GATEWAY_HUB_ROUTE_KEY', 'web-cesa-messages'),
+            'mode'      => env('WHATSAPP_GATEWAY_HUB_MODE', 'async'),
+        ],
         'waha' => [
             'base_url' => env('WHATSAPP_GATEWAY_WAHA_BASE_URL', env('WAHA_API_ENDPOINT', env('WAHA_BASE_URL', 'http://localhost:3000'))),
-            'api_key' => env('WHATSAPP_GATEWAY_WAHA_API_KEY', env('WAHA_API_KEY')),
-            'session' => env('WHATSAPP_GATEWAY_WAHA_SESSION', env('WAHA_SESSION', 'default')),
+            'api_key'  => env('WHATSAPP_GATEWAY_WAHA_API_KEY', env('WAHA_API_KEY')),
+            'session'  => env('WHATSAPP_GATEWAY_WAHA_SESSION', env('WAHA_SESSION', 'default')),
         ],
         'fonnte' => [
             'endpoint' => env('WHATSAPP_GATEWAY_FONNTE_ENDPOINT', env('FONNTE_API_ENDPOINT', env('FONNTE_ENDPOINT', env('WHATSAPP_API_ENDPOINT', 'https://api.fonnte.com/send')))),
-            'token' => env('WHATSAPP_GATEWAY_FONNTE_TOKEN', env('FONNTE_TOKEN', env('WHATSAPP_API_KEY'))),
+            'token'    => env('WHATSAPP_GATEWAY_FONNTE_TOKEN', env('FONNTE_TOKEN', env('WHATSAPP_API_KEY'))),
         ],
-        'country_code' => env('WHATSAPP_GATEWAY_COUNTRY_CODE', env('WHATSAPP_COUNTRY_CODE', env('FONNTE_COUNTRY_CODE', '62'))),
-        'timeout' => env('WHATSAPP_GATEWAY_TIMEOUT', env('WHATSAPP_TIMEOUT', 15)),
+        'country_code'              => env('WHATSAPP_GATEWAY_COUNTRY_CODE', env('WHATSAPP_COUNTRY_CODE', env('FONNTE_COUNTRY_CODE', '62'))),
+        'timeout'                   => env('WHATSAPP_GATEWAY_TIMEOUT', env('WHATSAPP_TIMEOUT', 15)),
         'min_seconds_between_sends' => env('WHATSAPP_GATEWAY_MIN_SECONDS_BETWEEN_SENDS', env('WHATSAPP_THROTTLE_MIN_INTERVAL', 3)),
-        'min_digits' => env('WHATSAPP_GATEWAY_MIN_DIGITS', 10),
-        'max_digits' => env('WHATSAPP_GATEWAY_MAX_DIGITS', 15),
+        'min_digits'                => env('WHATSAPP_GATEWAY_MIN_DIGITS', 10),
+        'max_digits'                => env('WHATSAPP_GATEWAY_MAX_DIGITS', 15),
     ],
 
 ];

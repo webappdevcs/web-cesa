@@ -5,6 +5,7 @@ namespace App\Services;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class WhatsAppGateway
 {
@@ -31,9 +32,10 @@ class WhatsAppGateway
 
         foreach ($providers as $index => $provider) {
             $sent = match ($provider) {
-                'waha' => $this->sendViaWaha($target, $message),
-                'fonnte' => $this->sendViaFonnte($target, $message),
-                default => false,
+                'gateway_hub' => $this->sendViaGatewayHub($target, $message),
+                'waha'        => $this->sendViaWaha($target, $message),
+                'fonnte'      => $this->sendViaFonnte($target, $message),
+                default       => false,
             };
 
             if ($sent) {
@@ -100,7 +102,7 @@ class WhatsAppGateway
 
     private function resolveProviders(): array
     {
-        $primary = (string) config('services.whatsapp_gateway.provider', 'waha');
+        $primary = (string) config('services.whatsapp_gateway.provider', 'gateway_hub');
         $fallback = config('services.whatsapp_gateway.fallback_provider');
         $fallbackEnabled = (bool) config('services.whatsapp_gateway.fallback_enabled', true);
 
@@ -118,6 +120,71 @@ class WhatsAppGateway
         return array_values(array_unique($providers));
     }
 
+    private function sendViaGatewayHub(string $target, string $message): bool
+    {
+        $endpoint = config('services.whatsapp_gateway.gateway_hub.endpoint');
+        $token = config('services.whatsapp_gateway.gateway_hub.token');
+
+        if (! is_string($endpoint) || trim($endpoint) === '' || ! is_string($token) || trim($token) === '') {
+            Log::error('Konfigurasi Gateway Hub untuk WhatsApp belum lengkap.');
+
+            return false;
+        }
+
+        $requestId = 'web-cesa:message:'.Str::uuid();
+
+        try {
+            $response = $this->client()->post($endpoint, [
+                'http_errors' => false,
+                'headers'     => [
+                    'Accept'           => 'application/json',
+                    'Authorization'    => 'Bearer '.$token,
+                    'Content-Type'     => 'application/json',
+                    'Idempotency-Key'  => (string) Str::uuid(),
+                    'X-Correlation-ID' => $requestId,
+                ],
+                'json' => [
+                    'recipient' => [
+                        'type'  => 'phone',
+                        'value' => $target,
+                    ],
+                    'message' => [
+                        'type' => 'text',
+                        'text' => $message,
+                    ],
+                    'purpose'   => 'notification',
+                    'mode'      => (string) config('services.whatsapp_gateway.gateway_hub.mode', 'async'),
+                    'route_key' => (string) config('services.whatsapp_gateway.gateway_hub.route_key', 'web-cesa-messages'),
+                ],
+            ]);
+
+            $body = (string) $response->getBody();
+            $statusCode = $response->getStatusCode();
+
+            if ($statusCode >= 200 && $statusCode < 300) {
+                return true;
+            }
+
+            $payload = json_decode($body, true);
+
+            Log::error('Gagal mengirim pesan WhatsApp melalui Gateway Hub.', [
+                'receiver'   => $target,
+                'status'     => $statusCode,
+                'request_id' => is_array($payload) ? ($payload['request_id'] ?? $requestId) : $requestId,
+                'error_code' => is_array($payload) ? ($payload['error']['code'] ?? null) : null,
+            ]);
+
+            return false;
+        } catch (\Throwable $exception) {
+            Log::error('Gagal mengirim pesan WhatsApp melalui Gateway Hub: '.$exception->getMessage(), [
+                'receiver'   => $target,
+                'request_id' => $requestId,
+            ]);
+
+            return false;
+        }
+    }
+
     private function sendViaWaha(string $target, string $message): bool
     {
         $baseUrl = config('services.whatsapp_gateway.waha.base_url');
@@ -129,7 +196,7 @@ class WhatsAppGateway
         }
 
         $headers = [
-            'Accept' => 'application/json',
+            'Accept'       => 'application/json',
             'Content-Type' => 'application/json',
         ];
 
@@ -142,11 +209,11 @@ class WhatsAppGateway
         try {
             $response = $this->client()->post(rtrim($baseUrl, '/').'/api/sendText', [
                 'http_errors' => false,
-                'headers' => $headers,
-                'json' => [
+                'headers'     => $headers,
+                'json'        => [
                     'session' => (string) config('services.whatsapp_gateway.waha.session', 'default'),
-                    'chatId' => $this->toWahaChatId($target),
-                    'text' => $message,
+                    'chatId'  => $this->toWahaChatId($target),
+                    'text'    => $message,
                 ],
             ]);
 
@@ -159,8 +226,8 @@ class WhatsAppGateway
 
             Log::error('Gagal mengirim pesan WhatsApp via WAHA.', [
                 'receiver' => $target,
-                'status' => $statusCode,
-                'body' => mb_substr($body, 0, 1000),
+                'status'   => $statusCode,
+                'body'     => mb_substr($body, 0, 1000),
             ]);
 
             return false;
@@ -194,20 +261,20 @@ class WhatsAppGateway
         try {
             $response = $this->client()->post($endpoint, [
                 'http_errors' => false,
-                'headers' => [
+                'headers'     => [
                     'Authorization' => $token,
                 ],
                 'multipart' => [
                     [
-                        'name' => 'target',
+                        'name'     => 'target',
                         'contents' => $target,
                     ],
                     [
-                        'name' => 'message',
+                        'name'     => 'message',
                         'contents' => $message,
                     ],
                     [
-                        'name' => 'countryCode',
+                        'name'     => 'countryCode',
                         'contents' => (string) config('services.whatsapp_gateway.country_code', '62'),
                     ],
                 ],
@@ -218,8 +285,8 @@ class WhatsAppGateway
             if ($response->getStatusCode() < 200 || $response->getStatusCode() >= 300) {
                 Log::error('Gagal mengirim pesan WhatsApp via Fonnte.', [
                     'receiver' => $target,
-                    'status' => $response->getStatusCode(),
-                    'body' => mb_substr($body, 0, 1000),
+                    'status'   => $response->getStatusCode(),
+                    'body'     => mb_substr($body, 0, 1000),
                 ]);
 
                 return false;
@@ -231,7 +298,7 @@ class WhatsAppGateway
             if ($status === false || $status === 'false' || $status === 0 || $status === '0') {
                 Log::error('Gagal mengirim pesan WhatsApp via Fonnte.', [
                     'receiver' => $target,
-                    'reason' => is_array($payload) ? ($payload['reason'] ?? $payload['detail'] ?? $body) : $body,
+                    'reason'   => is_array($payload) ? ($payload['reason'] ?? $payload['detail'] ?? $body) : $body,
                 ]);
 
                 return false;
