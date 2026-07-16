@@ -22,6 +22,37 @@ class WhatsAppGatewayTest extends TestCase
         config()->set('services.whatsapp_gateway.fallback_enabled', false);
     }
 
+    public function test_it_sends_application_messages_through_gateway_hub(): void
+    {
+        config()->set('services.whatsapp_gateway.provider', 'gateway_hub');
+        config()->set('services.whatsapp_gateway.gateway_hub.endpoint', 'https://gateway-hub.test/api/v1/messages');
+        config()->set('services.whatsapp_gateway.gateway_hub.token', 'web-cesa-token');
+        config()->set('services.whatsapp_gateway.gateway_hub.route_key', 'web-cesa-messages');
+
+        $history = [];
+        $client = $this->clientWithResponses([
+            new Response(202, [], '{"data":{"id":"message-id","status":"queued"}}'),
+        ], $history);
+
+        $gateway = new WhatsAppGateway($client);
+
+        $this->assertTrue($gateway->send('081234567890', 'Halo dari Exit Clearance'));
+        $this->assertCount(1, $history);
+
+        $request = $history[0]['request'];
+        $payload = json_decode((string) $request->getBody(), true);
+
+        $this->assertSame('https://gateway-hub.test/api/v1/messages', (string) $request->getUri());
+        $this->assertSame('Bearer web-cesa-token', $request->getHeaderLine('Authorization'));
+        $this->assertNotSame('', $request->getHeaderLine('Idempotency-Key'));
+        $this->assertStringStartsWith('web-cesa:message:', $request->getHeaderLine('X-Correlation-ID'));
+        $this->assertSame(['type' => 'phone', 'value' => '6281234567890'], $payload['recipient']);
+        $this->assertSame(['type' => 'text', 'text' => 'Halo dari Exit Clearance'], $payload['message']);
+        $this->assertSame('notification', $payload['purpose']);
+        $this->assertSame('async', $payload['mode']);
+        $this->assertSame('web-cesa-messages', $payload['route_key']);
+    }
+
     public function test_it_sends_whatsapp_message_via_waha_by_default(): void
     {
         config()->set('services.whatsapp_gateway.provider', 'waha');
