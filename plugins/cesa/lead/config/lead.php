@@ -29,9 +29,10 @@ return [
 
     'whatsapp_validation' => [
         'enabled'               => env('WHATSAPP_ENABLED', false),
-        'provider'              => env('WHATSAPP_PROVIDER', 'fonnte'),
-        'endpoint'              => env('WHATSAPP_VALIDATION_ENDPOINT', 'https://api.fonnte.com/validate'),
-        'token'                 => env('WHATSAPP_API_KEY'),
+        'provider'              => env('LEAD_WHATSAPP_VALIDATION_PROVIDER', 'gateway_hub'),
+        'endpoint'              => env('LEAD_WHATSAPP_VALIDATION_ENDPOINT', env('WHATSAPP_VALIDATION_ENDPOINT')),
+        'token'                 => env('LEAD_WHATSAPP_VALIDATION_TOKEN', env('WHATSAPP_API_KEY')),
+        'route_key'             => env('LEAD_WHATSAPP_VALIDATION_ROUTE_KEY', 'lead-number-check'),
         'country_code'          => env('WHATSAPP_COUNTRY_CODE', '62'),
         'timeout'               => (int) env('WHATSAPP_VALIDATION_TIMEOUT', 5),
         'cache_ttl'             => (int) env('WHATSAPP_VALIDATION_CACHE_TTL', 300),
