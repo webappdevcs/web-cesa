@@ -184,6 +184,48 @@ class PublicLeadSubmissionTest extends TestCase
             ->assertHasNoErrors(['data.phone']);
     }
 
+    public function test_public_lead_checks_whatsapp_number_through_gateway_hub(): void
+    {
+        config([
+            'lead.whatsapp_validation.enabled'                 => true,
+            'lead.whatsapp_validation.provider'                => 'gateway_hub',
+            'lead.whatsapp_validation.endpoint'                => 'https://gateway-hub.test/api/v1/number-checks',
+            'lead.whatsapp_validation.token'                   => 'gateway-token',
+            'lead.whatsapp_validation.route_key'               => 'lead-number-check',
+            'lead.whatsapp_validation.allow_manual_fallback'   => false,
+            'lead.whatsapp_validation.rate_limit.max_attempts' => 0,
+            'lead.whatsapp_validation.rate_limit.decay'        => 0,
+        ]);
+
+        Http::fake([
+            'gateway-hub.test/api/v1/number-checks' => Http::response([
+                'data' => [
+                    'id'         => '019f695c-93db-71d4-a8e1-c7488a70fb67',
+                    'status'     => 'registered',
+                    'registered' => true,
+                ],
+                'request_id' => 'web-cesa:lead:public:test',
+            ]),
+        ]);
+
+        Livewire::test(PublicLeadForm::class)
+            ->set('data.phone', '08123456789')
+            ->call('checkWhatsAppValidation')
+            ->assertSet('whatsappValidationStatus', 'success')
+            ->assertHasNoErrors(['data.phone']);
+
+        Http::assertSent(function ($request): bool {
+            return $request->url() === 'https://gateway-hub.test/api/v1/number-checks'
+                && $request->hasHeader('Authorization', 'Bearer gateway-token')
+                && str_starts_with($request->header('X-Correlation-ID')[0] ?? '', 'web-cesa:lead:public:')
+                && $request['recipient'] === [
+                    'type'  => 'phone',
+                    'value' => '628123456789',
+                ]
+                && $request['route_key'] === 'lead-number-check';
+        });
+    }
+
     public function test_whatsapp_validation_gates_follow_up_fields_and_submit_until_registered(): void
     {
         config([
