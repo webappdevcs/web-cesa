@@ -34,6 +34,7 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
 
         $this->assertDatabaseHas('legacy_sync_mappings', [
             'connection_name' => 'legacy_sync',
+            'source_database' => $this->legacyDatabasePath,
             'legacy_table'    => 'documents',
             'legacy_id'       => '90',
             'target_table'    => 'documents',
@@ -70,6 +71,32 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
             'form_uid'    => 'EXC-00001',
             'form_status' => 'Approved',
         ]);
+    }
+
+    public function test_mapping_identity_is_scoped_by_source_database(): void
+    {
+        $timestamp = now();
+
+        foreach (['app_cesa', 'app_lead'] as $sourceDatabase) {
+            DB::table('legacy_sync_mappings')->insert([
+                'connection_name' => 'legacy_sync',
+                'source_database' => $sourceDatabase,
+                'legacy_table'    => 'users',
+                'legacy_id'       => '10',
+                'target_table'    => 'users',
+                'target_id'       => $sourceDatabase === 'app_cesa' ? 100 : 200,
+                'synced_at'       => $timestamp,
+                'created_at'      => $timestamp,
+                'updated_at'      => $timestamp,
+            ]);
+        }
+
+        $this->assertSame(2, DB::table('legacy_sync_mappings')
+            ->where('connection_name', 'legacy_sync')
+            ->where('legacy_table', 'users')
+            ->where('legacy_id', '10')
+            ->where('target_table', 'users')
+            ->count());
     }
 
     public function test_document_fallback_title_stays_locale_independent(): void
@@ -438,7 +465,10 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
         Schema::drop('legacy_sync_mappings');
 
         DB::table('migrations')
-            ->where('migration', '2026_03_12_004250_create_legacy_sync_mappings_table')
+            ->whereIn('migration', [
+                '2026_03_12_004250_create_legacy_sync_mappings_table',
+                '2026_07_19_000001_add_source_database_to_legacy_sync_mappings_table',
+            ])
             ->delete();
 
         $this->assertFalse(Schema::hasTable('legacy_sync_mappings'));
@@ -449,6 +479,7 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
         ])->assertExitCode(0);
 
         $this->assertTrue(Schema::hasTable('legacy_sync_mappings'));
+        $this->assertTrue(Schema::hasColumn('legacy_sync_mappings', 'source_database'));
 
         $this->assertDatabaseHas('legacy_sync_mappings', [
             'connection_name' => 'legacy_sync',
@@ -1099,6 +1130,7 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
 
         DB::table('legacy_sync_mappings')->insert([
             'connection_name' => 'legacy_sync',
+            'source_database' => '__legacy_unscoped__',
             'legacy_table'    => 'companies',
             'legacy_id'       => '50',
             'target_table'    => 'companies',
