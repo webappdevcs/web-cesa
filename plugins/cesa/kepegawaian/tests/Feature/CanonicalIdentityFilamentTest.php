@@ -6,8 +6,10 @@ use Cesa\Kepegawaian\Filament\Resources\EmployeeResource;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\RelationManagers\EmployeeIdentifierRelationManager;
 use Cesa\Kepegawaian\Models\EmployeeIdentifier;
 use Cesa\Kepegawaian\Policies\EmployeeIdentifierPolicy;
+use Cesa\Kepegawaian\Policies\EmployeePolicy;
 use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;
+use Webkul\Security\Models\User;
 
 class CanonicalIdentityFilamentTest extends TestCase
 {
@@ -47,5 +49,24 @@ class CanonicalIdentityFilamentTest extends TestCase
                 $create
             );
         }
+    }
+
+    public function test_canonical_employees_cannot_be_permanently_deleted(): void
+    {
+        $user = new class extends User
+        {
+            public function can($ability, $arguments = []): bool
+            {
+                return true;
+            }
+        };
+
+        $this->assertFalse((new EmployeePolicy)->forceDeleteAny($user));
+
+        $shield = require base_path('plugins/cesa/kepegawaian/config/filament-shield.php');
+        $permissions = $shield['resources']['manage'][EmployeeResource::class];
+
+        $this->assertNotContains('force_delete', $permissions);
+        $this->assertNotContains('force_delete_any', $permissions);
     }
 }
