@@ -72,11 +72,7 @@ class EmployeePolicy
      */
     public function forceDelete(User $user, Employee $employee): bool
     {
-        if (! $user->can('force_delete_kepegawaian_employee')) {
-            return false;
-        }
-
-        return $this->hasAccess($user, $employee, 'coach');
+        return false;
     }
 
     /**
@@ -84,7 +80,7 @@ class EmployeePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_kepegawaian_employee');
+        return false;
     }
 
     /**

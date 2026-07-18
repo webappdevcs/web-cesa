@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use LogicException;
 use Webkul\Security\Models\User;
@@ -63,6 +64,10 @@ class EmployeeIdentifier extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (self $identifier): void {
+            $identifier->creator_id ??= Auth::id();
+        });
+
         static::saving(function (self $identifier): void {
             $identifier->source_system = self::normalizeKey($identifier->source_system);
             $identifier->source_instance = self::normalizeKey($identifier->source_instance);

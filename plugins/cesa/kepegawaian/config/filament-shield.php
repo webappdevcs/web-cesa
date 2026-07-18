@@ -13,6 +13,7 @@ use Cesa\Kepegawaian\Filament\Resources\EmployeeResource;
 
 $permissions = [
     'BASIC'       => ['view_any', 'view', 'create', 'update', 'delete', 'delete_any'],
+    'CANONICAL'   => ['view_any', 'view', 'create', 'update', 'delete', 'delete_any', 'restore', 'restore_any'],
     'REORDER'     => ['view_any', 'view', 'create', 'update', 'delete', 'delete_any', 'reorder'],
     'SOFT_DELETE' => ['view_any', 'view', 'create', 'update', 'delete', 'delete_any', 'restore', 'force_delete', 'force_delete_any', 'restore_any'],
     'FULL'        => ['view_any', 'view', 'create', 'update', 'delete', 'delete_any', 'restore', 'force_delete', 'force_delete_any', 'restore_any', 'reorder'],
@@ -21,7 +22,7 @@ $permissions = [
 return [
     'resources' => [
         'manage' => [
-            EmployeeResource::class         => $permissions['SOFT_DELETE'],
+            EmployeeResource::class         => $permissions['CANONICAL'],
             DepartmentResource::class       => $permissions['SOFT_DELETE'],
             ActivityPlanResource::class     => $permissions['SOFT_DELETE'],
             CalendarResource::class         => $permissions['SOFT_DELETE'],

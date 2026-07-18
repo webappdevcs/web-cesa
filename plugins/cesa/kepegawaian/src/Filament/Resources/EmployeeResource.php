@@ -14,6 +14,7 @@ use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\Pages\EditEmployee;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\Pages\ListEmployees;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\Pages\ManageResume;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\Pages\ViewEmployee;
+use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\RelationManagers\EmployeeIdentifierRelationManager;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\RelationManagers\ResumeRelationManager;
 use Cesa\Kepegawaian\Models\Calendar;
 use Cesa\Kepegawaian\Models\Employee;
@@ -22,7 +23,6 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\ColorPicker;
@@ -109,6 +109,7 @@ class EmployeeResource extends Resource
     public static function getGloballySearchableAttributes(): array
     {
         return [
+            'uuid',
             'name',
             'employee_code',
             'department.name',
@@ -120,10 +121,11 @@ class EmployeeResource extends Resource
     public static function getGlobalSearchResultDetails(Model $record): array
     {
         return [
-            __('kepegawaian::filament/resources/employee.global-search.employee-code') => $record?->employee_code ?? '—',
-            __('kepegawaian::filament/resources/employee.global-search.department')    => $record?->department?->name ?? '—',
-            __('kepegawaian::filament/resources/employee.global-search.work-email')    => $record?->work_email ?? '—',
-            __('kepegawaian::filament/resources/employee.global-search.work-phone')    => $record?->work_phone ?? '—',
+            __('kepegawaian::filament/resources/employee/relation-manager/identifier.canonical_uuid') => $record?->uuid ?? '—',
+            __('kepegawaian::filament/resources/employee.global-search.employee-code')                => $record?->employee_code ?? '—',
+            __('kepegawaian::filament/resources/employee.global-search.department')                   => $record?->department?->name ?? '—',
+            __('kepegawaian::filament/resources/employee.global-search.work-email')                   => $record?->work_email ?? '—',
+            __('kepegawaian::filament/resources/employee.global-search.work-phone')                   => $record?->work_phone ?? '—',
         ];
     }
 
@@ -829,6 +831,11 @@ class EmployeeResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->placeholder('—'),
+                TextColumn::make('uuid')
+                    ->label(__('kepegawaian::filament/resources/employee/relation-manager/identifier.canonical_uuid'))
+                    ->copyable()
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('job_title')
                     ->label(__('kepegawaian::filament/resources/employee.table.columns.job-title'))
                     ->searchable()
@@ -1327,24 +1334,6 @@ class EmployeeResource extends Resource
                                 ->title(__('kepegawaian::filament/resources/employee.table.bulk-actions.delete.notification.title'))
                                 ->body(__('kepegawaian::filament/resources/employee.table.bulk-actions.delete.notification.body'))
                         ),
-                    ForceDeleteBulkAction::make()
-                        ->action(function (Collection $records) {
-                            try {
-                                $records->each(fn (Model $record) => $record->forceDelete());
-                            } catch (QueryException $e) {
-                                Notification::make()
-                                    ->danger()
-                                    ->title(__('kepegawaian::filament/resources/employee.table.bulk-actions.force-delete.notification.error.title'))
-                                    ->body(__('kepegawaian::filament/resources/employee.table.bulk-actions.force-delete.notification.error.body'))
-                                    ->send();
-                            }
-                        })
-                        ->successNotification(
-                            Notification::make()
-                                ->success()
-                                ->title(__('kepegawaian::filament/resources/employee.table.bulk-actions.force-delete.notification.success.title'))
-                                ->body(__('kepegawaian::filament/resources/employee.table.bulk-actions.force-delete.notification.success.body'))
-                        ),
                 ]),
             ])
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['categories']));
@@ -1722,6 +1711,11 @@ class EmployeeResource extends Resource
                                                             ->copyable()
                                                             ->copyMessage(__('kepegawaian::filament/resources/employee.infolist.tabs.settings.entries.employee-code-copy-message'))
                                                             ->copyMessageDuration(1500),
+                                                        TextEntry::make('uuid')
+                                                            ->label(__('kepegawaian::filament/resources/employee/relation-manager/identifier.canonical_uuid'))
+                                                            ->placeholder('—')
+                                                            ->icon('heroicon-o-finger-print')
+                                                            ->copyable(),
                                                         TextEntry::make('pin')
                                                             ->placeholder('—')
                                                             ->label(__('kepegawaian::filament/resources/employee.infolist.tabs.settings.entries.pin')),
@@ -1797,6 +1791,7 @@ class EmployeeResource extends Resource
     public static function getRelations(): array
     {
         $relations = [
+            EmployeeIdentifierRelationManager::class,
             RelationGroup::make('Manage Resumes', [
                 ResumeRelationManager::class,
             ])
