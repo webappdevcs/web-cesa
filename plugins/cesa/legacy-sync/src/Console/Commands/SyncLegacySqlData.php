@@ -15,6 +15,7 @@ use Cesa\Shelf\Models\AssetTransfer;
 use Cesa\Shelf\Support\InteractsWithShelfCreatorBackfill;
 use Illuminate\Console\Command;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
@@ -26,6 +27,8 @@ use Webkul\Support\Models\Company;
 class SyncLegacySqlData extends Command
 {
     use InteractsWithShelfCreatorBackfill;
+
+    protected const string UNSCOPED_SOURCE_DATABASE = '__legacy_unscoped__';
 
     protected $signature = 'legacy:sync
                             {--module=* : Modules to sync (document, form-transfer, exit-clearance, lead, presensi, helpdesk, shelf)}
@@ -50,6 +53,8 @@ class SyncLegacySqlData extends Command
     protected array $availableModules = ['document', 'form-transfer', 'exit-clearance', 'lead', 'presensi', 'helpdesk', 'shelf'];
 
     protected string $legacyConnection = 'legacy_sync';
+
+    protected string $legacyDatabase = self::UNSCOPED_SOURCE_DATABASE;
 
     /**
      * @var array<int, array{name: string|null, email: string|null, password: string|null, remember_token: string|null, email_verified_at: mixed, created_at: mixed, updated_at: mixed}>
@@ -211,6 +216,7 @@ class SyncLegacySqlData extends Command
     protected function resetRuntimeState(): void
     {
         $this->legacyConnection = 'legacy_sync';
+        $this->legacyDatabase = self::UNSCOPED_SOURCE_DATABASE;
         $this->legacyUsersById = [];
         $this->legacyUsersLoaded = false;
         $this->targetUsersByEmail = [];
@@ -301,6 +307,11 @@ class SyncLegacySqlData extends Command
         DB::reconnect($connectionName);
 
         $this->legacyConnection = $connectionName;
+        $this->legacyDatabase = trim((string) DB::connection($connectionName)->getDatabaseName());
+
+        if ($this->legacyDatabase === '') {
+            $this->legacyDatabase = self::UNSCOPED_SOURCE_DATABASE;
+        }
     }
 
     protected function verifyLegacyConnection(): void
@@ -310,7 +321,10 @@ class SyncLegacySqlData extends Command
 
     protected function ensureLegacySyncMappingsTableExists(): void
     {
-        if (Schema::hasTable('legacy_sync_mappings')) {
+        if (
+            Schema::hasTable('legacy_sync_mappings')
+            && Schema::hasColumn('legacy_sync_mappings', 'source_database')
+        ) {
             return;
         }
 
@@ -323,7 +337,11 @@ class SyncLegacySqlData extends Command
             '--no-interaction' => true,
         ]);
 
-        if ($exitCode !== self::SUCCESS || ! Schema::hasTable('legacy_sync_mappings')) {
+        if (
+            $exitCode !== self::SUCCESS
+            || ! Schema::hasTable('legacy_sync_mappings')
+            || ! Schema::hasColumn('legacy_sync_mappings', 'source_database')
+        ) {
             throw new \RuntimeException(
                 'Unable to prepare [legacy_sync_mappings] for legacy sync.'
             );
@@ -4485,14 +4503,73 @@ class SyncLegacySqlData extends Command
 
     protected function mappedTargetId(string $legacyTable, int|string $legacyId, string $targetTable): ?int
     {
-        return $this->nullableInt(
-            DB::table('legacy_sync_mappings')
-                ->where('connection_name', $this->legacyConnection)
-                ->where('legacy_table', $legacyTable)
-                ->where('legacy_id', (string) $legacyId)
-                ->where('target_table', $targetTable)
+        $targetId = $this->nullableInt(
+            $this->mappingQuery($legacyTable, $legacyId, $targetTable)
+                ->where('source_database', $this->legacyDatabase)
                 ->value('target_id')
         );
+
+        if ($targetId !== null || $this->legacyDatabase === self::UNSCOPED_SOURCE_DATABASE) {
+            return $targetId;
+        }
+
+        return $this->claimUnscopedMapping($legacyTable, $legacyId, $targetTable);
+    }
+
+    protected function mappingQuery(string $legacyTable, int|string $legacyId, string $targetTable): Builder
+    {
+        return DB::table('legacy_sync_mappings')
+            ->where('connection_name', $this->legacyConnection)
+            ->where('legacy_table', $legacyTable)
+            ->where('legacy_id', (string) $legacyId)
+            ->where('target_table', $targetTable);
+    }
+
+    protected function claimUnscopedMapping(string $legacyTable, int|string $legacyId, string $targetTable): ?int
+    {
+        return DB::transaction(function () use ($legacyTable, $legacyId, $targetTable): ?int {
+            $mapping = $this->mappingQuery($legacyTable, $legacyId, $targetTable)
+                ->where('source_database', self::UNSCOPED_SOURCE_DATABASE)
+                ->lockForUpdate()
+                ->first(['id', 'target_id']);
+
+            if (! $mapping) {
+                return null;
+            }
+
+            try {
+                $claimed = DB::table('legacy_sync_mappings')
+                    ->where('id', $mapping->id)
+                    ->where('source_database', self::UNSCOPED_SOURCE_DATABASE)
+                    ->update([
+                        'source_database' => $this->legacyDatabase,
+                        'updated_at'      => now(),
+                    ]);
+            } catch (QueryException) {
+                return $this->nullableInt(
+                    $this->mappingQuery($legacyTable, $legacyId, $targetTable)
+                        ->where('source_database', $this->legacyDatabase)
+                        ->value('target_id')
+                );
+            }
+
+            if ($claimed !== 1) {
+                return $this->nullableInt(
+                    $this->mappingQuery($legacyTable, $legacyId, $targetTable)
+                        ->where('source_database', $this->legacyDatabase)
+                        ->value('target_id')
+                );
+            }
+
+            $this->warnOnce(
+                'claimed-unscoped-mapping:'.$this->legacyDatabase,
+                __('legacy-sync::console.mapping_namespace_claimed', [
+                    'database' => $this->legacyDatabase,
+                ])
+            );
+
+            return $this->nullableInt($mapping->target_id);
+        });
     }
 
     protected function rememberMapping(string $legacyTable, int|string $legacyId, string $targetTable, int $targetId): void
@@ -4502,6 +4579,7 @@ class SyncLegacySqlData extends Command
         DB::table('legacy_sync_mappings')->upsert(
             [[
                 'connection_name' => $this->legacyConnection,
+                'source_database' => $this->legacyDatabase,
                 'legacy_table'    => $legacyTable,
                 'legacy_id'       => (string) $legacyId,
                 'target_table'    => $targetTable,
@@ -4510,7 +4588,7 @@ class SyncLegacySqlData extends Command
                 'created_at'      => $timestamp,
                 'updated_at'      => $timestamp,
             ]],
-            ['connection_name', 'legacy_table', 'legacy_id', 'target_table'],
+            ['connection_name', 'source_database', 'legacy_table', 'legacy_id', 'target_table'],
             ['target_id', 'synced_at', 'updated_at']
         );
     }

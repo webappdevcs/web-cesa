@@ -23,6 +23,7 @@ class LegacySyncServiceProvider extends PackageServiceProvider
             ])
             ->hasMigrations([
                 '2026_03_12_004250_create_legacy_sync_mappings_table',
+                '2026_07_19_000001_add_source_database_to_legacy_sync_mappings_table',
             ])
             ->runsMigrations();
     }

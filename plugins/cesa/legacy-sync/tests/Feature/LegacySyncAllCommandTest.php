@@ -6,9 +6,19 @@ use Cesa\LegacySync\Console\Commands\SyncAllLegacyData;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Tests\TestCase;
+use Tests\UsesSqliteInMemoryDatabase;
 
 class LegacySyncAllCommandTest extends TestCase
 {
+    use UsesSqliteInMemoryDatabase;
+
+    protected function setUp(): void
+    {
+        $this->useSqliteInMemoryDatabase();
+
+        parent::setUp();
+    }
+
     public function test_it_installs_required_plugins_and_syncs_all_legacy_sources_in_one_command(): void
     {
         $command = new class extends SyncAllLegacyData
