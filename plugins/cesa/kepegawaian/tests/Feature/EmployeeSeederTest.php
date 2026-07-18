@@ -26,6 +26,15 @@ class EmployeeSeederTest extends TestCase
 
         parent::setUp();
 
+        config([
+            'database.default'                     => 'sqlite',
+            'database.connections.sqlite.database' => ':memory:',
+        ]);
+
+        DB::purge('sqlite');
+        DB::setDefaultConnection('sqlite');
+        DB::reconnect('sqlite');
+
         foreach ($this->migrationPaths() as $migrationPath) {
             $this->artisan('migrate', [
                 '--path'     => $migrationPath,

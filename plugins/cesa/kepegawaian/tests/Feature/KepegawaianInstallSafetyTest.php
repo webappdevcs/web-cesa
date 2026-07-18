@@ -7,10 +7,20 @@ use Cesa\Kepegawaian\KepegawaianServiceProvider;
 use LogicException;
 use ReflectionClass;
 use Tests\TestCase;
+use Tests\UsesSqliteInMemoryDatabase;
 use Webkul\PluginManager\Package;
 
 class KepegawaianInstallSafetyTest extends TestCase
 {
+    use UsesSqliteInMemoryDatabase;
+
+    protected function setUp(): void
+    {
+        $this->useSqliteInMemoryDatabase();
+
+        parent::setUp();
+    }
+
     public function test_install_command_runs_migrations_without_running_demo_seeders(): void
     {
         $package = new Package;

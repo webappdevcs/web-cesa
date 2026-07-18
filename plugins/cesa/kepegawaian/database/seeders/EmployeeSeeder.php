@@ -9,30 +9,18 @@ use Cesa\Kepegawaian\Models\EmployeeJobPosition;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Webkul\Partner\Models\Partner;
-use Webkul\Security\Enums\PermissionType;
-use Webkul\Security\Models\Role;
 use Webkul\Security\Models\User;
 use Webkul\Support\Models\Company;
 
 class EmployeeSeeder extends Seeder
 {
-    private const string DEFAULT_EMPLOYEE_PASSWORD = 'password';
-
-    private const string EMPLOYEE_ROLE_NAME = 'user';
-
     public function run(): void
     {
         $seedData = $this->seedData();
         $creatorId = User::query()->value('id');
-        $employeeRole = $this->resolveEmployeeRole();
 
-        DB::transaction(function () use ($seedData, $creatorId, $employeeRole): void {
-            DB::table('employees_employees')->delete();
-            DB::table('partners_partners')->where('sub_type', 'employee')->delete();
-
+        DB::transaction(function () use ($seedData, $creatorId): void {
             $companyIds = Company::query()
                 ->whereIn('name', $seedData->companies()->pluck('name'))
                 ->pluck('id', 'name');
@@ -47,30 +35,30 @@ class EmployeeSeeder extends Seeder
                 ->get()
                 ->keyBy(fn (EmployeeJobPosition $position): string => $position->company_id.'|'.$position->department_id.'|'.$position->name);
 
-            $seedData->employees()->each(function (array $employeeData) use ($companyIds, $departments, $positions, $creatorId, $employeeRole): void {
+            $seedData->employees()->each(function (array $employeeData) use ($companyIds, $departments, $positions, $creatorId): void {
                 $companyId = $companyIds->get($employeeData['branch']);
                 $departmentId = $departments->get($companyId.'|'.$employeeData['organization'])?->id;
                 $jobId = $positions->get($companyId.'|'.$departmentId.'|'.$employeeData['job_title'])?->id;
-                $loginEmail = $this->resolveLoginEmail($employeeData);
-                $user = $this->createOrUpdateEmployeeUser(
-                    name: $employeeData['name'],
-                    email: $loginEmail,
-                    companyId: $companyId,
-                    creatorId: $creatorId,
-                    employeeRole: $employeeRole,
-                );
+                $workEmail = $this->resolveEmployeeEmail($employeeData);
 
-                $employee = new Employee([
-                    'user_id'          => $user->id,
-                    'creator_id'       => $creatorId,
+                if (Employee::onlyTrashed()->where('employee_code', $employeeData['employee_code'])->exists()) {
+                    return;
+                }
+
+                $employee = Employee::query()->firstOrNew([
+                    'employee_code' => $employeeData['employee_code'],
+                ]);
+
+                $isNewEmployee = ! $employee->exists;
+
+                $employee->fill([
                     'company_id'       => $companyId,
                     'department_id'    => $departmentId,
                     'job_id'           => $jobId,
                     'time_zone'        => config('app.timezone', 'UTC'),
                     'name'             => $employeeData['name'],
-                    'employee_code'    => $employeeData['employee_code'],
                     'job_title'        => $employeeData['job_title'],
-                    'work_email'       => $loginEmail,
+                    'work_email'       => $workEmail,
                     'mobile_phone'     => $employeeData['mobile_phone'],
                     'work_phone'       => $employeeData['work_phone'],
                     'private_street1'  => $employeeData['private_street1'],
@@ -78,11 +66,15 @@ class EmployeeSeeder extends Seeder
                     'marital'          => $employeeData['marital'],
                     'gender'           => $employeeData['gender'],
                     'employee_type'    => 'employee',
-                    'is_active'        => true,
                     'additional_note'  => $employeeData['additional_note'],
                 ]);
 
-                if (filled($employeeData['employment_started_at'] ?? null)) {
+                if ($isNewEmployee) {
+                    $employee->creator_id = $creatorId;
+                    $employee->is_active = true;
+                }
+
+                if ($isNewEmployee && filled($employeeData['employment_started_at'] ?? null)) {
                     $employee->created_at = $employeeData['employment_started_at'];
                     $employee->updated_at = $employeeData['employment_started_at'];
                 }
@@ -156,130 +148,7 @@ class EmployeeSeeder extends Seeder
         };
     }
 
-    private function resolveEmployeeRole(): Role
-    {
-        return Role::query()->firstOrCreate([
-            'name'       => self::EMPLOYEE_ROLE_NAME,
-            'guard_name' => 'web',
-        ]);
-    }
-
-    private function createOrUpdateEmployeeUser(
-        string $name,
-        string $email,
-        ?int $companyId,
-        ?int $creatorId,
-        Role $employeeRole,
-    ): User {
-        $timestamp = now();
-        $existingUser = DB::table('users')
-            ->where('email', $email)
-            ->first();
-
-        $payload = [
-            'name'                => $name,
-            'email'               => $email,
-            'creator_id'          => $creatorId,
-            'default_company_id'  => $companyId,
-            'resource_permission' => PermissionType::INDIVIDUAL->value,
-            'is_active'           => true,
-            'email_verified_at'   => $existingUser?->email_verified_at ?? $timestamp,
-            'deleted_at'          => null,
-            'updated_at'          => $timestamp,
-        ];
-
-        if ($existingUser) {
-            DB::table('users')
-                ->where('id', $existingUser->id)
-                ->update($payload);
-
-            $userId = (int) $existingUser->id;
-        } else {
-            $userId = (int) DB::table('users')->insertGetId([
-                ...$payload,
-                'password'       => Hash::make(self::DEFAULT_EMPLOYEE_PASSWORD),
-                'remember_token' => Str::random(10),
-                'created_at'     => $timestamp,
-            ]);
-        }
-
-        $partnerId = $this->createOrUpdateUserPartner(
-            userId: $userId,
-            name: $name,
-            email: $email,
-            companyId: $companyId,
-            creatorId: $creatorId,
-        );
-
-        DB::table('users')
-            ->where('id', $userId)
-            ->update([
-                'partner_id' => $partnerId,
-                'updated_at' => $timestamp,
-            ]);
-
-        if ($companyId) {
-            DB::table('user_allowed_companies')->updateOrInsert([
-                'user_id'    => $userId,
-                'company_id' => $companyId,
-            ]);
-        }
-
-        $user = User::query()
-            ->withTrashed()
-            ->findOrFail($userId);
-
-        if (! $user->roles()->whereKey($employeeRole->getKey())->exists()) {
-            $user->assignRole($employeeRole);
-        }
-
-        return $user;
-    }
-
-    private function createOrUpdateUserPartner(
-        int $userId,
-        string $name,
-        string $email,
-        ?int $companyId,
-        ?int $creatorId,
-    ): int {
-        $partner = Partner::query()
-            ->withTrashed()
-            ->where('user_id', $userId)
-            ->where('sub_type', 'partner')
-            ->first();
-
-        if (! $partner) {
-            $existingPartnerId = DB::table('users')
-                ->where('id', $userId)
-                ->value('partner_id');
-
-            if ($existingPartnerId) {
-                $partner = Partner::query()
-                    ->withTrashed()
-                    ->find($existingPartnerId);
-            }
-        }
-
-        $partner ??= new Partner;
-
-        $partner->fill([
-            'account_type' => 'individual',
-            'sub_type'     => 'partner',
-            'name'         => $name,
-            'email'        => $email,
-            'company_id'   => $companyId,
-            'creator_id'   => $creatorId ?? $userId,
-            'user_id'      => $userId,
-        ]);
-
-        $partner->deleted_at = null;
-        $partner->save();
-
-        return (int) $partner->id;
-    }
-
-    private function resolveLoginEmail(array $employeeData): string
+    private function resolveEmployeeEmail(array $employeeData): string
     {
         $email = Str::lower(trim((string) ($employeeData['work_email'] ?? '')));
 

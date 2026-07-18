@@ -57,9 +57,7 @@ class KepegawaianServiceProvider extends PackageServiceProvider
             ->runsMigrations()
             ->hasSeeder('Cesa\\Kepegawaian\\Database\\Seeders\\DatabaseSeeder')
             ->hasInstallCommand(function (InstallCommand $command) {
-                $command
-                    ->runsMigrations()
-                    ->runsSeeders();
+                $command->runsMigrations();
             })
             ->hasUninstallCommand(function (UninstallCommand $command) {})
             ->icon('employees');
