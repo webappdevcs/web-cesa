@@ -7,6 +7,7 @@ use Cesa\Kepegawaian\Database\Seeders\Support\EmployeeSeedData;
 use Cesa\Kepegawaian\Models\Department;
 use Cesa\Kepegawaian\Models\Employee;
 use Cesa\Kepegawaian\Models\EmployeeJobPosition;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 use Tests\UsesSqliteInMemoryDatabase;
@@ -33,7 +34,7 @@ class EmployeeSeederTest extends TestCase
         }
     }
 
-    public function test_it_creates_login_users_for_seeded_employees(): void
+    public function test_it_seeds_employee_master_data_without_creating_accounts_or_deleting_existing_employees(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'employee-seed-data-');
 
@@ -92,6 +93,26 @@ class EmployeeSeederTest extends TestCase
                 'employment_type_id' => null,
             ]);
 
+            $unrelatedEmployeeId = DB::table('employees_employees')->insertGetId([
+                'name'          => 'Existing Employee',
+                'employee_code' => 'KEEP-001',
+                'work_email'    => 'existing.employee@example.com',
+                'is_active'     => true,
+                'created_at'    => now(),
+                'updated_at'    => now(),
+            ]);
+
+            $existingPassword = Hash::make('unique-existing-password');
+            $existingUser = User::factory()->create([
+                'name'              => 'Existing Login',
+                'email'             => 'seeded.employee@example.com',
+                'password'          => $existingPassword,
+                'is_active'         => false,
+                'email_verified_at' => null,
+            ]);
+
+            $existingUser->delete();
+
             $seeder = new class($path) extends EmployeeSeeder
             {
                 public function __construct(
@@ -105,24 +126,32 @@ class EmployeeSeederTest extends TestCase
             };
 
             $seeder->run();
+            $firstSeededEmployeeId = Employee::query()
+                ->where('employee_code', 'EMP-001')
+                ->value('id');
+
+            $seeder->run();
 
             $role = Role::query()->where('name', 'user')->first();
-            $user = User::query()->where('email', 'seeded.employee@example.com')->first();
             $employee = Employee::query()->where('employee_code', 'EMP-001')->first();
+            $unchangedUser = User::query()->withTrashed()->findOrFail($existingUser->id);
 
-            $this->assertNotNull($role);
-            $this->assertNotNull($user);
+            $this->assertNull($role);
             $this->assertNotNull($employee);
-            $this->assertTrue(Hash::check('password', $user->password));
-            $this->assertNotNull($user->email_verified_at);
-            $this->assertSame($company->id, $user->default_company_id);
-            $this->assertNotNull($user->partner_id);
-            $this->assertSame('seeded.employee@example.com', $user->partner?->email);
-            $this->assertTrue($user->allowedCompanies()->whereKey($company->id)->exists());
-            $this->assertTrue($user->roles()->whereKey($role->id)->exists());
-            $this->assertSame($user->id, $employee->user_id);
+            $this->assertSame($firstSeededEmployeeId, $employee->id);
+            $this->assertNull($employee->user_id);
             $this->assertSame('628123456789', $employee->mobile_phone);
             $this->assertSame('seeded.employee@example.com', $employee->work_email);
+            $this->assertDatabaseHas('employees_employees', [
+                'id'            => $unrelatedEmployeeId,
+                'employee_code' => 'KEEP-001',
+            ]);
+            $this->assertSame(2, Employee::query()->count());
+            $this->assertSame($existingPassword, $unchangedUser->password);
+            $this->assertFalse((bool) $unchangedUser->is_active);
+            $this->assertNull($unchangedUser->email_verified_at);
+            $this->assertNotNull($unchangedUser->deleted_at);
+            $this->assertSame(0, $unchangedUser->roles()->count());
         } finally {
             if ($path !== false && is_file($path)) {
                 unlink($path);
@@ -140,9 +169,14 @@ class EmployeeSeederTest extends TestCase
             'database/migrations/2024_11_04_132945_create_permission_tables.php',
             'database/migrations/2024_11_26_053234_add_resource_permission_column_to_users_table.php',
             'plugins/webkul/support/database/migrations/2024_12_06_061927_create_currencies_table.php',
+            'plugins/webkul/support/database/migrations/2024_12_10_092651_create_countries_table.php',
+            'plugins/webkul/support/database/migrations/2024_12_10_092657_create_states_table.php',
+            'plugins/webkul/support/database/migrations/2024_12_10_101420_create_banks_table.php',
             'plugins/webkul/partners/database/migrations/2024_12_11_101127_create_partners_industries_table.php',
             'plugins/webkul/partners/database/migrations/2024_12_11_101127_create_partners_titles_table.php',
             'plugins/webkul/partners/database/migrations/2024_12_11_101220_create_partners_partners_table.php',
+            'plugins/webkul/partners/database/migrations/2024_12_11_101420_create_partners_bank_accounts_table.php',
+            'plugins/webkul/partners/database/migrations/2025_03_28_115218_add_address_columns_in_partners_partners_table.php',
             'plugins/webkul/support/database/migrations/2024_12_10_092657_create_companies_table.php',
             'plugins/webkul/support/database/migrations/2024_12_10_100944_create_user_allowed_companies_table.php',
             'plugins/webkul/support/database/migrations/2024_12_12_114620_create_activity_plans_table.php',
