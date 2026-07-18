@@ -2217,6 +2217,12 @@ class SyncLegacySqlData extends Command
                 $payload['employee_code'] = $employeeCode;
             }
 
+            if (Schema::hasColumn('employees_employees', 'uuid')) {
+                $payload['uuid'] = DB::table('employees_employees')
+                    ->where('id', $targetId)
+                    ->value('uuid') ?? (string) Str::orderedUuid();
+            }
+
             DB::table('employees_employees')->updateOrInsert(
                 ['id' => $targetId],
                 $payload,

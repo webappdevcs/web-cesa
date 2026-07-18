@@ -9,6 +9,7 @@ use Cesa\Kepegawaian\Models\Employee;
 use Cesa\Kepegawaian\Models\EmployeeJobPosition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 use Tests\UsesSqliteInMemoryDatabase;
 use Webkul\Security\Models\Role;
@@ -103,6 +104,7 @@ class EmployeeSeederTest extends TestCase
             ]);
 
             $unrelatedEmployeeId = DB::table('employees_employees')->insertGetId([
+                'uuid'          => (string) Str::orderedUuid(),
                 'name'          => 'Existing Employee',
                 'employee_code' => 'KEEP-001',
                 'work_email'    => 'existing.employee@example.com',

@@ -8,6 +8,7 @@ use Cesa\Shelf\Models\AssetTransfer;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Webkul\Support\Models\Company;
 
 class LegacySqlSyncCommandTest extends LegacySyncTestCase
@@ -1289,7 +1290,7 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
             'email' => 'existing.requester.account@example.com',
         ]);
 
-        DB::table('employees_employees')->insert([
+        $employeePayload = [
             'company_id'   => $targetCompanyId,
             'user_id'      => $requester->id,
             'name'         => 'Legacy Requester',
@@ -1298,7 +1299,13 @@ class LegacySqlSyncCommandTest extends LegacySyncTestCase
             'created_at'   => now(),
             'updated_at'   => now(),
             'deleted_at'   => null,
-        ]);
+        ];
+
+        if (Schema::hasColumn('employees_employees', 'uuid')) {
+            $employeePayload['uuid'] = (string) Str::orderedUuid();
+        }
+
+        DB::table('employees_employees')->insert($employeePayload);
 
         $this->seedLegacyRecords();
 

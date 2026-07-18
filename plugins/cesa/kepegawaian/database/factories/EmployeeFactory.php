@@ -8,6 +8,7 @@ use Cesa\Kepegawaian\Models\Employee;
 use Cesa\Kepegawaian\Models\EmployeeJobPosition;
 use Cesa\Kepegawaian\Models\WorkLocation;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 use Webkul\Security\Models\User;
 use Webkul\Support\Models\Company;
 use Webkul\Support\Models\Country;
@@ -30,6 +31,7 @@ class EmployeeFactory extends Factory
     public function definition(): array
     {
         return [
+            'uuid'                           => (string) Str::orderedUuid(),
             'company_id'                     => Company::factory(),
             'user_id'                        => User::query()->value('id') ?? User::factory(),
             'creator_id'                     => User::query()->value('id') ?? User::factory(),
@@ -98,5 +100,20 @@ class EmployeeFactory extends Factory
             'is_fully_flexible'              => fake()->boolean(),
             'work_permit_scheduled_activity' => fake()->boolean(),
         ];
+    }
+
+    public function active(): static
+    {
+        return $this->state(fn (): array => ['is_active' => true]);
+    }
+
+    public function inactive(): static
+    {
+        return $this->state(fn (): array => ['is_active' => false]);
+    }
+
+    public function withoutUser(): static
+    {
+        return $this->state(fn (): array => ['user_id' => null]);
     }
 }

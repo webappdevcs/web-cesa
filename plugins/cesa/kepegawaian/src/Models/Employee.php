@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use LogicException;
 use Webkul\Chatter\Traits\HasChatter;
 use Webkul\Chatter\Traits\HasLogActivity;
 use Webkul\Field\Traits\HasCustomFields;
@@ -219,6 +222,11 @@ class Employee extends Model
         return $this->hasMany(EmployeeResume::class, 'employee_id');
     }
 
+    public function identifiers(): HasMany
+    {
+        return $this->hasMany(EmployeeIdentifier::class);
+    }
+
     protected static function newFactory(): EmployeeFactory
     {
         return EmployeeFactory::new();
@@ -243,6 +251,16 @@ class Employee extends Model
     protected static function boot()
     {
         parent::boot();
+
+        static::creating(function (self $employee): void {
+            $employee->uuid ??= (string) Str::orderedUuid();
+        });
+
+        static::updating(function (self $employee): void {
+            if ($employee->isDirty('uuid') && $employee->getOriginal('uuid') !== null) {
+                throw new LogicException('The canonical employee UUID is immutable.');
+            }
+        });
 
         static::saved(function (self $employee) {
             $employee->creator_id ??= Auth::id();
