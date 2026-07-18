@@ -59,6 +59,9 @@ class CanonicalEmployeeApiTest extends KepegawaianIdentityTestCase
             'identification_id',
             'passport_id',
             'pin',
+            'work_email',
+            'work_phone',
+            'mobile_phone',
         ] as $privateField) {
             $this->assertArrayNotHasKey($privateField, $record);
         }
@@ -142,6 +145,8 @@ class CanonicalEmployeeApiTest extends KepegawaianIdentityTestCase
      */
     private function apiUser(array $abilities = []): User
     {
+        $persistedUser = User::factory()->create();
+
         $user = new class extends User
         {
             /** @var array<int, string> */
@@ -153,7 +158,7 @@ class CanonicalEmployeeApiTest extends KepegawaianIdentityTestCase
             }
         };
 
-        $user->id = 999;
+        $user->id = $persistedUser->id;
         $user->grantedAbilities = $abilities;
 
         return $user;

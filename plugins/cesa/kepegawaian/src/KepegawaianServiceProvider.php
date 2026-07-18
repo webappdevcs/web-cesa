@@ -35,6 +35,7 @@ class KepegawaianServiceProvider extends PackageServiceProvider
     {
         $package->name(static::$name)
             ->hasTranslations()
+            ->hasRoute('api')
             ->hasMigrations([
                 '2024_12_11_045350_create_employees_work_locations_table',
                 '2024_12_11_051916_create_employees_departments_table',
