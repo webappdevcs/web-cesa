@@ -101,4 +101,26 @@ class CanonicalIdentityRegistryTest extends KepegawaianIdentityTestCase
             'external_id'    => 'vendor-100',
         ]);
     }
+
+    public function test_external_identifier_identity_fields_are_immutable(): void
+    {
+        $employee = Employee::query()->create([
+            'name'          => 'Immutable Mapping',
+            'employee_code' => 'MAP-IMMUTABLE',
+            'is_active'     => true,
+        ]);
+
+        $identifier = $employee->identifiers()->create([
+            'source_system'   => 'talenta',
+            'source_instance' => 'production',
+            'identifier_type' => 'record_id',
+            'external_id'     => 'vendor-immutable-1',
+        ]);
+
+        $identifier->external_id = 'vendor-hijacked-2';
+
+        $this->expectException(LogicException::class);
+
+        $identifier->save();
+    }
 }
