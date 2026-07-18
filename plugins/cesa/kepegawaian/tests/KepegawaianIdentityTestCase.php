@@ -2,7 +2,11 @@
 
 namespace Cesa\Kepegawaian\Tests;
 
+use Cesa\Kepegawaian\Models\Employee;
+use Cesa\Kepegawaian\Policies\EmployeePolicy;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 use Tests\UsesSqliteInMemoryDatabase;
 
@@ -31,6 +35,12 @@ abstract class KepegawaianIdentityTestCase extends TestCase
                 '--realpath' => false,
             ])->assertExitCode(0);
         }
+
+        if (! Route::has('admin.api.v1.kepegawaian.employees.index')) {
+            require base_path('plugins/cesa/kepegawaian/routes/api.php');
+        }
+
+        Gate::policy(Employee::class, EmployeePolicy::class);
     }
 
     /**
