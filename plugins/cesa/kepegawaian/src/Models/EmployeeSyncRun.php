@@ -23,6 +23,7 @@ class EmployeeSyncRun extends Model
         'status',
         'file_name',
         'file_checksum',
+        'manifest_hash',
         'reviewed_run_id',
         'channel',
         'commit_reason',

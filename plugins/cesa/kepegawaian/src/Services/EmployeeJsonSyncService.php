@@ -80,8 +80,13 @@ class EmployeeJsonSyncService
                 });
             }
 
+            $sourceRecords = $run->sourceRecords()
+                ->orderBy('row_number')
+                ->get();
+
             $run->forceFill([
                 ...$counts,
+                'manifest_hash'=> $this->manifestHash($run, $sourceRecords),
                 'status'       => 'completed',
                 'completed_at' => now(),
             ])->save();
@@ -160,6 +165,16 @@ class EmployeeJsonSyncService
                     throw new LogicException('Reviewed employee sync staging is incomplete.');
                 }
 
+                if (
+                    ! is_string($lockedReview->manifest_hash)
+                    || ! hash_equals(
+                        $lockedReview->manifest_hash,
+                        $this->manifestHash($lockedReview, $sourceRecords),
+                    )
+                ) {
+                    throw new LogicException('Reviewed employee sync staging manifest does not match.');
+                }
+
                 $commitRun = EmployeeSyncRun::query()->create([
                     'source_system'   => $lockedReview->source_system,
                     'source_instance' => $lockedReview->source_instance,
@@ -187,8 +202,13 @@ class EmployeeJsonSyncService
                     );
                 }
 
+                $committedRecords = $commitRun->sourceRecords()
+                    ->orderBy('row_number')
+                    ->get();
+
                 $commitRun->forceFill([
                     ...$counts,
+                    'manifest_hash'=> $this->manifestHash($commitRun, $committedRecords),
                     'status'       => 'completed',
                     'completed_at' => now(),
                 ])->save();
@@ -219,6 +239,40 @@ class EmployeeJsonSyncService
         if ($alreadyCommitted) {
             throw new LogicException('This employee sync dry-run has already been committed.');
         }
+    }
+
+    /**
+     * @param  iterable<int, EmployeeSourceRecord>  $sourceRecords
+     */
+    private function manifestHash(EmployeeSyncRun $run, iterable $sourceRecords): string
+    {
+        $key = (string) config('app.key');
+
+        if ($key === '') {
+            throw new LogicException('APP_KEY is required to seal employee sync staging manifests.');
+        }
+
+        $context = hash_init('sha256', HASH_HMAC, $key);
+        hash_update($context, json_encode([
+            'uuid'            => $run->uuid,
+            'source_system'   => $run->source_system,
+            'source_instance' => $run->source_instance,
+            'file_checksum'   => $run->file_checksum,
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n");
+
+        foreach ($sourceRecords as $sourceRecord) {
+            hash_update($context, json_encode([
+                'row_number'         => $sourceRecord->row_number,
+                'external_id'        => $sourceRecord->getRawOriginal('external_id'),
+                'external_id_hash'   => $sourceRecord->getRawOriginal('external_id_hash'),
+                'employee_code'      => $sourceRecord->getRawOriginal('employee_code'),
+                'employee_code_hash' => $sourceRecord->getRawOriginal('employee_code_hash'),
+                'checksum'           => $sourceRecord->getRawOriginal('checksum'),
+                'payload'            => $sourceRecord->getRawOriginal('payload'),
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n");
+        }
+
+        return hash_final($context);
     }
 
     private function recordFailedCommitAttempt(

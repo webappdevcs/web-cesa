@@ -287,7 +287,7 @@ class EmployeeJsonSyncServiceTest extends KepegawaianIdentityTestCase
         $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', (string) $dryRun->manifest_hash);
 
         DB::table('employees_source_records')
-            ->whereKey($sourceRecord->id)
+            ->where('id', $sourceRecord->id)
             ->update(['checksum' => str_repeat('0', 64)]);
 
         try {

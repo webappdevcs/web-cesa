@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('status', 32);
             $table->string('file_name');
             $table->char('file_checksum', 64);
+            $table->char('manifest_hash', 64)->nullable();
             $table->foreignId('reviewed_run_id')
                 ->nullable()
                 ->constrained('employees_sync_runs')
