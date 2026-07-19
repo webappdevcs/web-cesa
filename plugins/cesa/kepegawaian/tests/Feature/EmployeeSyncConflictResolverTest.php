@@ -6,121 +6,113 @@ use Cesa\Kepegawaian\Models\Employee;
 use Cesa\Kepegawaian\Models\EmployeeSourceRecord;
 use Cesa\Kepegawaian\Models\EmployeeSyncConflict;
 use Cesa\Kepegawaian\Models\EmployeeSyncRun;
+use Cesa\Kepegawaian\Policies\EmployeeSyncConflictPolicy;
 use Cesa\Kepegawaian\Services\EmployeeSyncConflictResolver;
 use Cesa\Kepegawaian\Tests\KepegawaianIdentityTestCase;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\Gate;
 use LogicException;
 use Webkul\Security\Models\User;
 
 class EmployeeSyncConflictResolverTest extends KepegawaianIdentityTestCase
 {
-    public function test_open_conflict_can_be_ignored_with_an_audited_reason(): void
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Gate::policy(EmployeeSyncConflict::class, EmployeeSyncConflictPolicy::class);
+    }
+
+    public function test_source_record_can_be_rejected_with_a_dedicated_permission_and_audit_note(): void
     {
         [$conflict, $sourceRecord] = $this->createConflict();
-        $resolver = User::factory()->create();
+        $actor = $this->actor(['resolve_kepegawaian_employee::sync::conflict']);
 
-        app(EmployeeSyncConflictResolver::class)->ignore(
+        app(EmployeeSyncConflictResolver::class)->rejectSource(
             conflict: $conflict,
-            resolvedBy: $resolver->id,
-            notes: 'Vendor row is a known duplicate.',
+            actor: $actor,
+            reasonCode: 'duplicate_source_record',
+            notes: 'Vendor confirmed that this row is a duplicate.',
         );
 
         $conflict->refresh();
 
         $this->assertSame('resolved', $conflict->status);
-        $this->assertSame('ignored', $conflict->resolution);
-        $this->assertSame('Vendor row is a known duplicate.', $conflict->resolution_notes);
-        $this->assertSame($resolver->id, $conflict->resolved_by);
+        $this->assertSame('rejected_duplicate_source_record', $conflict->resolution);
+        $this->assertSame('Vendor confirmed that this row is a duplicate.', $conflict->resolution_notes);
+        $this->assertSame($actor->id, $conflict->resolved_by);
         $this->assertNotNull($conflict->resolved_at);
         $this->assertSame('conflict', $sourceRecord->fresh()->status);
     }
 
-    public function test_open_conflict_can_be_linked_to_a_canonical_employee(): void
+    public function test_recheck_resolves_only_after_the_canonical_identity_is_unambiguous(): void
     {
         [$conflict, $sourceRecord] = $this->createConflict();
         $employee = $this->createEmployee('EMP-REVIEW');
-        $resolver = User::factory()->create();
-
-        app(EmployeeSyncConflictResolver::class)->link(
-            conflict: $conflict,
-            employee: $employee,
-            resolvedBy: $resolver->id,
-            notes: 'Verified against the signed HR workbook.',
-        );
-
-        $conflict->refresh();
-        $sourceRecord->refresh();
-
-        $this->assertSame('resolved', $conflict->status);
-        $this->assertSame('linked', $conflict->resolution);
-        $this->assertSame($employee->id, $conflict->employee_id);
-        $this->assertSame($resolver->id, $conflict->resolved_by);
-        $this->assertSame('linked', $sourceRecord->status);
-        $this->assertSame('manual_review', $sourceRecord->match_strategy);
-        $this->assertSame($employee->id, $sourceRecord->employee_id);
-        $this->assertDatabaseHas('employees_employee_identifiers', [
-            'employee_id'      => $employee->id,
-            'source_system'    => 'talenta',
-            'source_instance'  => 'production',
-            'identifier_type'  => 'record_id',
-            'normalized_value' => 'vendor-review-100',
-        ]);
-    }
-
-    public function test_retired_external_identity_cannot_be_reassigned_during_review(): void
-    {
-        $formerOwner = $this->createEmployee('EMP-FORMER');
-        $identifier = $formerOwner->identifiers()->create([
+        $employee->identifiers()->create([
             'source_system'   => 'talenta',
             'source_instance' => 'production',
             'identifier_type' => 'record_id',
             'external_id'     => 'vendor-review-100',
         ]);
-        $identifier->retire();
 
-        [$conflict, $sourceRecord] = $this->createConflict();
-        $newOwner = $this->createEmployee('EMP-NEW-OWNER');
+        $resolved = app(EmployeeSyncConflictResolver::class)->recheck(
+            conflict: $conflict,
+            actor: $this->actor(['resolve_kepegawaian_employee::sync::conflict']),
+        );
 
-        try {
-            app(EmployeeSyncConflictResolver::class)->link(
-                conflict: $conflict,
-                employee: $newOwner,
-                resolvedBy: User::factory()->create()->id,
-                notes: 'Attempted reassignment.',
-            );
-
-            $this->fail('A retired external identity must never be reassigned.');
-        } catch (LogicException) {
-            $this->assertSame('open', $conflict->fresh()->status);
-            $this->assertSame('conflict', $sourceRecord->fresh()->status);
-            $this->assertSame(0, $newOwner->identifiers()->count());
-            $this->assertSame($formerOwner->id, $identifier->fresh()->employee_id);
-        }
+        $this->assertTrue($resolved);
+        $this->assertSame('resolved', $conflict->fresh()->status);
+        $this->assertSame('rechecked_match', $conflict->fresh()->resolution);
+        $this->assertSame('conflict', $sourceRecord->fresh()->status);
+        $this->assertSame(1, $employee->identifiers()->count());
     }
 
-    public function test_employee_cannot_receive_a_second_current_record_id_from_the_same_source(): void
+    public function test_recheck_leaves_an_ambiguous_conflict_open_without_mutating_canonical_data(): void
     {
-        $employee = $this->createEmployee('EMP-ONE-RECORD');
-        $employee->identifiers()->create([
-            'source_system'   => 'talenta',
-            'source_instance' => 'production',
-            'identifier_type' => 'record_id',
-            'external_id'     => 'vendor-original',
-        ]);
+        [$conflict, $sourceRecord] = $this->createConflict();
+        $employee = $this->createEmployee('EMP-REVIEW');
+
+        $resolved = app(EmployeeSyncConflictResolver::class)->recheck(
+            conflict: $conflict,
+            actor: $this->actor(['resolve_kepegawaian_employee::sync::conflict']),
+        );
+
+        $this->assertFalse($resolved);
+        $this->assertSame('open', $conflict->fresh()->status);
+        $this->assertSame('conflict', $sourceRecord->fresh()->status);
+        $this->assertSame(0, $employee->identifiers()->count());
+    }
+
+    public function test_actor_without_dedicated_permission_cannot_resolve_conflict(): void
+    {
         [$conflict] = $this->createConflict();
 
-        try {
-            app(EmployeeSyncConflictResolver::class)->link(
-                conflict: $conflict,
-                employee: $employee,
-                resolvedBy: User::factory()->create()->id,
-                notes: 'Attempted second current record ID.',
-            );
+        $this->expectException(AuthorizationException::class);
 
-            $this->fail('A source may only have one current record ID per employee.');
-        } catch (LogicException) {
-            $this->assertSame('open', $conflict->fresh()->status);
-            $this->assertSame(1, $employee->identifiers()->current()->count());
-        }
+        app(EmployeeSyncConflictResolver::class)->rejectSource(
+            conflict: $conflict,
+            actor: $this->actor(),
+            reasonCode: 'out_of_scope',
+            notes: 'This should not be accepted.',
+        );
+    }
+
+    public function test_already_resolved_conflict_cannot_be_resolved_again(): void
+    {
+        [$conflict] = $this->createConflict();
+        $actor = $this->actor(['resolve_kepegawaian_employee::sync::conflict']);
+
+        app(EmployeeSyncConflictResolver::class)->rejectSource(
+            conflict: $conflict,
+            actor: $actor,
+            reasonCode: 'out_of_scope',
+            notes: 'Not part of the employee master.',
+        );
+
+        $this->expectException(LogicException::class);
+
+        app(EmployeeSyncConflictResolver::class)->recheck($conflict, $actor);
     }
 
     /**
@@ -154,5 +146,30 @@ class EmployeeSyncConflictResolverTest extends KepegawaianIdentityTestCase
             'employee_code' => $code,
             'is_active'     => true,
         ]);
+    }
+
+    /**
+     * @param  array<int, string>  $abilities
+     */
+    private function actor(array $abilities = []): User
+    {
+        $persisted = User::factory()->create();
+
+        $actor = new class extends User
+        {
+            /** @var array<int, string> */
+            public array $abilities = [];
+
+            public function can($ability, $arguments = []): bool
+            {
+                return in_array($ability, $this->abilities, true);
+            }
+        };
+
+        $actor->id = $persisted->id;
+        $actor->exists = true;
+        $actor->abilities = $abilities;
+
+        return $actor;
     }
 }

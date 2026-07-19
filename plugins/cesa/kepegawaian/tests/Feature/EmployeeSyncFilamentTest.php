@@ -4,6 +4,7 @@ namespace Cesa\Kepegawaian\Tests\Feature;
 
 use Cesa\Kepegawaian\Filament\Resources\EmployeeSyncConflictResource;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeSyncRunResource;
+use Cesa\Kepegawaian\Models\EmployeeSourceRecord;
 use Cesa\Kepegawaian\Models\EmployeeSyncConflict;
 use Cesa\Kepegawaian\Models\EmployeeSyncRun;
 use Cesa\Kepegawaian\Policies\EmployeeSyncConflictPolicy;
@@ -44,10 +45,11 @@ class EmployeeSyncFilamentTest extends TestCase
 
         $user->abilities = ['view_any_kepegawaian_employee::sync::conflict'];
         $this->assertTrue($conflictPolicy->viewAny($user));
-        $this->assertFalse($conflictPolicy->update($user, new EmployeeSyncConflict));
+        $this->assertFalse($conflictPolicy->resolve($user, new EmployeeSyncConflict(['status' => 'open'])));
 
-        $user->abilities[] = 'update_kepegawaian_employee::sync::conflict';
-        $this->assertTrue($conflictPolicy->update($user, new EmployeeSyncConflict));
+        $user->abilities[] = 'resolve_kepegawaian_employee::sync::conflict';
+        $this->assertTrue($conflictPolicy->resolve($user, new EmployeeSyncConflict(['status' => 'open'])));
+        $this->assertFalse($conflictPolicy->update($user, new EmployeeSyncConflict));
         $this->assertFalse($conflictPolicy->delete($user, new EmployeeSyncConflict));
     }
 
@@ -61,9 +63,24 @@ class EmployeeSyncFilamentTest extends TestCase
             $resources[EmployeeSyncRunResource::class]
         );
         $this->assertSame(
-            ['view_any', 'view', 'update'],
+            ['view_any', 'view', 'resolve'],
             $resources[EmployeeSyncConflictResource::class]
         );
+    }
+
+    public function test_encrypted_sync_fields_are_hidden_from_array_serialization(): void
+    {
+        $run = new EmployeeSyncRun(['error_message' => 'internal failure']);
+        $sourceRecord = new EmployeeSourceRecord([
+            'payload' => ['email' => 'private@example.test'],
+        ]);
+        $conflict = new EmployeeSyncConflict([
+            'details' => ['private' => 'context'],
+        ]);
+
+        $this->assertArrayNotHasKey('error_message', $run->toArray());
+        $this->assertArrayNotHasKey('payload', $sourceRecord->toArray());
+        $this->assertArrayNotHasKey('details', $conflict->toArray());
     }
 
     public function test_sync_review_interface_is_translated_without_exposing_raw_payload_labels(): void
@@ -73,11 +90,11 @@ class EmployeeSyncFilamentTest extends TestCase
 
             $runTitle = __('kepegawaian::filament/resources/employee-sync-run.title');
             $conflictTitle = __('kepegawaian::filament/resources/employee-sync-conflict.title');
-            $link = __('kepegawaian::filament/resources/employee-sync-conflict.actions.link');
+            $recheck = __('kepegawaian::filament/resources/employee-sync-conflict.actions.recheck');
 
             $this->assertStringNotContainsString('kepegawaian::', $runTitle);
             $this->assertStringNotContainsString('kepegawaian::', $conflictTitle);
-            $this->assertStringNotContainsString('kepegawaian::', $link);
+            $this->assertStringNotContainsString('kepegawaian::', $recheck);
         }
     }
 }
