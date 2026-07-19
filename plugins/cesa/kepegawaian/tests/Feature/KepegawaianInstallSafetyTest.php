@@ -28,6 +28,11 @@ class KepegawaianInstallSafetyTest extends TestCase
 
         $provider->configureCustomPackage($package);
 
+        $this->assertContains(
+            '2026_07_19_000004_harden_employee_sync_tables',
+            $package->migrationFileNames,
+        );
+
         $installCommand = collect($package->consoleCommands)
             ->first(fn (object $command): bool => $this->readProperty($command, 'signature') === 'kepegawaian:install');
 
