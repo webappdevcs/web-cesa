@@ -32,6 +32,19 @@ class CanonicalIdentityFilamentTest extends TestCase
         );
     }
 
+    public function test_identifier_mutations_require_a_dedicated_permission(): void
+    {
+        $policy = new EmployeeIdentifierPolicy;
+        $identifier = new EmployeeIdentifier;
+        $genericEditor = $this->userWithAbilities(['update_kepegawaian_employee']);
+        $identityManager = $this->userWithAbilities(['manage_identifiers_kepegawaian_employee']);
+
+        $this->assertFalse($policy->create($genericEditor));
+        $this->assertFalse($policy->update($genericEditor, $identifier));
+        $this->assertTrue($policy->create($identityManager));
+        $this->assertTrue($policy->update($identityManager, $identifier));
+    }
+
     public function test_identifier_interface_is_translated_in_english_and_indonesian(): void
     {
         foreach (['en', 'id'] as $locale) {
@@ -68,5 +81,26 @@ class CanonicalIdentityFilamentTest extends TestCase
 
         $this->assertNotContains('force_delete', $permissions);
         $this->assertNotContains('force_delete_any', $permissions);
+        $this->assertContains('manage_identifiers', $permissions);
+    }
+
+    /**
+     * @param  array<int, string>  $abilities
+     */
+    private function userWithAbilities(array $abilities): User
+    {
+        $user = new class extends User
+        {
+            /** @var array<int, string> */
+            public array $abilities = [];
+
+            public function can($ability, $arguments = []): bool
+            {
+                return in_array($ability, $this->abilities, true);
+            }
+        };
+        $user->abilities = $abilities;
+
+        return $user;
     }
 }
