@@ -41,12 +41,18 @@ class DefaultHrWorkflowTemplateSeederTest extends KepegawaianIdentityTestCase
             $offboarding->steps()->where('name', 'Exit Clearance Form')->where('requires_evidence', true)->exists(),
         );
 
+        $this->assertSame(6, HrWorkflowTemplate::query()->count());
+        $this->assertDatabaseHas('employees_hr_workflow_templates', ['code' => 'employee-offering', 'type' => HrWorkflowType::Offering->value]);
+        $this->assertDatabaseHas('employees_hr_workflow_templates', ['code' => 'employee-contract-renewal', 'type' => HrWorkflowType::ContractRenewal->value]);
+        $this->assertDatabaseHas('employees_hr_workflow_templates', ['code' => 'employee-disciplinary-action', 'type' => HrWorkflowType::Disciplinary->value]);
+        $this->assertDatabaseHas('employees_hr_workflow_templates', ['code' => 'employee-training', 'type' => HrWorkflowType::Training->value]);
+
         $templateIds = HrWorkflowTemplate::query()->orderBy('id')->pluck('id')->all();
 
         $seeder->run();
 
-        $this->assertSame(2, HrWorkflowTemplate::query()->count());
-        $this->assertSame(44, HrWorkflowTemplate::query()->withCount('steps')->get()->sum('steps_count'));
+        $this->assertSame(6, HrWorkflowTemplate::query()->count());
+        $this->assertSame(71, HrWorkflowTemplate::query()->withCount('steps')->get()->sum('steps_count'));
         $this->assertSame($templateIds, HrWorkflowTemplate::query()->orderBy('id')->pluck('id')->all());
     }
 }
