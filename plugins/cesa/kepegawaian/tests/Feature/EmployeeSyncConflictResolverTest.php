@@ -10,6 +10,7 @@ use Cesa\Kepegawaian\Policies\EmployeeSyncConflictPolicy;
 use Cesa\Kepegawaian\Services\EmployeeSyncConflictResolver;
 use Cesa\Kepegawaian\Tests\KepegawaianIdentityTestCase;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use LogicException;
 use Webkul\Security\Models\User;
@@ -43,6 +44,12 @@ class EmployeeSyncConflictResolverTest extends KepegawaianIdentityTestCase
         $this->assertSame($actor->id, $conflict->resolved_by);
         $this->assertNotNull($conflict->resolved_at);
         $this->assertSame('conflict', $sourceRecord->fresh()->status);
+        $this->assertStringNotContainsString(
+            'Vendor confirmed',
+            (string) DB::table('employees_sync_conflicts')
+                ->where('id', $conflict->id)
+                ->value('resolution_notes')
+        );
     }
 
     public function test_recheck_resolves_only_after_the_canonical_identity_is_unambiguous(): void

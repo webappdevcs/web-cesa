@@ -36,6 +36,9 @@ return [
         'identifier_employee_code_mismatch' => 'Identifier and employee code disagree',
         'employee_code_change'              => 'Employee code changed',
         'retired_employee_match'            => 'Matched a retired employee',
+        'retired_identifier_match'          => 'Matched a retired external identity',
+        'multiple_source_record_ids'        => 'Employee already has another current source ID',
+        'employee_code_candidate_match'     => 'Employee code candidate requires manual verification',
     ],
     'actions' => [
         'recheck'       => 'Recheck canonical identity',

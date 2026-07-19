@@ -234,6 +234,11 @@ class EmployeeJsonSyncServiceTest extends KepegawaianIdentityTestCase
                 'mode'            => 'commit',
                 'status'          => 'failed',
             ]);
+            $rawError = DB::table('employees_sync_runs')
+                ->where('reviewed_run_id', $dryRun->id)
+                ->where('status', 'failed')
+                ->value('error_message');
+            $this->assertStringNotContainsString('Synthetic second-row failure', (string) $rawError);
         } finally {
             Event::forget('eloquent.creating: '.Employee::class);
         }

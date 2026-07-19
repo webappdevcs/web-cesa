@@ -36,6 +36,9 @@ return [
         'identifier_employee_code_mismatch' => 'Pemilik ID dan kode karyawan berbeda',
         'employee_code_change'              => 'Kode karyawan berubah',
         'retired_employee_match'            => 'Cocok dengan karyawan yang sudah diarsipkan',
+        'retired_identifier_match'          => 'Cocok dengan identitas eksternal yang sudah dinonaktifkan',
+        'multiple_source_record_ids'        => 'Karyawan sudah memiliki ID sumber aktif lainnya',
+        'employee_code_candidate_match'     => 'Kandidat kode karyawan perlu verifikasi manual',
     ],
     'actions' => [
         'recheck'       => 'Periksa ulang identitas kanonik',

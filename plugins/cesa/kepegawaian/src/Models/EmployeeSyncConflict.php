@@ -32,7 +32,7 @@ class EmployeeSyncConflict extends Model
 
     protected $casts = [
         'details'          => 'encrypted:array',
-        'resolution_notes' => 'encrypted:string',
+        'resolution_notes' => 'encrypted',
         'resolved_at'      => 'datetime',
     ];
 

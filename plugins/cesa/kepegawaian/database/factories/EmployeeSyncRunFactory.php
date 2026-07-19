@@ -18,6 +18,7 @@ class EmployeeSyncRunFactory extends Factory
             'status'          => 'completed',
             'file_name'       => 'employees.json',
             'file_checksum'   => hash('sha256', fake()->uuid()),
+            'channel'         => 'testing',
             'started_at'      => now(),
             'completed_at'    => now(),
         ];

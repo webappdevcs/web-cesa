@@ -67,6 +67,7 @@ class EmployeeJsonSyncCommandTest extends KepegawaianIdentityTestCase
             ]);
 
             $commitRun = EmployeeSyncRun::query()->where('mode', 'commit')->sole();
+            $output = Artisan::output();
 
             $this->assertSame(0, $exitCode);
             $this->assertSame($dryRun->id, $commitRun->reviewed_run_id);
@@ -76,8 +77,8 @@ class EmployeeJsonSyncCommandTest extends KepegawaianIdentityTestCase
                 'employee_code' => 'EMP-COMMAND-NEW',
                 'is_active'     => false,
             ]);
-            $this->assertStringContainsString($commitRun->uuid, Artisan::output());
-            $this->assertStringContainsString('COMMIT', Artisan::output());
+            $this->assertStringContainsString($commitRun->uuid, $output);
+            $this->assertStringContainsString('COMMIT', $output);
         } finally {
             $this->removeFile($path);
         }

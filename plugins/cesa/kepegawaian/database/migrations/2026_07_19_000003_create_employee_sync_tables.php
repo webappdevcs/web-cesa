@@ -17,6 +17,12 @@ return new class extends Migration
             $table->string('status', 32);
             $table->string('file_name');
             $table->char('file_checksum', 64);
+            $table->foreignId('reviewed_run_id')
+                ->nullable()
+                ->constrained('employees_sync_runs')
+                ->restrictOnDelete();
+            $table->string('channel', 32)->default('console');
+            $table->longText('commit_reason')->nullable();
             $table->unsignedInteger('total_records')->default(0);
             $table->unsignedInteger('matched_count')->default(0);
             $table->unsignedInteger('linked_count')->default(0);
@@ -25,7 +31,7 @@ return new class extends Migration
             $table->unsignedInteger('would_create_count')->default(0);
             $table->unsignedInteger('conflict_count')->default(0);
             $table->unsignedInteger('invalid_count')->default(0);
-            $table->text('error_message')->nullable();
+            $table->longText('error_message')->nullable();
             $table->foreignId('initiated_by')
                 ->nullable()
                 ->constrained('users')
@@ -46,10 +52,12 @@ return new class extends Migration
                 ->constrained('employees_sync_runs')
                 ->cascadeOnDelete();
             $table->unsignedInteger('row_number');
-            $table->string('external_id', 191)->nullable();
-            $table->string('employee_code', 191)->nullable();
+            $table->longText('external_id')->nullable();
+            $table->char('external_id_hash', 64)->nullable();
+            $table->longText('employee_code')->nullable();
+            $table->char('employee_code_hash', 64)->nullable();
             $table->char('checksum', 64);
-            $table->text('payload');
+            $table->longText('payload');
             $table->string('status', 64);
             $table->string('match_strategy', 64)->nullable();
             $table->foreignId('employee_id')
@@ -63,7 +71,7 @@ return new class extends Migration
                 'employee_source_records_row_unique'
             );
             $table->index(
-                ['external_id', 'employee_code'],
+                ['external_id_hash', 'employee_code_hash'],
                 'employee_source_records_identity_index'
             );
         });
@@ -76,13 +84,13 @@ return new class extends Migration
                 ->cascadeOnDelete();
             $table->string('type', 64);
             $table->string('status', 32)->default('open');
-            $table->text('details');
+            $table->longText('details');
             $table->foreignId('employee_id')
                 ->nullable()
                 ->constrained('employees_employees')
                 ->restrictOnDelete();
             $table->string('resolution', 64)->nullable();
-            $table->text('resolution_notes')->nullable();
+            $table->longText('resolution_notes')->nullable();
             $table->foreignId('resolved_by')
                 ->nullable()
                 ->constrained('users')

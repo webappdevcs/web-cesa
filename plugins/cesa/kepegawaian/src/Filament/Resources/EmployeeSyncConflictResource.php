@@ -97,6 +97,9 @@ class EmployeeSyncConflictResource extends Resource
                         'identifier_employee_code_mismatch' => __('kepegawaian::filament/resources/employee-sync-conflict.types.identifier_employee_code_mismatch'),
                         'employee_code_change'              => __('kepegawaian::filament/resources/employee-sync-conflict.types.employee_code_change'),
                         'retired_employee_match'            => __('kepegawaian::filament/resources/employee-sync-conflict.types.retired_employee_match'),
+                        'retired_identifier_match'          => __('kepegawaian::filament/resources/employee-sync-conflict.types.retired_identifier_match'),
+                        'multiple_source_record_ids'        => __('kepegawaian::filament/resources/employee-sync-conflict.types.multiple_source_record_ids'),
+                        'employee_code_candidate_match'     => __('kepegawaian::filament/resources/employee-sync-conflict.types.employee_code_candidate_match'),
                     ]),
             ])
             ->recordActions([

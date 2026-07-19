@@ -23,6 +23,9 @@ class EmployeeSyncRun extends Model
         'status',
         'file_name',
         'file_checksum',
+        'reviewed_run_id',
+        'channel',
+        'commit_reason',
         'total_records',
         'matched_count',
         'linked_count',
@@ -42,7 +45,8 @@ class EmployeeSyncRun extends Model
     ];
 
     protected $casts = [
-        'error_message' => 'encrypted:string',
+        'commit_reason' => 'encrypted',
+        'error_message' => 'encrypted',
         'started_at'    => 'datetime',
         'completed_at'  => 'datetime',
     ];
@@ -55,6 +59,16 @@ class EmployeeSyncRun extends Model
     public function initiator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'initiated_by');
+    }
+
+    public function reviewedRun(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reviewed_run_id');
+    }
+
+    public function commitAttempts(): HasMany
+    {
+        return $this->hasMany(self::class, 'reviewed_run_id');
     }
 
     protected static function booted(): void
