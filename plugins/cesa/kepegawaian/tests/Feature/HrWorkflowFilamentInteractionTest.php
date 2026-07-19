@@ -43,10 +43,20 @@ class HrWorkflowFilamentInteractionTest extends KepegawaianIdentityTestCase
             'pageClass'   => ViewEmployee::class,
         ])
             ->assertTableActionVisible('start')
-            ->callTableAction('start', data: ['template_id' => $template->getKey()])
+            ->callTableAction('start', data: [
+                'template_id'     => $template->getKey(),
+                'reference_number'=> 'ONB-2026-0001',
+                'effective_date'  => '2026-08-01',
+                'expiry_date'     => '2027-07-31',
+                'notes'           => 'Mulai kerja sesuai offering final.',
+            ])
             ->assertNotified();
 
         $run = HrWorkflowRun::query()->whereBelongsTo($employee)->firstOrFail();
+        $this->assertSame('ONB-2026-0001', $run->context['reference_number']);
+        $this->assertSame('2026-08-01', $run->context['effective_date']);
+        $this->assertSame('2027-07-31', $run->context['expiry_date']);
+        $this->assertSame('Mulai kerja sesuai offering final.', $run->context['notes']);
         $task = $run->tasks()->where('requires_evidence', false)->orderBy('sort_order')->firstOrFail();
 
         Livewire::test(HrWorkflowTasksRelationManager::class, [
