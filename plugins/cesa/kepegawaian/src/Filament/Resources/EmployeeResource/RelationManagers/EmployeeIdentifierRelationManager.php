@@ -12,7 +12,6 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Gate;
 
 class EmployeeIdentifierRelationManager extends RelationManager
 {
@@ -93,7 +92,7 @@ class EmployeeIdentifierRelationManager extends RelationManager
                     ->label(__('kepegawaian::filament/resources/employee/relation-manager/identifier.actions.create'))
                     ->icon('heroicon-o-plus-circle')
                     ->slideOver()
-                    ->visible(fn (): bool => Gate::allows('update', $this->ownerRecord)),
+                    ->authorize('create'),
             ])
             ->recordActions([
                 Action::make('verify')
@@ -101,9 +100,9 @@ class EmployeeIdentifierRelationManager extends RelationManager
                     ->icon('heroicon-o-check-badge')
                     ->color('success')
                     ->requiresConfirmation()
+                    ->authorize('update')
                     ->visible(fn (EmployeeIdentifier $record): bool => $record->verified_at === null
-                        && $record->retired_at === null
-                        && Gate::allows('update', $this->ownerRecord))
+                        && $record->retired_at === null)
                     ->action(function (EmployeeIdentifier $record): void {
                         $record->forceFill([
                             'verified_at'  => now(),
@@ -119,8 +118,8 @@ class EmployeeIdentifierRelationManager extends RelationManager
                     ->icon('heroicon-o-archive-box')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->visible(fn (EmployeeIdentifier $record): bool => $record->retired_at === null
-                        && Gate::allows('update', $this->ownerRecord))
+                    ->authorize('update')
+                    ->visible(fn (EmployeeIdentifier $record): bool => $record->retired_at === null)
                     ->action(function (EmployeeIdentifier $record): void {
                         $record->retire();
 
@@ -133,8 +132,8 @@ class EmployeeIdentifierRelationManager extends RelationManager
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->visible(fn (EmployeeIdentifier $record): bool => $record->retired_at !== null
-                        && Gate::allows('update', $this->ownerRecord))
+                    ->authorize('update')
+                    ->visible(fn (EmployeeIdentifier $record): bool => $record->retired_at !== null)
                     ->action(function (EmployeeIdentifier $record): void {
                         $record->forceFill([
                             'retired_at'   => null,

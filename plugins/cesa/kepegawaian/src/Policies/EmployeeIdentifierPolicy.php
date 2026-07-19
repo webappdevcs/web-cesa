@@ -22,12 +22,12 @@ class EmployeeIdentifierPolicy
 
     public function create(User $user): bool
     {
-        return $user->can('update_kepegawaian_employee');
+        return $user->can('manage_identifiers_kepegawaian_employee');
     }
 
     public function update(User $user, EmployeeIdentifier $identifier): bool
     {
-        return $user->can('update_kepegawaian_employee');
+        return $user->can('manage_identifiers_kepegawaian_employee');
     }
 
     public function delete(User $user, EmployeeIdentifier $identifier): bool
