@@ -25,7 +25,7 @@ return [
     'resources' => [
         'manage' => [
             EmployeeResource::class             => $permissions['CANONICAL'],
-            EmployeeSyncRunResource::class      => ['view_any', 'view'],
+            EmployeeSyncRunResource::class      => ['view_any', 'view', 'commit'],
             EmployeeSyncConflictResource::class => ['view_any', 'view', 'resolve'],
             DepartmentResource::class           => $permissions['SOFT_DELETE'],
             ActivityPlanResource::class         => $permissions['SOFT_DELETE'],

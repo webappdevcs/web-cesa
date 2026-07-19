@@ -6,6 +6,7 @@ use Cesa\Kepegawaian\Models\Employee;
 use Cesa\Kepegawaian\Models\EmployeeSyncRun;
 use Cesa\Kepegawaian\Tests\KepegawaianIdentityTestCase;
 use Illuminate\Support\Facades\Artisan;
+use Spatie\Permission\Models\Permission;
 use Webkul\Security\Models\User;
 
 class EmployeeJsonSyncCommandTest extends KepegawaianIdentityTestCase
@@ -57,6 +58,8 @@ class EmployeeJsonSyncCommandTest extends KepegawaianIdentityTestCase
             ]);
             $dryRun = EmployeeSyncRun::query()->where('mode', 'dry_run')->sole();
             $actor = User::factory()->create();
+            Permission::findOrCreate('commit_kepegawaian_employee::sync::run', 'web');
+            $actor->givePermissionTo('commit_kepegawaian_employee::sync::run');
 
             file_put_contents($path, '[]');
 

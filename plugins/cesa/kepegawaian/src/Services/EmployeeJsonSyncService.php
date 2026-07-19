@@ -10,6 +10,7 @@ use Cesa\Kepegawaian\Models\EmployeeSyncRun;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use JsonException;
 use LogicException;
@@ -147,6 +148,7 @@ class EmployeeJsonSyncService
                     ->findOrFail($reviewedRun->getKey());
 
                 $this->assertReviewCanBeCommitted($lockedReview);
+                Gate::forUser($actor)->authorize('commit', $lockedReview);
 
                 $sourceRecords = $lockedReview->sourceRecords()
                     ->orderBy('row_number')

@@ -20,6 +20,13 @@ class EmployeeSyncRunPolicy
         return $user->can('view_kepegawaian_employee::sync::run');
     }
 
+    public function commit(User $user, EmployeeSyncRun $run): bool
+    {
+        return $run->mode === 'dry_run'
+            && $run->status === 'completed'
+            && $user->can('commit_kepegawaian_employee::sync::run');
+    }
+
     public function create(User $user): bool
     {
         return false;
