@@ -212,6 +212,11 @@ class Employee extends Model
         return $this->belongsTo(EmploymentType::class, 'employee_type');
     }
 
+    public function hrWorkflowRuns(): HasMany
+    {
+        return $this->hasMany(HrWorkflowRun::class, 'employee_id');
+    }
+
     public function categories()
     {
         return $this->belongsToMany(EmployeeCategory::class, 'employees_employee_categories', 'employee_id', 'category_id');

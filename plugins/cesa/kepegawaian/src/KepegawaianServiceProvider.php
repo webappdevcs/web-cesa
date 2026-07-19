@@ -65,6 +65,7 @@ class KepegawaianServiceProvider extends PackageServiceProvider
                 '2026_07_19_000002_add_canonical_identity_registry',
                 '2026_07_19_000003_create_employee_sync_tables',
                 '2026_07_19_000004_harden_employee_sync_tables',
+                '2026_07_19_000005_create_hr_workflow_tables',
             ])
             ->runsMigrations()
             ->hasSeeder('Cesa\\Kepegawaian\\Database\\Seeders\\DatabaseSeeder')
