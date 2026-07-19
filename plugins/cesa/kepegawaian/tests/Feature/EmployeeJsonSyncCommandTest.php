@@ -34,7 +34,10 @@ class EmployeeJsonSyncCommandTest extends KepegawaianIdentityTestCase
             $this->assertSame(0, $employee->identifiers()->count());
             $this->assertStringContainsString($run->uuid, $output);
             $this->assertStringContainsString('DRY RUN', $output);
-            $this->assertStringContainsString('Would link', $output);
+            $this->assertStringContainsString(
+                __('kepegawaian::console.employee_sync.would_link'),
+                $output
+            );
         } finally {
             $this->removeFile($path);
         }
@@ -78,7 +81,10 @@ class EmployeeJsonSyncCommandTest extends KepegawaianIdentityTestCase
         ]);
 
         $this->assertSame(1, $exitCode);
-        $this->assertStringContainsString('could not be completed', Artisan::output());
+        $this->assertStringContainsString(
+            __('kepegawaian::console.employee_sync.failed'),
+            Artisan::output()
+        );
         $this->assertStringNotContainsString('super-secret-directory', Artisan::output());
         $this->assertDatabaseCount('employees_sync_runs', 0);
     }

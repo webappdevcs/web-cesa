@@ -2,6 +2,7 @@
 
 namespace Cesa\Kepegawaian;
 
+use Cesa\Kepegawaian\Console\Commands\SyncEmployeeJson;
 use Cesa\Kepegawaian\Models\ActivityPlan;
 use Cesa\Kepegawaian\Models\Calendar;
 use Cesa\Kepegawaian\Models\Department;
@@ -38,6 +39,7 @@ class KepegawaianServiceProvider extends PackageServiceProvider
         $package->name(static::$name)
             ->hasTranslations()
             ->hasRoute('api')
+            ->hasCommand(SyncEmployeeJson::class)
             ->hasMigrations([
                 '2024_12_11_045350_create_employees_work_locations_table',
                 '2024_12_11_051916_create_employees_departments_table',
