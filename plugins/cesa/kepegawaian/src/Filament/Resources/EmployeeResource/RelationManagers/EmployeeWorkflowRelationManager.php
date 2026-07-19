@@ -24,6 +24,11 @@ class EmployeeWorkflowRelationManager extends RelationManager
 {
     protected static string $relationship = 'hrWorkflowRuns';
 
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
+    {
+        return auth()->user()?->can('view_any_kepegawaian_hr::workflow::run') ?? false;
+    }
+
     public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
         return __('kepegawaian::filament/resources/employee/relation-manager/workflow.title');

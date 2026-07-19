@@ -16,13 +16,19 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Webkul\Security\Models\User;
 
 class HrWorkflowTasksRelationManager extends RelationManager
 {
     protected static string $relationship = 'tasks';
 
-    public static function getTitle($ownerRecord, string $pageClass): string
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
+    {
+        return auth()->user()?->can('view_kepegawaian_hr::workflow::run') ?? false;
+    }
+
+    public static function getTitle(Model $ownerRecord, string $pageClass): string
     {
         return __('kepegawaian::filament/resources/hr-workflow-run/relation-manager/task.title');
     }

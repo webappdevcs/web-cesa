@@ -39,10 +39,16 @@ class EmployeeLifecycleBridge
             $email = $this->normalizeEmail($candidate['email'] ?? null);
 
             if (! $employee && $email !== null) {
-                $employee = Employee::query()
+                $matches = Employee::query()
                     ->whereRaw('LOWER(private_email) = ?', [$email])
                     ->orWhereRaw('LOWER(work_email) = ?', [$email])
-                    ->first();
+                    ->get();
+
+                if ($matches->count() > 1) {
+                    throw new LogicException('The hired candidate email matched to more than one employee.');
+                }
+
+                $employee = $matches->first();
             }
 
             $employee ??= Employee::query()->create([

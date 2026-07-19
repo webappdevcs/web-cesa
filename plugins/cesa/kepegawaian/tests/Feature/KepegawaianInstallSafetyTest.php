@@ -32,6 +32,14 @@ class KepegawaianInstallSafetyTest extends TestCase
             '2026_07_19_000004_harden_employee_sync_tables',
             $package->migrationFileNames,
         );
+        $this->assertContains(
+            '2026_07_19_000005_create_hr_workflow_tables',
+            $package->migrationFileNames,
+        );
+        $this->assertContains(
+            '2026_07_19_000006_seed_default_hr_workflow_templates',
+            $package->migrationFileNames,
+        );
 
         $installCommand = collect($package->consoleCommands)
             ->first(fn (object $command): bool => $this->readProperty($command, 'signature') === 'kepegawaian:install');
