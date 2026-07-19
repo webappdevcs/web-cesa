@@ -22,6 +22,7 @@ class HrWorkflowRun extends Model
         'type',
         'status',
         'active_key',
+        'source_key',
         'context',
         'started_at',
         'due_at',

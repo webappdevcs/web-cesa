@@ -4,6 +4,7 @@ namespace Cesa\Kepegawaian\Services;
 
 use Cesa\Kepegawaian\Enums\HrWorkflowRunStatus;
 use Cesa\Kepegawaian\Enums\HrWorkflowTaskStatus;
+use Cesa\Kepegawaian\Enums\HrWorkflowType;
 use Cesa\Kepegawaian\Models\Employee;
 use Cesa\Kepegawaian\Models\HrWorkflowRun;
 use Cesa\Kepegawaian\Models\HrWorkflowTask;
@@ -23,10 +24,14 @@ class HrWorkflowService
     public function start(
         HrWorkflowTemplate $template,
         Employee $employee,
-        User $actor,
+        ?User $actor,
         array $context = [],
     ): HrWorkflowRun {
-        $this->ensurePersisted($template, $employee, $actor);
+        $this->ensurePersisted($template, $employee);
+
+        if ($actor !== null) {
+            $this->ensurePersisted($actor);
+        }
 
         try {
             return DB::transaction(function () use ($template, $employee, $actor, $context): HrWorkflowRun {
@@ -44,9 +49,16 @@ class HrWorkflowService
                 }
 
                 $activeKey = hash('sha256', $employee->getKey().'|'.$lockedTemplate->getKey());
+                $sourceKey = isset($context['source_key']) && is_string($context['source_key'])
+                    ? trim($context['source_key'])
+                    : null;
 
                 if (HrWorkflowRun::query()->where('active_key', $activeKey)->exists()) {
                     throw new LogicException('An active workflow already exists for this employee and template.');
+                }
+
+                if ($sourceKey !== null && HrWorkflowRun::query()->where('source_key', $sourceKey)->exists()) {
+                    throw new LogicException('This source lifecycle event has already been processed.');
                 }
 
                 $startedAt = now();
@@ -58,10 +70,11 @@ class HrWorkflowService
                     'type'         => $lockedTemplate->type,
                     'status'       => HrWorkflowRunStatus::InProgress,
                     'active_key'   => $activeKey,
+                    'source_key'   => $sourceKey,
                     'context'      => $context,
                     'started_at'   => $startedAt,
                     'due_at'       => $startedAt->copy()->addDays($lockedTemplate->steps->max('due_days')),
-                    'started_by'   => $actor->getKey(),
+                    'started_by'   => $actor?->getKey(),
                 ]);
 
                 foreach ($lockedTemplate->steps as $step) {
@@ -82,7 +95,7 @@ class HrWorkflowService
                     'workflow_run_id' => $run->getKey(),
                     'template_id'     => $lockedTemplate->getKey(),
                     'employee_id'     => $employee->getKey(),
-                    'actor_id'        => $actor->getKey(),
+                    'actor_id'        => $actor?->getKey(),
                 ]);
 
                 return $run->load('tasks');
@@ -269,6 +282,15 @@ class HrWorkflowService
             'completed_at' => now(),
             'completed_by' => $actor->getKey(),
         ]);
+
+        if ($run->type === HrWorkflowType::Offboarding
+            && ($run->context['deactivate_employee_on_completion'] ?? false) === true) {
+            $run->employee()->update([
+                'is_active'             => false,
+                'departure_date'        => $run->context['departure_date'] ?? now()->toDateString(),
+                'departure_description' => $run->context['departure_reason'] ?? null,
+            ]);
+        }
     }
 
     private function ensureRunIsActive(HrWorkflowRun $run): void

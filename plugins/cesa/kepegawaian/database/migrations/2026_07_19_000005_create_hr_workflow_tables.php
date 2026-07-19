@@ -52,6 +52,7 @@ return new class extends Migration
             $table->string('type')->index();
             $table->string('status')->default(HrWorkflowRunStatus::InProgress->value)->index();
             $table->string('active_key', 64)->nullable()->unique();
+            $table->string('source_key')->nullable()->unique();
             $table->json('context')->nullable();
             $table->timestamp('started_at');
             $table->timestamp('due_at')->nullable();
