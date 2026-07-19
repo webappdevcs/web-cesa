@@ -309,6 +309,33 @@ class EmployeeJsonSyncServiceTest extends KepegawaianIdentityTestCase
         }
     }
 
+    public function test_reviewed_commit_rejects_changed_review_counts_even_when_payload_is_unchanged(): void
+    {
+        $dryRun = $this->stage([$this->vendorRecord([
+            'id'          => 'vendor-review-summary',
+            'id_employee' => 'EMP-REVIEW-SUMMARY',
+        ])]);
+
+        DB::table('employees_sync_runs')
+            ->where('id', $dryRun->id)
+            ->update(['would_create_count' => 0]);
+
+        try {
+            $this->service()->commitReviewed(
+                $dryRun,
+                $this->actor(),
+                'Review summary integrity checked.',
+            );
+
+            $this->fail('A modified review summary must not be committed.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('manifest', Str::lower($exception->getMessage()));
+            $this->assertDatabaseMissing('employees_employees', [
+                'employee_code' => 'EMP-REVIEW-SUMMARY',
+            ]);
+        }
+    }
+
     public function test_missing_snapshot_rows_do_not_deactivate_existing_employees(): void
     {
         $employee = $this->createEmployee('EMP-STAYS-ACTIVE', 'Active Employee');
