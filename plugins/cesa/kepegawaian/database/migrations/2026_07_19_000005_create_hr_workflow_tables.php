@@ -39,6 +39,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['template_id', 'sort_order']);
+            $table->unique(['template_id', 'department', 'name'], 'employees_hr_workflow_step_unique');
         });
 
         Schema::create('employees_hr_workflow_runs', function (Blueprint $table): void {
