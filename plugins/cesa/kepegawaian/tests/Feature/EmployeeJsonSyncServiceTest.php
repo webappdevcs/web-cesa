@@ -336,6 +336,75 @@ class EmployeeJsonSyncServiceTest extends KepegawaianIdentityTestCase
         }
     }
 
+    public function test_reviewed_commit_rejects_a_changed_source_review_classification(): void
+    {
+        $dryRun = $this->stage([$this->vendorRecord([
+            'id'          => 'vendor-review-classification',
+            'id_employee' => 'EMP-REVIEW-CLASSIFICATION',
+        ])]);
+        $sourceRecord = $dryRun->sourceRecords()->firstOrFail();
+
+        DB::table('employees_source_records')
+            ->where('id', $sourceRecord->id)
+            ->update([
+                'status'         => 'matched',
+                'match_strategy' => 'external_id',
+            ]);
+
+        try {
+            $this->service()->commitReviewed(
+                $dryRun,
+                $this->actor(),
+                'Source classification integrity checked.',
+            );
+
+            $this->fail('A modified source classification must not be committed.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('manifest', Str::lower($exception->getMessage()));
+            $this->assertDatabaseMissing('employees_employees', [
+                'employee_code' => 'EMP-REVIEW-CLASSIFICATION',
+            ]);
+        }
+    }
+
+    public function test_reviewed_commit_rejects_a_changed_conflict_descriptor(): void
+    {
+        $identifierOwner = $this->createEmployee('EMP-MANIFEST-A', 'Identifier Owner');
+        $this->createEmployee('EMP-MANIFEST-B', 'Code Owner');
+        $identifierOwner->identifiers()->create([
+            'source_system'   => 'talenta',
+            'source_instance' => 'production',
+            'identifier_type' => 'record_id',
+            'external_id'     => 'vendor-manifest-conflict',
+        ]);
+        $dryRun = $this->stage([$this->vendorRecord([
+            'id'          => 'vendor-manifest-conflict',
+            'id_employee' => 'EMP-MANIFEST-B',
+        ])]);
+        $conflict = $dryRun->sourceRecords()->firstOrFail()->conflict()->firstOrFail();
+
+        DB::table('employees_sync_conflicts')
+            ->where('id', $conflict->id)
+            ->update(['type' => 'invalid_record']);
+
+        try {
+            $this->service()->commitReviewed(
+                $dryRun,
+                $this->actor(),
+                'Conflict descriptor integrity checked.',
+            );
+
+            $this->fail('A modified conflict descriptor must not be committed.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('manifest', Str::lower($exception->getMessage()));
+            $this->assertDatabaseMissing('employees_sync_runs', [
+                'reviewed_run_id' => $dryRun->id,
+                'mode'            => 'commit',
+                'status'          => 'completed',
+            ]);
+        }
+    }
+
     public function test_missing_snapshot_rows_do_not_deactivate_existing_employees(): void
     {
         $employee = $this->createEmployee('EMP-STAYS-ACTIVE', 'Active Employee');
