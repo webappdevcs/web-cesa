@@ -6,17 +6,14 @@ use Cesa\Rekrutmen\Enums\ActivityEntryResult;
 use Cesa\Rekrutmen\Enums\JobApplicationGender;
 use Cesa\Rekrutmen\Enums\JobApplicationMaritalStatus;
 use Cesa\Rekrutmen\Enums\JobApplicationStatus;
+use Cesa\Rekrutmen\Events\CandidateHired;
 use Cesa\Rekrutmen\Services\MailThrottleService;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -441,6 +438,8 @@ class JobApplication extends Model
             $activityDate ?? now()->toDateString(),
             __('rekrutmen::filament/resources/job-application.table.actions.mark_hired'),
         );
+
+        event(new CandidateHired((int) $this->getKey(), $performedBy));
     }
 
     public function markAsRejected(?string $notes = null, ?int $performedBy = null, ?string $activityDate = null): void
@@ -1505,5 +1504,3 @@ class JobApplication extends Model
             ->value('id');
     }
 }
-
-

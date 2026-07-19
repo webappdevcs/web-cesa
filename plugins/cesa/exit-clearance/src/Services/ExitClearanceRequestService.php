@@ -2,6 +2,7 @@
 
 namespace Cesa\ExitClearance\Services;
 
+use Cesa\ExitClearance\Events\ExitClearanceApproved;
 use Cesa\ExitClearance\Models\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -212,11 +213,16 @@ class ExitClearanceRequestService
     {
         $request->loadMissing('approvers');
 
+        $previousStatus = $this->normalizeFormStatus($request->form_status);
         $status = $this->resolveOverallStatus($request);
 
         if ($request->form_status !== $status) {
             $request->form_status = $status;
             $request->save();
+        }
+
+        if ($previousStatus !== 'approved' && $this->normalizeFormStatus($status) === 'approved') {
+            event(new ExitClearanceApproved((int) $request->getKey()));
         }
 
         return $status;

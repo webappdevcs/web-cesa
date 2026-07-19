@@ -2,6 +2,7 @@
 
 namespace Cesa\Kepegawaian;
 
+use Cesa\ExitClearance\Events\ExitClearanceApproved;
 use Cesa\Kepegawaian\Console\Commands\SyncEmployeeJson;
 use Cesa\Kepegawaian\Models\ActivityPlan;
 use Cesa\Kepegawaian\Models\Calendar;
@@ -31,8 +32,14 @@ use Cesa\Kepegawaian\Policies\EmploymentTypePolicy;
 use Cesa\Kepegawaian\Policies\HrWorkflowRunPolicy;
 use Cesa\Kepegawaian\Policies\HrWorkflowTemplatePolicy;
 use Cesa\Kepegawaian\Policies\WorkLocationPolicy;
+use Cesa\Kepegawaian\Services\ExitClearanceLifecycleAdapter;
+use Cesa\Kepegawaian\Services\RecruitmentLifecycleAdapter;
+use Cesa\Rekrutmen\Events\CandidateHired;
 use Filament\Panel;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 use Webkul\PluginManager\Console\Commands\InstallCommand;
 use Webkul\PluginManager\Console\Commands\UninstallCommand;
 use Webkul\PluginManager\Package;
@@ -101,12 +108,39 @@ class KepegawaianServiceProvider extends PackageServiceProvider
         Gate::policy(HrWorkflowRun::class, HrWorkflowRunPolicy::class);
         Gate::policy(HrWorkflowTemplate::class, HrWorkflowTemplatePolicy::class);
         Gate::policy(WorkLocation::class, WorkLocationPolicy::class);
+
+        $this->registerEmployeeLifecycleListeners();
     }
 
     public function packageRegistered(): void
     {
         Panel::configureUsing(function (Panel $panel): void {
             $panel->plugin(KepegawaianPlugin::make());
+        });
+    }
+
+    private function registerEmployeeLifecycleListeners(): void
+    {
+        Event::listen(CandidateHired::class, function (CandidateHired $event): void {
+            try {
+                app(RecruitmentLifecycleAdapter::class)->handle($event->jobApplicationId, $event->performedBy);
+            } catch (Throwable $exception) {
+                Log::error('Failed to bridge hired candidate into employee onboarding.', [
+                    'job_application_id' => $event->jobApplicationId,
+                    'exception'          => $exception,
+                ]);
+            }
+        });
+
+        Event::listen(ExitClearanceApproved::class, function (ExitClearanceApproved $event): void {
+            try {
+                app(ExitClearanceLifecycleAdapter::class)->handle($event->requestId);
+            } catch (Throwable $exception) {
+                Log::error('Failed to bridge approved exit clearance into employee offboarding.', [
+                    'exit_clearance_request_id' => $event->requestId,
+                    'exception'                 => $exception,
+                ]);
+            }
         });
     }
 }
