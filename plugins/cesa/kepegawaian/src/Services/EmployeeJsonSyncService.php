@@ -87,6 +87,7 @@ class EmployeeJsonSyncService
             ])->save();
 
             $sourceRecords = $run->sourceRecords()
+                ->with('conflict')
                 ->orderBy('row_number')
                 ->get();
 
@@ -159,6 +160,7 @@ class EmployeeJsonSyncService
                 Gate::forUser($actor)->authorize('commit', $lockedReview);
 
                 $sourceRecords = $lockedReview->sourceRecords()
+                    ->with('conflict')
                     ->orderBy('row_number')
                     ->get();
                 $counts = $this->emptyCounts();
@@ -212,6 +214,7 @@ class EmployeeJsonSyncService
                 ])->save();
 
                 $committedRecords = $commitRun->sourceRecords()
+                    ->with('conflict')
                     ->orderBy('row_number')
                     ->get();
 
@@ -286,6 +289,10 @@ class EmployeeJsonSyncService
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n");
 
         foreach ($sourceRecords as $sourceRecord) {
+            $conflict = $sourceRecord->relationLoaded('conflict')
+                ? $sourceRecord->getRelation('conflict')
+                : $sourceRecord->conflict()->first();
+
             hash_update($context, json_encode([
                 'row_number'         => $sourceRecord->row_number,
                 'external_id'        => $sourceRecord->getRawOriginal('external_id'),
@@ -294,6 +301,15 @@ class EmployeeJsonSyncService
                 'employee_code_hash' => $sourceRecord->getRawOriginal('employee_code_hash'),
                 'checksum'           => $sourceRecord->getRawOriginal('checksum'),
                 'payload'            => $sourceRecord->getRawOriginal('payload'),
+                'status'             => $sourceRecord->status,
+                'match_strategy'     => $sourceRecord->match_strategy,
+                'employee_id'        => $sourceRecord->employee_id,
+                'conflict'           => $conflict === null ? null : [
+                    'id'          => $conflict->getKey(),
+                    'type'        => $conflict->type,
+                    'details'     => $conflict->getRawOriginal('details'),
+                    'employee_id' => $conflict->employee_id,
+                ],
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n");
         }
 
