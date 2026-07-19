@@ -12,6 +12,8 @@ use Cesa\Kepegawaian\Filament\Resources\DepartmentResource;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeSyncConflictResource;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeSyncRunResource;
+use Cesa\Kepegawaian\Filament\Resources\HrWorkflowRunResource;
+use Cesa\Kepegawaian\Filament\Resources\HrWorkflowTemplateResource;
 
 $permissions = [
     'BASIC'       => ['view_any', 'view', 'create', 'update', 'delete', 'delete_any'],
@@ -24,17 +26,19 @@ $permissions = [
 return [
     'resources' => [
         'manage' => [
-            EmployeeResource::class             => [...$permissions['CANONICAL'], 'manage_identifiers'],
-            EmployeeSyncRunResource::class      => ['view_any', 'view', 'commit'],
-            EmployeeSyncConflictResource::class => ['view_any', 'view', 'resolve'],
-            DepartmentResource::class           => $permissions['SOFT_DELETE'],
-            ActivityPlanResource::class         => $permissions['SOFT_DELETE'],
-            CalendarResource::class             => $permissions['SOFT_DELETE'],
-            DepartureReasonResource::class      => $permissions['REORDER'],
-            EmployeeCategoryResource::class     => $permissions['BASIC'],
-            WorkLocationResource::class         => $permissions['SOFT_DELETE'],
-            EmploymentTypeResource::class       => $permissions['REORDER'],
-            JobPositionResource::class          => $permissions['FULL'],
+            EmployeeResource::class              => [...$permissions['CANONICAL'], 'manage_identifiers'],
+            EmployeeSyncRunResource::class       => ['view_any', 'view', 'commit'],
+            EmployeeSyncConflictResource::class  => ['view_any', 'view', 'resolve'],
+            HrWorkflowRunResource::class         => ['view_any', 'view', 'start', 'cancel', 'manage_tasks'],
+            HrWorkflowTemplateResource::class    => $permissions['CANONICAL'],
+            DepartmentResource::class            => $permissions['SOFT_DELETE'],
+            ActivityPlanResource::class          => $permissions['SOFT_DELETE'],
+            CalendarResource::class              => $permissions['SOFT_DELETE'],
+            DepartureReasonResource::class       => $permissions['REORDER'],
+            EmployeeCategoryResource::class      => $permissions['BASIC'],
+            WorkLocationResource::class          => $permissions['SOFT_DELETE'],
+            EmploymentTypeResource::class        => $permissions['REORDER'],
+            JobPositionResource::class           => $permissions['FULL'],
         ],
         'exclude' => [],
     ],

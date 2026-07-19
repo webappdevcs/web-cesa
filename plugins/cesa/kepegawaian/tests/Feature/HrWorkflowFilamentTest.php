@@ -2,6 +2,7 @@
 
 namespace Cesa\Kepegawaian\Tests\Feature;
 
+use Cesa\Kepegawaian\Enums\HrWorkflowRunStatus;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\RelationManagers\EmployeeWorkflowRelationManager;
 use Cesa\Kepegawaian\Filament\Resources\HrWorkflowRunResource;
@@ -41,7 +42,7 @@ class HrWorkflowFilamentTest extends TestCase
             'manage_tasks_kepegawaian_hr::workflow::run',
             'cancel_kepegawaian_hr::workflow::run',
         ]);
-        $run = new HrWorkflowRun;
+        $run = new HrWorkflowRun(['status' => HrWorkflowRunStatus::InProgress]);
 
         $this->assertFalse((new HrWorkflowRunPolicy)->start($genericEmployeeEditor));
         $this->assertFalse((new HrWorkflowRunPolicy)->manageTasks($genericEmployeeEditor, $run));

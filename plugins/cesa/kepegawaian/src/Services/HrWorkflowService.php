@@ -141,6 +141,56 @@ class HrWorkflowService
         });
     }
 
+    public function assignTask(HrWorkflowTask $task, User $assignee, User $actor): HrWorkflowTask
+    {
+        $this->ensurePersisted($task, $assignee, $actor);
+
+        return DB::transaction(function () use ($task, $assignee, $actor): HrWorkflowTask {
+            $lockedTask = HrWorkflowTask::query()->lockForUpdate()->findOrFail($task->getKey());
+            $run = HrWorkflowRun::query()->lockForUpdate()->findOrFail($lockedTask->run_id);
+
+            $this->ensureRunIsActive($run);
+
+            if (! in_array($lockedTask->status, [HrWorkflowTaskStatus::Pending, HrWorkflowTaskStatus::InProgress], true)) {
+                throw new LogicException('Only an active task can be assigned.');
+            }
+
+            $lockedTask->update(['assigned_to_id' => $assignee->getKey()]);
+
+            Log::info('HR workflow task assigned', [
+                'workflow_run_id'  => $run->getKey(),
+                'workflow_task_id' => $lockedTask->getKey(),
+                'assignee_id'      => $assignee->getKey(),
+                'actor_id'         => $actor->getKey(),
+            ]);
+
+            return $lockedTask->refresh();
+        });
+    }
+
+    public function beginTask(HrWorkflowTask $task, User $actor): HrWorkflowTask
+    {
+        $this->ensurePersisted($task, $actor);
+
+        return DB::transaction(function () use ($task, $actor): HrWorkflowTask {
+            $lockedTask = HrWorkflowTask::query()->lockForUpdate()->findOrFail($task->getKey());
+            $run = HrWorkflowRun::query()->lockForUpdate()->findOrFail($lockedTask->run_id);
+
+            $this->ensureRunIsActive($run);
+
+            if ($lockedTask->status !== HrWorkflowTaskStatus::Pending) {
+                throw new LogicException('Only a pending task can be started.');
+            }
+
+            $lockedTask->update([
+                'status'         => HrWorkflowTaskStatus::InProgress,
+                'assigned_to_id' => $lockedTask->assigned_to_id ?? $actor->getKey(),
+            ]);
+
+            return $lockedTask->refresh();
+        });
+    }
+
     public function skipTask(HrWorkflowTask $task, User $actor, string $reason): HrWorkflowTask
     {
         $this->ensurePersisted($task, $actor);

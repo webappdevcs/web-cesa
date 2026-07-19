@@ -15,6 +15,7 @@ use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\Pages\ListEmployees;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\Pages\ManageResume;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\Pages\ViewEmployee;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\RelationManagers\EmployeeIdentifierRelationManager;
+use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\RelationManagers\EmployeeWorkflowRelationManager;
 use Cesa\Kepegawaian\Filament\Resources\EmployeeResource\RelationManagers\ResumeRelationManager;
 use Cesa\Kepegawaian\Models\Calendar;
 use Cesa\Kepegawaian\Models\Employee;
@@ -1792,6 +1793,7 @@ class EmployeeResource extends Resource
     {
         $relations = [
             EmployeeIdentifierRelationManager::class,
+            EmployeeWorkflowRelationManager::class,
             RelationGroup::make('Manage Resumes', [
                 ResumeRelationManager::class,
             ])

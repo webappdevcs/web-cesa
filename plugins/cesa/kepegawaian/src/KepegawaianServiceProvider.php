@@ -14,6 +14,8 @@ use Cesa\Kepegawaian\Models\EmployeeJobPosition;
 use Cesa\Kepegawaian\Models\EmployeeSyncConflict;
 use Cesa\Kepegawaian\Models\EmployeeSyncRun;
 use Cesa\Kepegawaian\Models\EmploymentType;
+use Cesa\Kepegawaian\Models\HrWorkflowRun;
+use Cesa\Kepegawaian\Models\HrWorkflowTemplate;
 use Cesa\Kepegawaian\Models\WorkLocation;
 use Cesa\Kepegawaian\Policies\ActivityPlanPolicy;
 use Cesa\Kepegawaian\Policies\CalendarPolicy;
@@ -26,6 +28,8 @@ use Cesa\Kepegawaian\Policies\EmployeePolicy;
 use Cesa\Kepegawaian\Policies\EmployeeSyncConflictPolicy;
 use Cesa\Kepegawaian\Policies\EmployeeSyncRunPolicy;
 use Cesa\Kepegawaian\Policies\EmploymentTypePolicy;
+use Cesa\Kepegawaian\Policies\HrWorkflowRunPolicy;
+use Cesa\Kepegawaian\Policies\HrWorkflowTemplatePolicy;
 use Cesa\Kepegawaian\Policies\WorkLocationPolicy;
 use Filament\Panel;
 use Illuminate\Support\Facades\Gate;
@@ -94,6 +98,8 @@ class KepegawaianServiceProvider extends PackageServiceProvider
         Gate::policy(EmployeeCategory::class, EmployeeCategoryPolicy::class);
         Gate::policy(EmployeeJobPosition::class, EmployeeJobPositionPolicy::class);
         Gate::policy(EmploymentType::class, EmploymentTypePolicy::class);
+        Gate::policy(HrWorkflowRun::class, HrWorkflowRunPolicy::class);
+        Gate::policy(HrWorkflowTemplate::class, HrWorkflowTemplatePolicy::class);
         Gate::policy(WorkLocation::class, WorkLocationPolicy::class);
     }
 
