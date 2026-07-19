@@ -13,6 +13,14 @@ class DefaultHrWorkflowTemplateSeeder extends Seeder
 
     public const OFFBOARDING_CODE = 'employee-offboarding';
 
+    public const OFFERING_CODE = 'employee-offering';
+
+    public const CONTRACT_RENEWAL_CODE = 'employee-contract-renewal';
+
+    public const DISCIPLINARY_CODE = 'employee-disciplinary-action';
+
+    public const TRAINING_CODE = 'employee-training';
+
     public function run(): void
     {
         DB::transaction(function (): void {
@@ -30,6 +38,38 @@ class DefaultHrWorkflowTemplateSeeder extends Seeder
                 type: HrWorkflowType::Offboarding,
                 description: 'Checklist lintas divisi berdasarkan Checklist Karyawan OUT pada DATABASE KARYAWAN.xlsx.',
                 steps: $this->offboardingSteps(),
+            );
+
+            $this->installTemplate(
+                code: self::OFFERING_CODE,
+                name: 'Offering Karyawan',
+                type: HrWorkflowType::Offering,
+                description: 'Registrasi dan aktivitas offering berdasarkan No Offering 2026 pada DATABASE KARYAWAN.xlsx.',
+                steps: $this->offeringSteps(),
+            );
+
+            $this->installTemplate(
+                code: self::CONTRACT_RENEWAL_CODE,
+                name: 'Perpanjangan Kontrak',
+                type: HrWorkflowType::ContractRenewal,
+                description: 'Monitoring dan aktivitas perpanjangan kontrak berdasarkan Update Perpanjangan Kontrak.',
+                steps: $this->contractRenewalSteps(),
+            );
+
+            $this->installTemplate(
+                code: self::DISCIPLINARY_CODE,
+                name: 'Surat Peringatan Karyawan',
+                type: HrWorkflowType::Disciplinary,
+                description: 'Penerbitan dan tindak lanjut surat peringatan berdasarkan register SURAT PERINGATAN.',
+                steps: $this->disciplinarySteps(),
+            );
+
+            $this->installTemplate(
+                code: self::TRAINING_CODE,
+                name: 'Training Karyawan',
+                type: HrWorkflowType::Training,
+                description: 'Pelaksanaan dan evaluasi training berdasarkan register TRAINING 2025.',
+                steps: $this->trainingSteps(),
             );
         });
     }
@@ -129,6 +169,69 @@ class DefaultHrWorkflowTemplateSeeder extends Seeder
             $this->step('Note GA', 'GA', 2),
             $this->step('Penonaktifan Email User', 'Busdev', 2),
             $this->step('Update Struktur Organisasi', 'Busdev', 3),
+        ];
+    }
+
+    /**
+     * @return array<int, array{name: string, department: string, due_days: int, requires_evidence?: bool}>
+     */
+    private function offeringSteps(): array
+    {
+        return [
+            $this->step('Validasi Komponen Offering', 'Recruitment', 0, true),
+            $this->step('Persetujuan Offering', 'HR Manager', 1, true),
+            $this->step('Terbitkan Offering Letter', 'Recruitment', 1, true),
+            $this->step('Kirim Offering ke Kandidat', 'Recruitment', 1),
+            $this->step('Catat Respons Kandidat', 'Recruitment', 3, true),
+            $this->step('Arsipkan Offering Final', 'Personalia', 3, true),
+        ];
+    }
+
+    /**
+     * @return array<int, array{name: string, department: string, due_days: int, requires_evidence?: bool}>
+     */
+    private function contractRenewalSteps(): array
+    {
+        return [
+            $this->step('Review Tanggal Berakhir Kontrak', 'Personalia', 0, true),
+            $this->step('Evaluasi Kinerja Karyawan', 'HR Manager', 3, true),
+            $this->step('Konfirmasi Rekomendasi User', 'HR Manager', 5, true),
+            $this->step('Persetujuan Perpanjangan', 'HR Manager', 7, true),
+            $this->step('Siapkan Dokumen Kontrak', 'Personalia', 10, true),
+            $this->step('Tanda Tangan Kontrak', 'Personalia', 14, true),
+            $this->step('Update Masa Kontrak Karyawan', 'Personalia', 14, true),
+        ];
+    }
+
+    /**
+     * @return array<int, array{name: string, department: string, due_days: int, requires_evidence?: bool}>
+     */
+    private function disciplinarySteps(): array
+    {
+        return [
+            $this->step('Dokumentasikan Pelanggaran', 'Personalia', 0, true),
+            $this->step('Klarifikasi dengan Karyawan', 'Personalia', 2, true),
+            $this->step('Review Riwayat Surat Peringatan', 'Personalia', 2, true),
+            $this->step('Persetujuan Surat Peringatan', 'HR Manager', 3, true),
+            $this->step('Terbitkan Surat Peringatan', 'Personalia', 3, true),
+            $this->step('Tanda Terima Karyawan', 'Personalia', 5, true),
+            $this->step('Jadwalkan Evaluasi Tindak Lanjut', 'HR Manager', 30),
+        ];
+    }
+
+    /**
+     * @return array<int, array{name: string, department: string, due_days: int, requires_evidence?: bool}>
+     */
+    private function trainingSteps(): array
+    {
+        return [
+            $this->step('Tetapkan Tujuan dan Materi Training', 'Training', 0, true),
+            $this->step('Tetapkan Peserta dan Trainer', 'Training', 1, true),
+            $this->step('Laksanakan Pre-Test', 'Training', 2, true),
+            $this->step('Catat Kehadiran dan Materi', 'Training', 3, true),
+            $this->step('Laksanakan Post-Test', 'Training', 3, true),
+            $this->step('Evaluasi KPI Training', 'Training', 7, true),
+            $this->step('Arsipkan Hasil dan Sertifikat', 'Training', 7, true),
         ];
     }
 

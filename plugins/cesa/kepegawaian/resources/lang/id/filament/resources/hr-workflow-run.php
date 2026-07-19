@@ -16,6 +16,10 @@ return [
         'started_by'          => 'Dimulai oleh',
         'completed_at'        => 'Selesai',
         'cancellation_reason' => 'Alasan pembatalan',
+        'reference_number'    => 'Nomor referensi',
+        'effective_date'      => 'Tanggal efektif',
+        'expiry_date'         => 'Tanggal berakhir',
+        'notes'               => 'Catatan',
     ],
     'statuses' => [
         'in_progress' => 'Sedang berjalan',

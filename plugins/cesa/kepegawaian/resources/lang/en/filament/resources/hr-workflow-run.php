@@ -16,6 +16,10 @@ return [
         'started_by'          => 'Started by',
         'completed_at'        => 'Completed at',
         'cancellation_reason' => 'Cancellation reason',
+        'reference_number'    => 'Reference number',
+        'effective_date'      => 'Effective date',
+        'expiry_date'         => 'Expiry date',
+        'notes'               => 'Notes',
     ],
     'statuses' => [
         'in_progress' => 'In progress',

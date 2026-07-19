@@ -9,7 +9,10 @@ use Cesa\Kepegawaian\Models\HrWorkflowTemplate;
 use Cesa\Kepegawaian\Services\HrWorkflowService;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -78,6 +81,18 @@ class EmployeeWorkflowRelationManager extends RelationManager
                                 ->all())
                             ->searchable()
                             ->required(),
+                        TextInput::make('reference_number')
+                            ->label(__('kepegawaian::filament/resources/employee/relation-manager/workflow.fields.reference_number'))
+                            ->maxLength(191),
+                        DatePicker::make('effective_date')
+                            ->label(__('kepegawaian::filament/resources/employee/relation-manager/workflow.fields.effective_date')),
+                        DatePicker::make('expiry_date')
+                            ->label(__('kepegawaian::filament/resources/employee/relation-manager/workflow.fields.expiry_date'))
+                            ->afterOrEqual('effective_date'),
+                        Textarea::make('notes')
+                            ->label(__('kepegawaian::filament/resources/employee/relation-manager/workflow.fields.notes'))
+                            ->rows(3)
+                            ->columnSpanFull(),
                     ])
                     ->action(function (array $data, HrWorkflowService $service): void {
                         /** @var Employee $employee */
@@ -87,7 +102,13 @@ class EmployeeWorkflowRelationManager extends RelationManager
                         $template = HrWorkflowTemplate::query()->findOrFail($data['template_id']);
 
                         try {
-                            $service->start($template, $employee, $actor, ['source' => 'employee_record']);
+                            $service->start($template, $employee, $actor, [
+                                'source'           => 'employee_record',
+                                'reference_number' => $data['reference_number'] ?? null,
+                                'effective_date'   => $data['effective_date'] ?? null,
+                                'expiry_date'      => $data['expiry_date'] ?? null,
+                                'notes'            => $data['notes'] ?? null,
+                            ]);
 
                             Notification::make()
                                 ->title(__('kepegawaian::filament/resources/employee/relation-manager/workflow.notifications.started'))

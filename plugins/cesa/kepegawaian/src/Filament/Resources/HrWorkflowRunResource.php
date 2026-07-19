@@ -108,6 +108,10 @@ class HrWorkflowRunResource extends Resource
                     TextEntry::make('started_at')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.started_at'))->dateTime('d M Y H:i'),
                     TextEntry::make('due_at')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.due_at'))->dateTime('d M Y H:i'),
                     TextEntry::make('completed_at')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.completed_at'))->dateTime('d M Y H:i')->placeholder('—'),
+                    TextEntry::make('context.reference_number')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.reference_number'))->placeholder('—'),
+                    TextEntry::make('context.effective_date')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.effective_date'))->placeholder('—'),
+                    TextEntry::make('context.expiry_date')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.expiry_date'))->placeholder('—'),
+                    TextEntry::make('context.notes')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.notes'))->columnSpanFull()->placeholder('—'),
                     TextEntry::make('cancellation_reason')->label(__('kepegawaian::filament/resources/hr-workflow-run.fields.cancellation_reason'))->columnSpanFull()->placeholder('—'),
                 ])->columns(2),
         ]);
