@@ -37,6 +37,10 @@ class EmployeeSyncRun extends Model
         'completed_at',
     ];
 
+    protected $hidden = [
+        'error_message',
+    ];
+
     protected $casts = [
         'error_message' => 'encrypted:string',
         'started_at'    => 'datetime',

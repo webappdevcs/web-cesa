@@ -26,9 +26,14 @@ class EmployeeSyncConflict extends Model
         'resolved_at',
     ];
 
+    protected $hidden = [
+        'details',
+    ];
+
     protected $casts = [
-        'details'     => 'encrypted:array',
-        'resolved_at' => 'datetime',
+        'details'          => 'encrypted:array',
+        'resolution_notes' => 'encrypted:string',
+        'resolved_at'      => 'datetime',
     ];
 
     public function sourceRecord(): BelongsTo

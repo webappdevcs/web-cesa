@@ -26,6 +26,10 @@ class EmployeeSourceRecord extends Model
         'employee_id',
     ];
 
+    protected $hidden = [
+        'payload',
+    ];
+
     protected $casts = [
         'payload' => 'encrypted:array',
     ];
