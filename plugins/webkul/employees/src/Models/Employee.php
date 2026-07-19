@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use LogicException;
 use Webkul\Chatter\Traits\HasChatter;
 use Webkul\Chatter\Traits\HasLogActivity;
 use Webkul\Employee\Database\Factories\EmployeeFactory;
@@ -239,6 +241,28 @@ class Employee extends Model
     {
         parent::boot();
 
+        static::creating(function (self $employee): void {
+            if (! $employee->hasCanonicalUuidColumn()) {
+                return;
+            }
+
+            $employee->uuid ??= (string) Str::orderedUuid();
+
+            if (! Str::isUuid((string) $employee->uuid)) {
+                throw new LogicException('Employee canonical UUID must be a valid UUID.');
+            }
+        });
+
+        static::updating(function (self $employee): void {
+            if (
+                $employee->hasCanonicalUuidColumn()
+                && $employee->isDirty('uuid')
+                && $employee->getOriginal('uuid') !== null
+            ) {
+                throw new LogicException('Employee canonical UUID is immutable.');
+            }
+        });
+
         static::saved(function (self $employee) {
             $employee->creator_id ??= Auth::id();
 
@@ -248,6 +272,13 @@ class Employee extends Model
                 $employee->handlePartnerUpdation($employee);
             }
         });
+    }
+
+    private function hasCanonicalUuidColumn(): bool
+    {
+        return $this->getConnection()
+            ->getSchemaBuilder()
+            ->hasColumn($this->getTable(), 'uuid');
     }
 
     private function handlePartnerCreation(self $employee): void

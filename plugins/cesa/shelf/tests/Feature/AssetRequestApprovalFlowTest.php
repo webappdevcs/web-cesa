@@ -16,6 +16,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 use Tests\UsesSqliteInMemoryDatabase;
 use Webkul\Security\Models\User;
@@ -313,6 +314,7 @@ class AssetRequestApprovalFlowTest extends TestCase
     {
         Schema::create('employees_employees', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('name')->nullable();
             $table->string('job_title')->nullable();
@@ -336,6 +338,7 @@ class AssetRequestApprovalFlowTest extends TestCase
     private function createEmployee(User $user, string $name, string $jobTitle): int
     {
         DB::table('employees_employees')->insert([
+            'uuid'          => (string) Str::orderedUuid(),
             'user_id'       => $user->id,
             'name'          => $name,
             'job_title'     => $jobTitle,
