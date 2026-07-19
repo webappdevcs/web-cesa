@@ -162,6 +162,24 @@ class HrWorkflowServiceTest extends KepegawaianIdentityTestCase
         $service->completeTask($task, $actor, 'Tidak boleh berubah');
     }
 
+    public function test_it_assigns_and_starts_a_pending_task_through_the_workflow_service(): void
+    {
+        $actor = User::factory()->create();
+        $assignee = User::factory()->create();
+        $employee = $this->createEmployee();
+        $service = app(HrWorkflowService::class);
+        $task = $service
+            ->start($this->createTemplate(), $employee, $actor)
+            ->tasks()
+            ->firstOrFail();
+
+        $service->assignTask($task, $assignee, $actor);
+        $service->beginTask($task, $assignee);
+
+        $this->assertSame($assignee->getKey(), $task->refresh()->assigned_to_id);
+        $this->assertSame(HrWorkflowTaskStatus::InProgress, $task->status);
+    }
+
     /**
      * @param  array<int, array<string, mixed>>|null  $steps
      */
