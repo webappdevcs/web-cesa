@@ -80,15 +80,18 @@ class EmployeeJsonSyncService
                 });
             }
 
+            $run->forceFill([
+                ...$counts,
+                'status'        => 'completed',
+                'completed_at'  => now(),
+            ])->save();
+
             $sourceRecords = $run->sourceRecords()
                 ->orderBy('row_number')
                 ->get();
 
-            $run->forceFill([
-                ...$counts,
-                'manifest_hash'=> $this->manifestHash($run, $sourceRecords),
-                'status'       => 'completed',
-                'completed_at' => now(),
+            $run->refresh()->forceFill([
+                'manifest_hash' => $this->manifestHash($run, $sourceRecords),
             ])->save();
         } catch (Throwable $throwable) {
             $this->markRunFailed($run, $counts, $throwable);
@@ -202,15 +205,18 @@ class EmployeeJsonSyncService
                     );
                 }
 
+                $commitRun->forceFill([
+                    ...$counts,
+                    'status'        => 'completed',
+                    'completed_at'  => now(),
+                ])->save();
+
                 $committedRecords = $commitRun->sourceRecords()
                     ->orderBy('row_number')
                     ->get();
 
-                $commitRun->forceFill([
-                    ...$counts,
-                    'manifest_hash'=> $this->manifestHash($commitRun, $committedRecords),
-                    'status'       => 'completed',
-                    'completed_at' => now(),
+                $commitRun->refresh()->forceFill([
+                    'manifest_hash' => $this->manifestHash($commitRun, $committedRecords),
                 ])->save();
 
                 return $commitRun->refresh();
@@ -257,7 +263,26 @@ class EmployeeJsonSyncService
             'uuid'            => $run->uuid,
             'source_system'   => $run->source_system,
             'source_instance' => $run->source_instance,
+            'mode'            => $run->mode,
+            'status'          => $run->status,
+            'file_name'       => $run->file_name,
             'file_checksum'   => $run->file_checksum,
+            'reviewed_run_id' => $run->reviewed_run_id,
+            'channel'         => $run->channel,
+            'commit_reason'   => $run->getRawOriginal('commit_reason'),
+            'counts'          => [
+                'total_records'      => $run->total_records,
+                'matched_count'      => $run->matched_count,
+                'linked_count'       => $run->linked_count,
+                'created_count'      => $run->created_count,
+                'would_link_count'   => $run->would_link_count,
+                'would_create_count' => $run->would_create_count,
+                'conflict_count'     => $run->conflict_count,
+                'invalid_count'      => $run->invalid_count,
+            ],
+            'initiated_by'    => $run->initiated_by,
+            'started_at'      => $run->getRawOriginal('started_at'),
+            'completed_at'    => $run->getRawOriginal('completed_at'),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n");
 
         foreach ($sourceRecords as $sourceRecord) {
