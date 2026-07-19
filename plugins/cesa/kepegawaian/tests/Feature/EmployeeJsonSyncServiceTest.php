@@ -6,6 +6,7 @@ use Cesa\Kepegawaian\Models\Employee;
 use Cesa\Kepegawaian\Models\EmployeeSyncRun;
 use Cesa\Kepegawaian\Services\EmployeeJsonSyncService;
 use Cesa\Kepegawaian\Tests\KepegawaianIdentityTestCase;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
@@ -259,6 +260,22 @@ class EmployeeJsonSyncServiceTest extends KepegawaianIdentityTestCase
         $this->service()->commitReviewed($dryRun, $actor, 'Duplicate approval.');
     }
 
+    public function test_actor_without_dedicated_commit_permission_cannot_apply_reviewed_run(): void
+    {
+        $dryRun = $this->stage([$this->vendorRecord([
+            'id'          => 'vendor-unauthorized',
+            'id_employee' => 'EMP-UNAUTHORIZED',
+        ])]);
+
+        $this->expectException(AuthorizationException::class);
+
+        $this->service()->commitReviewed(
+            $dryRun,
+            $this->actor([]),
+            'Attempt without the commit grant.',
+        );
+    }
+
     public function test_missing_snapshot_rows_do_not_deactivate_existing_employees(): void
     {
         $employee = $this->createEmployee('EMP-STAYS-ACTIVE', 'Active Employee');
@@ -295,9 +312,29 @@ class EmployeeJsonSyncServiceTest extends KepegawaianIdentityTestCase
         return app(EmployeeJsonSyncService::class);
     }
 
-    private function actor(): User
+    /**
+     * @param  array<int, string>  $abilities
+     */
+    private function actor(array $abilities = ['commit_kepegawaian_employee::sync::run']): User
     {
-        return User::factory()->create();
+        $persisted = User::factory()->create();
+
+        $actor = new class extends User
+        {
+            /** @var array<int, string> */
+            public array $abilities = [];
+
+            public function can($ability, $arguments = []): bool
+            {
+                return in_array($ability, $this->abilities, true);
+            }
+        };
+
+        $actor->id = $persisted->id;
+        $actor->exists = true;
+        $actor->abilities = $abilities;
+
+        return $actor;
     }
 
     private function createEmployee(string $employeeCode, string $name): Employee

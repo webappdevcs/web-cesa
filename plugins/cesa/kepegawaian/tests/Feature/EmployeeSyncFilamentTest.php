@@ -41,6 +41,16 @@ class EmployeeSyncFilamentTest extends TestCase
 
         $user->abilities = ['view_any_kepegawaian_employee::sync::run'];
         $this->assertTrue($runPolicy->viewAny($user));
+        $this->assertFalse($runPolicy->commit($user, new EmployeeSyncRun([
+            'mode'   => 'dry_run',
+            'status' => 'completed',
+        ])));
+
+        $user->abilities[] = 'commit_kepegawaian_employee::sync::run';
+        $this->assertTrue($runPolicy->commit($user, new EmployeeSyncRun([
+            'mode'   => 'dry_run',
+            'status' => 'completed',
+        ])));
         $this->assertFalse($runPolicy->create($user));
 
         $user->abilities = ['view_any_kepegawaian_employee::sync::conflict'];
@@ -59,7 +69,7 @@ class EmployeeSyncFilamentTest extends TestCase
         $resources = $shield['resources']['manage'];
 
         $this->assertSame(
-            ['view_any', 'view'],
+            ['view_any', 'view', 'commit'],
             $resources[EmployeeSyncRunResource::class]
         );
         $this->assertSame(
