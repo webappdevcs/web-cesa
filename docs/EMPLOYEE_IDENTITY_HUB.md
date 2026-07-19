@@ -63,6 +63,13 @@ Sebelum deployment production:
 4. Stage satu export kecil sebagai pilot, cocokkan checksum dan jumlah data.
 5. Commit setelah konflik dan jumlah `would_create` ditinjau.
 
+Prasyarat runtime production:
+
+- `APP_KEY` wajib tersedia dan stabil; rotasi key harus disertai prosedur re-enkripsi data staging dan audit lama.
+- Cache lock harus memakai backend bersama seperti Redis/database bila aplikasi berjalan pada beberapa host atau worker.
+- Migration hardening diuji otomatis pada SQLite dan mengeksekusi pelebaran kolom khusus MySQL; lakukan smoke migration pada salinan database MySQL sebelum rollout production.
+- Raw SQL/akses database dibatasi; perubahan identity harus melewati model, policy, dan service terotorisasi.
+
 ## Alur import JSON vendor
 
 ### 1. Stage — tidak mengubah master
@@ -154,4 +161,3 @@ Consumer service harus menyimpan `employee_uuid` sebagai referensi lintas sistem
 4. **Exit clearance:** offboarding mengacu ke employee UUID, lalu menghasilkan entitlement revoke tasks dan evidence.
 5. **Access governance:** application, role, entitlement, approval, recertification, dan segregation-of-duties.
 6. **SSO federation:** expose/consume OIDC melalui komponen yang diaudit; jangan membangun protokol login dan token secara manual.
-
