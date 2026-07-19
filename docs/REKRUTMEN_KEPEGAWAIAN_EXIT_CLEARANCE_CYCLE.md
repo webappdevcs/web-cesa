@@ -30,6 +30,39 @@ Cycle yang sehat:
 
 `Request Man Power -> Job Posting -> Job Application -> Hire Decision -> Employee -> Exit Clearance -> Exit Finalization -> Replacement Request`
 
+## Status Implementasi 19 Juli 2026
+
+Fondasi lifecycle operasional sudah diimplementasikan di plugin `kepegawaian`:
+
+- template workflow HR yang dapat diubah oleh HR
+- workflow per employee dengan status, urutan aktivitas, PIC, tenggat, catatan, dan bukti privat
+- enam template bawaan yang diturunkan dari `DATABASE KARYAWAN.xlsx`:
+  - onboarding karyawan: 30 aktivitas
+  - offboarding karyawan: 14 aktivitas
+  - offering: 6 aktivitas
+  - perpanjangan kontrak: 7 aktivitas
+  - surat peringatan: 7 aktivitas
+  - training: 7 aktivitas
+- metadata operasional berupa nomor referensi, tanggal efektif, tanggal berakhir, dan catatan
+- halaman daftar workflow, konfigurasi template, dan tab aktivitas HR pada profil employee
+- permission terpisah untuk melihat, memulai, membatalkan, dan mengelola tugas
+- event bridge dari kandidat `HIRED` ke employee dan onboarding
+- event bridge dari Exit Clearance `Approved` ke offboarding
+- deactivation employee hanya dilakukan setelah semua aktivitas offboarding selesai
+- source key dan external identifier untuk mencegah proses lifecycle yang sama dibuat berulang
+
+Alur penggunaan HR:
+
+1. buka profil employee
+2. buka relasi **Aktivitas HR**
+3. pilih **Mulai aktivitas HR**
+4. pilih template dan isi referensi/tanggal jika diperlukan
+5. tetapkan PIC per aktivitas
+6. PIC memulai, mengunggah bukti jika diwajibkan, lalu menyelesaikan aktivitas
+7. sistem menutup workflow otomatis saat seluruh aktivitas wajib selesai
+
+Bridge lintas plugin sengaja memakai event dan service boundary. Rekrutmen dan Exit Clearance tidak mengakses tabel internal Kepegawaian secara langsung. Kegagalan bridge dicatat di log tanpa membatalkan keputusan hiring atau approval yang sudah sah.
+
 Cycle yang tidak sehat:
 
 - kandidat dianggap employee hanya karena status berubah ke `HIRED`
@@ -69,7 +102,7 @@ Fakta penting dari codebase:
   - `posisi_dibutuhkan`
   - `lokasi_penempatan`
 - `JobPosting` belum terhubung ke master HR seperti department, company, job position, atau work location
-- `JobApplication` belum punya relasi ke employee
+- `JobApplication` tidak memiliki foreign key langsung ke employee; hasil hiring dihubungkan melalui event dan canonical external identifier
 
 Kesimpulan:
 
@@ -107,7 +140,7 @@ Fakta penting dari codebase:
 - `Employee` adalah entitas paling dekat dengan "hubungan kerja resmi"
 - `Employee` sudah punya field offboarding seperti `departure_date` dan `departure_reason_id`
 - saat save, employee akan membuat atau mengupdate `Partner`
-- belum ada bridge dari hasil hiring `rekrutmen` ke employee `kepegawaian`
+- bridge hasil hiring ke employee dan onboarding sudah tersedia serta idempotent
 
 Kesimpulan:
 
@@ -135,7 +168,7 @@ Cara kerja saat ini:
 
 Fakta penting dari codebase:
 
-- request exit clearance belum punya `employee_id`
+- request exit clearance belum punya `employee_id`; bridge awal hanya berjalan bila email cocok tepat ke satu employee, kemudian workflow memakai source key yang stabil
 - data request masih berbasis:
   - `name`
   - `email`
@@ -148,7 +181,7 @@ Fakta penting dari codebase:
 Kesimpulan:
 
 - `exit-clearance` saat ini adalah workflow offboarding berbasis form
-- plugin ini belum menjadi extension dari employee master
+- approval final plugin ini kini memicu workflow offboarding Kepegawaian, tetapi canonical `employee_id` pada request masih menjadi hardening lanjutan
 
 ## Source of Truth yang Benar
 
