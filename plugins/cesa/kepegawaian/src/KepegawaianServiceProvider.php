@@ -57,6 +57,7 @@ class KepegawaianServiceProvider extends PackageServiceProvider
                 '2025_08_20_082638_add_unique_user_id_to_employees_employees_table',
                 '2026_03_14_141926_add_employee_identifiers_to_employees_employees_table',
                 '2026_07_19_000002_add_canonical_identity_registry',
+                '2026_07_19_000003_create_employee_sync_tables',
             ])
             ->runsMigrations()
             ->hasSeeder('Cesa\\Kepegawaian\\Database\\Seeders\\DatabaseSeeder')

@@ -49,33 +49,48 @@ class EmployeeSeedData
 
         $this->records = collect($decoded)
             ->filter(fn ($record) => is_array($record))
-            ->map(fn (array $record): array => [
-                'branch'         => $this->normalizeText($record['branch'] ?? null),
-                'organization'   => $this->normalizeText($record['organization'] ?? null),
-                'source_id'      => $this->normalizeText($record['id'] ?? null),
-                'employee_code'  => $this->normalizeText($record['id_employee'] ?? null),
-                'job'            => $this->normalizeText($record['job'] ?? null),
-                'title'          => $this->normalizeText($record['title'] ?? null),
-                'name'           => $this->buildName($record),
-                'email'          => $this->normalizeText($record['email'] ?? null),
-                'mobile_phone'   => $this->normalizeText($record['mobile_phone'] ?? null),
-                'phone'          => $this->normalizeText($record['phone'] ?? null),
-                'current_address'=> $this->normalizeText($record['current_address'] ?? null),
-                'address'        => $this->normalizeText($record['address'] ?? null),
-                'tax_status'     => $this->normalizeText($record['tax_status'] ?? null),
-                'marital'        => $this->normalizeMaritalStatus($record['marital_status'] ?? null),
-                'religion'       => $this->normalizeText($record['religion'] ?? null),
-                'gender'         => $this->normalizeGender($record['gender'] ?? null),
-                'blood_type'     => $this->normalizeText($record['blood_type'] ?? null),
-                'birth_date'     => $this->normalizeDate($record['birth_date'] ?? null),
-                'join_date'      => $this->normalizeDate($record['join_date'] ?? null),
-                'grade'          => $this->normalizeText($record['grade'] ?? null),
-                'class'          => $this->normalizeText($record['class'] ?? null),
-            ])
-            ->filter(fn (array $record) => filled($record['employee_code']) && filled($record['name']))
+            ->map(fn (array $record): ?array => $this->normalizeRecord($record))
+            ->filter(fn (?array $record): bool => $record !== null)
             ->values();
 
         return $this->records;
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     * @return array<string, mixed>|null
+     */
+    public function normalizeRecord(array $record): ?array
+    {
+        $normalized = [
+            'branch'          => $this->normalizeText($record['branch'] ?? null),
+            'organization'    => $this->normalizeText($record['organization'] ?? null),
+            'source_id'       => $this->normalizeText($record['id'] ?? null),
+            'employee_code'   => $this->normalizeText($record['id_employee'] ?? null),
+            'job'             => $this->normalizeText($record['job'] ?? null),
+            'title'           => $this->normalizeText($record['title'] ?? null),
+            'name'            => $this->buildName($record),
+            'email'           => $this->normalizeText($record['email'] ?? null),
+            'mobile_phone'    => $this->normalizeText($record['mobile_phone'] ?? null),
+            'phone'           => $this->normalizeText($record['phone'] ?? null),
+            'current_address' => $this->normalizeText($record['current_address'] ?? null),
+            'address'         => $this->normalizeText($record['address'] ?? null),
+            'tax_status'      => $this->normalizeText($record['tax_status'] ?? null),
+            'marital'         => $this->normalizeMaritalStatus($record['marital_status'] ?? null),
+            'religion'        => $this->normalizeText($record['religion'] ?? null),
+            'gender'          => $this->normalizeGender($record['gender'] ?? null),
+            'blood_type'      => $this->normalizeText($record['blood_type'] ?? null),
+            'birth_date'      => $this->normalizeDate($record['birth_date'] ?? null),
+            'join_date'       => $this->normalizeDate($record['join_date'] ?? null),
+            'grade'           => $this->normalizeText($record['grade'] ?? null),
+            'class'           => $this->normalizeText($record['class'] ?? null),
+        ];
+
+        if (! filled($normalized['employee_code']) || ! filled($normalized['name'])) {
+            return null;
+        }
+
+        return $normalized;
     }
 
     /**
