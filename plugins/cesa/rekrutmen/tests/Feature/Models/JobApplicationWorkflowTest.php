@@ -6,6 +6,7 @@ use Cesa\Rekrutmen\Enums\ActivityEntryResult;
 use Cesa\Rekrutmen\Enums\JobApplicationGender;
 use Cesa\Rekrutmen\Enums\JobApplicationMaritalStatus;
 use Cesa\Rekrutmen\Enums\JobApplicationStatus;
+use Cesa\Rekrutmen\Events\CandidateHired;
 use Cesa\Rekrutmen\Filament\Resources\JobApplicationResource\Pages\CreateJobApplication;
 use Cesa\Rekrutmen\Models\JobApplication;
 use Cesa\Rekrutmen\Models\JobPosting;
@@ -14,8 +15,10 @@ use Cesa\Rekrutmen\Models\RekrutmenStage;
 use Cesa\Rekrutmen\Tests\RekrutmenTestCase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Webkul\Security\Models\User;
 
 class JobApplicationWorkflowTest extends RekrutmenTestCase
 {
@@ -146,6 +149,25 @@ class JobApplicationWorkflowTest extends RekrutmenTestCase
         ]);
     }
 
+    public function test_marking_candidate_hired_dispatches_employee_lifecycle_event(): void
+    {
+        Event::fake([CandidateHired::class]);
+        [$jobPosting, $firstStage, $finalStage] = $this->createPipelineFixture('Lifecycle Event');
+        $application = $this->makeJobApplication($jobPosting, $firstStage, 'lifecycle-event@example.com');
+        $actor = User::factory()->create();
+        $application->transitionToStage($finalStage->id, 'Move to final decision.');
+        $application->refresh();
+
+        $application->markAsHired('Accepted', performedBy: $actor->getKey());
+
+        Event::assertDispatched(
+            CandidateHired::class,
+            fn (CandidateHired $event): bool => $event->jobApplicationId === $application->getKey()
+                && $event->performedBy === $actor->getKey(),
+        );
+    }
+
+    public function test_hired_candidate_can_be_withdrawn(): void
     {
         [$jobPosting, $firstStage, $secondStage] = $this->createPipelineFixture('Hired Withdrawn');
 

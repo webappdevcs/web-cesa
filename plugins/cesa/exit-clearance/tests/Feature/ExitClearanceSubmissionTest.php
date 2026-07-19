@@ -2,6 +2,7 @@
 
 namespace Cesa\ExitClearance\Tests\Feature;
 
+use Cesa\ExitClearance\Events\ExitClearanceApproved;
 use Cesa\ExitClearance\Jobs\SendWhatsAppNotification;
 use Cesa\ExitClearance\Models\Approver;
 use Cesa\ExitClearance\Models\Department;
@@ -14,6 +15,7 @@ use Cesa\ExitClearance\Tests\ExitClearanceTestCase;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 
@@ -88,6 +90,7 @@ class ExitClearanceSubmissionTest extends ExitClearanceTestCase
 
     public function test_sync_overall_status_updates_request_status_from_approver_pivots(): void
     {
+        Event::fake([ExitClearanceApproved::class]);
         $service = app(ExitClearanceRequestService::class);
         $department = Department::factory()->create();
 
@@ -123,6 +126,10 @@ class ExitClearanceSubmissionTest extends ExitClearanceTestCase
 
         $approvedStatus = $service->syncOverallStatus($request->fresh('approvers'));
         $this->assertSame(ExitClearanceRequestService::FORM_STATUS_APPROVED, $approvedStatus);
+        Event::assertDispatched(
+            ExitClearanceApproved::class,
+            fn (ExitClearanceApproved $event): bool => $event->requestId === $request->getKey(),
+        );
     }
 
     public function test_exit_clearance_notifications_and_whatsapp_jobs_use_standard_queues(): void
