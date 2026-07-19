@@ -8,6 +8,7 @@ use Cesa\Kepegawaian\Models\EmployeeIdentifier;
 use Cesa\Kepegawaian\Services\EmployeeLifecycleBridge;
 use Cesa\Kepegawaian\Services\HrWorkflowService;
 use Cesa\Kepegawaian\Tests\KepegawaianIdentityTestCase;
+use LogicException;
 use Webkul\Security\Models\User;
 
 class EmployeeLifecycleBridgeTest extends KepegawaianIdentityTestCase
@@ -78,5 +79,25 @@ class EmployeeLifecycleBridgeTest extends KepegawaianIdentityTestCase
         $this->assertFalse($employee->refresh()->is_active);
         $this->assertSame('2026-08-31', $employee->departure_date);
         $this->assertSame('Mengundurkan diri.', $employee->departure_description);
+    }
+
+    public function test_recruitment_bridge_refuses_ambiguous_employee_email_matches(): void
+    {
+        foreach (['DUP-001', 'DUP-002'] as $code) {
+            Employee::query()->create([
+                'name'          => 'Duplicate Email '.$code,
+                'employee_code' => $code,
+                'private_email' => 'duplicate@example.com',
+                'is_active'     => true,
+            ]);
+        }
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('matched to more than one employee');
+
+        app(EmployeeLifecycleBridge::class)->hireFromRecruitment([
+            'name'  => 'Candidate Ambiguous',
+            'email' => 'duplicate@example.com',
+        ], 999);
     }
 }
