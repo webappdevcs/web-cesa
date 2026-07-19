@@ -276,6 +276,39 @@ class EmployeeJsonSyncServiceTest extends KepegawaianIdentityTestCase
         );
     }
 
+    public function test_reviewed_commit_rejects_a_staging_snapshot_with_a_changed_manifest(): void
+    {
+        $dryRun = $this->stage([$this->vendorRecord([
+            'id'          => 'vendor-manifest',
+            'id_employee' => 'EMP-MANIFEST',
+        ])]);
+        $sourceRecord = $dryRun->sourceRecords()->firstOrFail();
+
+        $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', (string) $dryRun->manifest_hash);
+
+        DB::table('employees_source_records')
+            ->whereKey($sourceRecord->id)
+            ->update(['checksum' => str_repeat('0', 64)]);
+
+        try {
+            $this->service()->commitReviewed(
+                $dryRun,
+                $this->actor(),
+                'Snapshot integrity reviewed.',
+            );
+
+            $this->fail('A modified staging snapshot must not be committed.');
+        } catch (LogicException $exception) {
+            $this->assertStringContainsString('manifest', Str::lower($exception->getMessage()));
+            $this->assertDatabaseMissing('employees_employees', ['employee_code' => 'EMP-MANIFEST']);
+            $this->assertDatabaseMissing('employees_sync_runs', [
+                'reviewed_run_id' => $dryRun->id,
+                'mode'            => 'commit',
+                'status'          => 'completed',
+            ]);
+        }
+    }
+
     public function test_missing_snapshot_rows_do_not_deactivate_existing_employees(): void
     {
         $employee = $this->createEmployee('EMP-STAYS-ACTIVE', 'Active Employee');
